@@ -1,0 +1,453 @@
+{
+  "name": "#2 Calendar checker",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "b3d19683-0f3f-4a61-bb08-3a058fb5b0ab",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [
+        -2040,
+        140
+      ],
+      "id": "73137fad-3c4f-40db-ae47-1e6844a15441",
+      "name": "Tool-Calendar-Webhook",
+      "webhookId": "b3d19683-0f3f-4a61-bb08-3a058fb5b0ab"
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={\n    \"results\": [\n        {\n            \"toolCallId\": \"{{ $('tool-call-name').item.json.body.message.toolWithToolCallList[0].toolCall.id }}\",\n            \"result\": \"{{ $json.Result }}\"\n        }\n    ]\n}",
+        "options": {
+          "responseCode": 200
+        }
+      },
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [
+        220,
+        0
+      ],
+      "id": "dc5e43f2-bd28-4f06-9820-7f8523244aa7",
+      "name": "Respond to Webhook"
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={\n    \"results\": [\n        {\n            \"toolCallId\": \"{{ $('tool-call-name').item.json.body.message.toolWithToolCallList[0].toolCall.id }}\",\n            \"result\": \"{{ $json.Output }}\"\n        }\n    ]\n}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [
+        240,
+        240
+      ],
+      "id": "cb3640eb-94ec-4e67-b866-6282bc27f1e3",
+      "name": "Respond to Webhook8"
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "7d7501f6-b357-4524-9c8d-75b29e1a820b",
+              "name": "startTime",
+              "value": "={{ $json.body.message.toolCalls[0].function.arguments.Requested_Time }}",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        -1540,
+        120
+      ],
+      "id": "05d07eaa-4c81-43e4-a804-3b17531d9048",
+      "name": "Start Time + Attempt"
+    },
+    {
+      "parameters": {
+        "url": "https://api.cal.com/v1/slots",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "calApi",
+        "sendQuery": true,
+        "queryParameters": {
+          "parameters": [
+            {
+              "name": "eventTypeId",
+              "value": "XXXXX"
+            },
+            {
+              "name": "startTime",
+              "value": "={{ $json.morningTime }}"
+            },
+            {
+              "name": "endTime",
+              "value": "={{ $json.afternoonTime }}"
+            },
+            {
+              "name": "timeZone",
+              "value": "America/New_York"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        -1080,
+        120
+      ],
+      "id": "c9bcf35b-5f7b-4cf8-9086-912178b452ce",
+      "name": "AvailSlots",
+      "notesInFlow": false,
+      "alwaysOutputData": false,
+      "credentials": {
+        "calApi": {
+          "id": "V0jNSzfD3Gi3bcww",
+          "name": "N8N X cal.com"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "df7e5dbc-826e-4763-9a85-87c8136155de",
+              "leftValue": "={{ $json.output }}",
+              "rightValue": "Yes",
+              "operator": {
+                "type": "string",
+                "operation": "equals",
+                "name": "filter.operator.equals"
+              }
+            },
+            {
+              "id": "b3b3bf22-826f-4a31-86fa-90fc686cbbe2",
+              "leftValue": "={{ $json.output }}",
+              "rightValue": "Yes.",
+              "operator": {
+                "type": "string",
+                "operation": "equals",
+                "name": "filter.operator.equals"
+              }
+            }
+          ],
+          "combinator": "or"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        -240,
+        120
+      ],
+      "id": "64ad9765-30e9-42fd-9366-39fff6e5d193",
+      "name": "If Time Busy"
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "ba93469a-3aa6-4f22-ad70-8be06d8c4719",
+              "name": "Result",
+              "value": "=Perfect your appointment will be booked for {{ $('Code2').item.json.startTime }}",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        0,
+        0
+      ],
+      "id": "008ab161-32a5-4417-861d-6c7c892b9e09",
+      "name": "+1 Day / Attempt"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "7fced170-16e0-4a5d-b3e2-1ac61c101be1",
+              "leftValue": "={{ $json.body.message.toolWithToolCallList[0].function.name }}",
+              "rightValue": "Requested_Time",
+              "operator": {
+                "type": "string",
+                "operation": "equals",
+                "name": "filter.operator.equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        -1800,
+        140
+      ],
+      "id": "2f5f0cbc-6f00-4903-9b18-9e705d277073",
+      "name": "tool-call-name"
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "ba93469a-3aa6-4f22-ad70-8be06d8c4719",
+              "name": "Output",
+              "value": "={{ $json.output }}",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        20,
+        240
+      ],
+      "id": "be8cdfa3-2a10-40e1-a0a2-acab91796a07",
+      "name": "+1 Day / Attempt5"
+    },
+    {
+      "parameters": {
+        "jsCode": "// For n8n Code node\n// This will generate both 9AM and 5PM formats with exact formatting\n\n// Loop through all input items\nfor (const item of items) {\n  // Try to find the date in the item\n  let dateString = null;\n  \n  // Check common locations for date strings\n  for (const key in item.json) {\n    const value = item.json[key];\n    if (typeof value === 'string' && value.match(/^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}/)) {\n      dateString = value;\n      break;\n    }\n  }\n  \n  // If we found a date string, process it\n  if (dateString) {\n    try {\n      const originalDate = new Date(dateString);\n      \n      // Extract date components\n      const year = originalDate.getFullYear();\n      const month = String(originalDate.getMonth() + 1).padStart(2, '0');\n      const day = String(originalDate.getDate()).padStart(2, '0');\n      \n      // Format for 9 AM - maintain exact format match with original\n      item.json.morningTime = `${year}-${month}-${day}T09:00:00`;\n      \n      // Format for 5 PM - maintain exact format match with original\n      item.json.afternoonTime = `${year}-${month}-${day}T17:00:00`;\n    } catch (error) {\n      // If there's an error parsing the date, store the error\n      item.json.error = `Failed to parse date: ${error.message}`;\n    }\n  } else {\n    // If we couldn't find a date string, note that\n    item.json.error = 'No date string found in input';\n  }\n}\n\n// Return the modified items\nreturn items;"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -1300,
+        120
+      ],
+      "id": "db0e4d2b-974d-4fb2-93f4-918f46beee3f",
+      "name": "Code2"
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "=Instructions:\nIf the requested time {{ $('Start Time + Attempt').item.json.startTime }} matches exactly with any time in the available slots list {{ $json.available_slots }}:\nRespond with:\nYes\n\nIf the requested time is not available:\n\nSearch the available slots on the same day as the requested slot.\n\nFind:\n\nThe closest available slot before the requested time.\n\nThe closest available slot after the requested time.\n\nRespond with:\nNo. How about [before_slot] or [after_slot]?\n\nIf it contains only a empty string and no time slots:\n\nRespond with:\nNo. Unfortunately, we don't have any available slots for {{ $('Start Time + Attempt').item.json.startTime }}",
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "typeVersion": 1.9,
+      "position": [
+        -620,
+        120
+      ],
+      "id": "301d3a6e-e7b9-4db4-912a-1e7e986c28e5",
+      "name": "AI Agent1"
+    },
+    {
+      "parameters": {
+        "jsCode": "const rawSlots = items[0].json.slots;\nlet allTimes = [];\n\nfor (const slotArray of Object.values(rawSlots)) {\n  for (const slot of slotArray) {\n    allTimes.push(`\"${slot.time}\"`);\n  }\n}\n\nconst formattedOutput = `{${allTimes.join(\", \")}}`;\n\nreturn [\n  {\n    json: {\n     available_slots: formattedOutput\n    }\n  }\n];\n"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -840,
+        120
+      ],
+      "id": "462e5538-83c9-4c37-84e3-b7320281d780",
+      "name": "Code3"
+    },
+    {
+      "parameters": {
+        "model": {
+          "__rl": true,
+          "value": "gpt-4o-mini",
+          "mode": "list",
+          "cachedResultName": "gpt-4o-mini"
+        },
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.lmChatOpenAi",
+      "typeVersion": 1.2,
+      "position": [
+        -620,
+        380
+      ],
+      "id": "ca44e678-d24f-474e-90f2-cb0dc6bd4adf",
+      "name": "OpenAI Chat Model1",
+      "credentials": {
+        "openAiApi": {
+          "id": "pq6Ws7AZsv9Fq3OF",
+          "name": "OpenAi account 2"
+        }
+      }
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Tool-Calendar-Webhook": {
+      "main": [
+        [
+          {
+            "node": "tool-call-name",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Start Time + Attempt": {
+      "main": [
+        [
+          {
+            "node": "Code2",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "AvailSlots": {
+      "main": [
+        [
+          {
+            "node": "Code3",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "If Time Busy": {
+      "main": [
+        [
+          {
+            "node": "+1 Day / Attempt",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "+1 Day / Attempt5",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "+1 Day / Attempt": {
+      "main": [
+        [
+          {
+            "node": "Respond to Webhook",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "tool-call-name": {
+      "main": [
+        [
+          {
+            "node": "Start Time + Attempt",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "+1 Day / Attempt5": {
+      "main": [
+        [
+          {
+            "node": "Respond to Webhook8",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code2": {
+      "main": [
+        [
+          {
+            "node": "AvailSlots",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "AI Agent1": {
+      "main": [
+        [
+          {
+            "node": "If Time Busy",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code3": {
+      "main": [
+        [
+          {
+            "node": "AI Agent1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "OpenAI Chat Model1": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "AI Agent1",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "versionId": "6bf0ffc9-01ba-4eaf-b614-4a7fe0be969a",
+  "meta": {
+    "instanceId": "77f1d8375380ee2bc4995763b4e39528bf040d446fc3e9e5f6d802ec19784049"
+  },
+  "id": "9uCs4IOqkhosML5O",
+  "tags": []
+}

@@ -1,0 +1,1106 @@
+{
+  "name": "Nano B Veo3 Skool Template",
+  "nodes": [
+    {
+      "parameters": {
+        "content": "## 🤖🍌 Nano Banana Ad Machine\n## | [Created by Chase AI](https://www.skool.com/chase-ai)\n\n## How it Works\n### - Trigger inside Airtable\n### - Grabs image + edit requests\n### - Creates edit request prompt for Nano 🍌\n### - Edit request sent via OpenRouter\n### - Image created then uploaded to Airtable\n### - User Designates Images to Video\n### - Image animated via Veo3 / Kie AI\n\n## APIs Needed\n### - [Airtable](https://docs.n8n.io/integrations/builtin/credentials/airtable/?utm_source=n8n_app&utm_medium=credential_settings&utm_campaign=create_new_credentials_modal)\n### - [OpenRouter](https://openrouter.ai/google/gemini-2.5-flash-image-preview/api)\n### - Kie.ai\n### - Your LLM of choice\n\n## Resources\n### - [Airtable Template 2.0](https://airtable.com/appV9g81YYEwdl3aK/shr6KLNUJ5PFvLTDZ) (Copy the base)\n### - [Custom GPT for edit ideas](https://chatgpt.com/g/g-68b8814502cc8191a115e5e438beff88-nano-b-content-machine)",
+        "height": 688,
+        "width": 512
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        -2208,
+        -1296
+      ],
+      "id": "aa88fdea-b88b-4ade-a0e7-e7c6e35805cd",
+      "name": "Sticky Note5"
+    },
+    {
+      "parameters": {
+        "path": "6435e315-f5da-433f-8ff5-bde7b2c5582b",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2.1,
+      "position": [
+        -1568,
+        -1296
+      ],
+      "id": "e73027c2-797d-4e19-8f70-751111ace18a",
+      "name": "Webhook",
+      "webhookId": "6435e315-f5da-433f-8ff5-bde7b2c5582b"
+    },
+    {
+      "parameters": {
+        "base": {
+          "__rl": true,
+          "value": "app60z3IR4l5miTAR",
+          "mode": "list",
+          "cachedResultName": "Nano Banana Ad Machine",
+          "cachedResultUrl": "https://airtable.com/app60z3IR4l5miTAR"
+        },
+        "table": {
+          "__rl": true,
+          "value": "tblCzppnhEo5uVeTq",
+          "mode": "list",
+          "cachedResultName": "Table 1",
+          "cachedResultUrl": "https://airtable.com/app60z3IR4l5miTAR/tblCzppnhEo5uVeTq"
+        },
+        "id": "={{ $json.query.recordId }}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.airtable",
+      "typeVersion": 2.1,
+      "position": [
+        -1392,
+        -1296
+      ],
+      "id": "da3015cb-c64c-42d0-a000-539c95833318",
+      "name": "Get Img URL",
+      "credentials": {
+        "airtableTokenApi": {
+          "id": "fygxhP9tF4d5sz36",
+          "name": "Airtable Personal Access Token account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "search",
+        "base": {
+          "__rl": true,
+          "value": "app60z3IR4l5miTAR",
+          "mode": "list",
+          "cachedResultName": "Nano Banana Ad Machine",
+          "cachedResultUrl": "https://airtable.com/app60z3IR4l5miTAR"
+        },
+        "table": {
+          "__rl": true,
+          "value": "tblCzppnhEo5uVeTq",
+          "mode": "list",
+          "cachedResultName": "NB_Ads",
+          "cachedResultUrl": "https://airtable.com/app60z3IR4l5miTAR/tblCzppnhEo5uVeTq"
+        },
+        "filterByFormula": "{Status} = \"Create\"",
+        "options": {
+          "fields": [
+            "ID",
+            "Status",
+            "Core Subject",
+            "Setting",
+            "Composition",
+            "Lighting",
+            "Style",
+            "Atmosphere",
+            "Color Palette",
+            "Text Overlay"
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.airtable",
+      "typeVersion": 2.1,
+      "position": [
+        -976,
+        -1296
+      ],
+      "id": "942384e1-cd52-40fb-b2f3-aaa8857fcb95",
+      "name": "Get Create Rows",
+      "credentials": {
+        "airtableTokenApi": {
+          "id": "fygxhP9tF4d5sz36",
+          "name": "Airtable Personal Access Token account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.lmChatGoogleGemini",
+      "typeVersion": 1,
+      "position": [
+        -1472,
+        -1040
+      ],
+      "id": "332b504f-af11-4ef9-9990-407fb9c5fe16",
+      "name": "Google Gemini Chat Model",
+      "credentials": {
+        "googlePalmApi": {
+          "id": "Stq1yjEutt0qZ84Q",
+          "name": "Free Gemini API Key"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "resource": "image",
+        "operation": "analyze",
+        "modelId": {
+          "__rl": true,
+          "value": "models/gemini-2.5-flash",
+          "mode": "list",
+          "cachedResultName": "models/gemini-2.5-flash"
+        },
+        "text": "=You are an expert AI creative analyst. Your purpose is to analyze an input image and deconstruct its visual and thematic elements into a clear, structured report. Your output must be only the plain text report as described below. Do not include any conversational filler or explanatory text.\n\nBased on the user's provided image, generate a report with the following structure and headings:\n\nDescription\nWrite a comprehensive, single-paragraph description of the entire image. Capture the subject, setting, style, and overall feeling of the scene.\n\nStyle Analysis\n\nCore Subject: Identify the main person, object, or focus of the image.\n\nSetting: Describe the background and environment of the subject.\n\nMedium: Specify the artistic medium (e.g., Commercial product photography, 3D render, oil painting, analog film photo).\n\nLighting: Describe the quality and source of the light (e.g., golden hour, studio lighting, neon glow).\n\nMood: Describe the overall feeling or atmosphere (e.g., serene, energetic, futuristic, nostalgic).\n\nComposition: Describe the framing and camera angle (e.g., centered, eye-level, low-angle, top-down).\n\nColor Palette: List the dominant colors and overall color scheme.\n\nText Overlay\nList and describe each distinct piece of text found in the image. If there is no text, simply write \"None.\"\n\nText 1\n\nText: Identify the exact text.\n\nFont: Describe the font style.\n\nEffect: Describe any visual effects on the font. If none, write \"None.\"\n\nColor: Identify the color of the text.\n\nPlacement: Describe where the text is located (e.g., center, bottom-left).\n\n(Repeat the \"Text #\" section for every additional piece of text in the image.)",
+        "imageUrls": "={{ $json.Picture[0].url }}",
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.googleGemini",
+      "typeVersion": 1,
+      "position": [
+        -1200,
+        -1296
+      ],
+      "id": "21b3696c-6d7c-4036-816f-4fdeb719c277",
+      "name": "Get Original Image Prompt",
+      "credentials": {
+        "googlePalmApi": {
+          "id": "Stq1yjEutt0qZ84Q",
+          "name": "Free Gemini API Key"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "=Prompt guidelines for the edited image:\n\nCore Subject: {{ $json['Core Subject'] }}\nComposition: {{ $json.Composition }}\nLighting: {{ $json.Lighting }}\nStyle: {{ $json.Style }}\nAtmosphere: {{ $json.Atmosphere }}\nColor Palette: {{ $json['Color Palette'] }}\nText Overlay: {{ $json['Text Overlay'] }}",
+        "messages": {
+          "messageValues": [
+            {
+              "message": "=Your goal is to create a prompt for an AI image editor. You will be given the Original Image prompt in your system prompt. The user will then provide you with prompt guidelines for the image edit they want to create.\n\nThese guidelines will include the Core Subject, Composition, Lighting, Style, Atmosphere, Color Palette, Setting, and Text Overlay. Some of these may be the same as the original image (no changes request) and some more be different.\n\nTake the edit guidelines, and create an image edit prompt that follows the same style as the original image prompt\n\nYour entire output must ONLY be the new prompt for the image edit. Do not include any introductory text or closing remarks\n\nOriginal Image prompt:{{ $('Get Original Image Prompt').item.json.content.parts[0].text }}\n\n"
+            }
+          ]
+        },
+        "batching": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.chainLlm",
+      "typeVersion": 1.7,
+      "position": [
+        -1280,
+        -1072
+      ],
+      "id": "522821f2-e2e1-4507-9ad1-c097a3cb9e45",
+      "name": "Nano Edit Prompt"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://openrouter.ai/api/v1/chat/completions",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"model\": \"google/gemini-2.5-flash-image-preview\",\n  \"messages\": [\n    {\n      \"role\": \"user\",\n      \"content\": [\n        {\n          \"type\": \"text\",\n          \"text\": {{ JSON.stringify(\n            'Original Image Prompt: ' +\n            $('Get Original Image Prompt').item.json.content.parts[0].text +\n            ' Requested Edit Prompt: ' +\n            $json.text\n          ) }}\n        },\n        {\n          \"type\": \"image_url\",\n          \"image_url\": {\n            \"url\": \"{{ $('Get Img URL').item.json.Picture[0].url }}\"\n          }\n        }\n      ]\n    }\n  ]\n}\n",
+        "options": {
+          "batching": {
+            "batch": {
+              "batchSize": 1,
+              "batchInterval": 5000
+            }
+          }
+        }
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        -1472,
+        -752
+      ],
+      "id": "c8f6aa21-d45a-496f-90f6-1d75d43f4811",
+      "name": "Nano B",
+      "alwaysOutputData": true,
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "mlCGDaBeRwIoiGBS",
+          "name": "OpenRouter"
+        }
+      },
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "=https://content.airtable.com/v0/app60z3IR4l5miTAR/{{ $('Get Create Rows').item.json.id }}/Nano%20Image/uploadAttachment",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "airtableTokenApi",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"contentType\": \"image/png\",\n  \"file\": \"{{ $('Nano B').item.json.choices[0].message.images[0].image_url.url }}\",\n  \"filename\": \"generated_image.png\"\n}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        -1264,
+        -848
+      ],
+      "id": "dfa5c778-3098-4b13-94d2-909ccdcf1a28",
+      "name": "Airtable Upload",
+      "credentials": {
+        "airtableTokenApi": {
+          "id": "fygxhP9tF4d5sz36",
+          "name": "Airtable Personal Access Token account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "update",
+        "base": {
+          "__rl": true,
+          "value": "app60z3IR4l5miTAR",
+          "mode": "list",
+          "cachedResultName": "Nano Banana Ad Machine",
+          "cachedResultUrl": "https://airtable.com/app60z3IR4l5miTAR"
+        },
+        "table": {
+          "__rl": true,
+          "value": "tblCzppnhEo5uVeTq",
+          "mode": "list",
+          "cachedResultName": "NB_Ads",
+          "cachedResultUrl": "https://airtable.com/app60z3IR4l5miTAR/tblCzppnhEo5uVeTq"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "Status": "Completed",
+            "ID": "={{ $('Get Create Rows').item.json.ID }}"
+          },
+          "matchingColumns": [
+            "ID"
+          ],
+          "schema": [
+            {
+              "id": "id",
+              "displayName": "id",
+              "required": false,
+              "defaultMatch": true,
+              "display": true,
+              "type": "string",
+              "readOnly": true,
+              "removed": true
+            },
+            {
+              "id": "ID",
+              "displayName": "ID",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "string",
+              "readOnly": true,
+              "removed": false
+            },
+            {
+              "id": "Picture",
+              "displayName": "Picture",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "array",
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "Status",
+              "displayName": "Status",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "options",
+              "options": [
+                {
+                  "name": "Create",
+                  "value": "Create"
+                },
+                {
+                  "name": "Completed",
+                  "value": "Completed"
+                },
+                {
+                  "name": "Error",
+                  "value": "Error"
+                }
+              ],
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "Core Subject",
+              "displayName": "Core Subject",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "Setting",
+              "displayName": "Setting",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "Composition",
+              "displayName": "Composition",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "Lighting",
+              "displayName": "Lighting",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "Style",
+              "displayName": "Style",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "Atmosphere",
+              "displayName": "Atmosphere",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "Color Palette",
+              "displayName": "Color Palette",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "Text Overlay",
+              "displayName": "Text Overlay",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "Nano Image",
+              "displayName": "Nano Image",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "array",
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "Trigger n8n Workflow",
+              "displayName": "Trigger n8n Workflow",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "string",
+              "readOnly": true,
+              "removed": true
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.airtable",
+      "typeVersion": 2.1,
+      "position": [
+        -1056,
+        -768
+      ],
+      "id": "ce15806b-ead4-4939-b68c-c72728074019",
+      "name": "Status Complete",
+      "credentials": {
+        "airtableTokenApi": {
+          "id": "fygxhP9tF4d5sz36",
+          "name": "Airtable Personal Access Token account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "update",
+        "base": {
+          "__rl": true,
+          "value": "app60z3IR4l5miTAR",
+          "mode": "list",
+          "cachedResultName": "Nano Banana Ad Machine",
+          "cachedResultUrl": "https://airtable.com/app60z3IR4l5miTAR"
+        },
+        "table": {
+          "__rl": true,
+          "value": "tblCzppnhEo5uVeTq",
+          "mode": "list",
+          "cachedResultName": "NB_Ads",
+          "cachedResultUrl": "https://airtable.com/app60z3IR4l5miTAR/tblCzppnhEo5uVeTq"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "Status": "Error"
+          },
+          "matchingColumns": [
+            "id"
+          ],
+          "schema": [
+            {
+              "id": "id",
+              "displayName": "id",
+              "required": false,
+              "defaultMatch": true,
+              "display": true,
+              "type": "string",
+              "readOnly": true,
+              "removed": false
+            },
+            {
+              "id": "ID",
+              "displayName": "ID",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "string",
+              "readOnly": true,
+              "removed": true
+            },
+            {
+              "id": "Picture",
+              "displayName": "Picture",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "array",
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "Status",
+              "displayName": "Status",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "options",
+              "options": [
+                {
+                  "name": "Create",
+                  "value": "Create"
+                },
+                {
+                  "name": "Completed",
+                  "value": "Completed"
+                },
+                {
+                  "name": "Error",
+                  "value": "Error"
+                }
+              ],
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "Core Subject",
+              "displayName": "Core Subject",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "Setting",
+              "displayName": "Setting",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "Composition",
+              "displayName": "Composition",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "Lighting",
+              "displayName": "Lighting",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "Style",
+              "displayName": "Style",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "Atmosphere",
+              "displayName": "Atmosphere",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "Color Palette",
+              "displayName": "Color Palette",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "Text Overlay",
+              "displayName": "Text Overlay",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "Nano Image",
+              "displayName": "Nano Image",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "array",
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "Trigger n8n Workflow",
+              "displayName": "Trigger n8n Workflow",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "string",
+              "readOnly": true,
+              "removed": true
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.airtable",
+      "typeVersion": 2.1,
+      "position": [
+        -1264,
+        -672
+      ],
+      "id": "a16cdceb-58c7-4ef6-b7ee-a636c5cfb7cf",
+      "name": "Status Error",
+      "credentials": {
+        "airtableTokenApi": {
+          "id": "fygxhP9tF4d5sz36",
+          "name": "Airtable Personal Access Token account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "content": "##  Get Data",
+        "height": 240,
+        "width": 800,
+        "color": 3
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        -1600,
+        -1360
+      ],
+      "id": "e05f3d7b-cdb3-4061-8206-71daa517ead9",
+      "name": "Sticky Note"
+    },
+    {
+      "parameters": {
+        "content": "## Create & Upload Image",
+        "height": 384,
+        "width": 800,
+        "color": 5
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        -1600,
+        -896
+      ],
+      "id": "06a57582-d0b3-4280-8dae-71b9dfe4a6aa",
+      "name": "Sticky Note3"
+    },
+    {
+      "parameters": {
+        "content": "## Create Prompt",
+        "height": 224,
+        "width": 800,
+        "color": 4
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        -1600,
+        -1120
+      ],
+      "id": "08c9cf8d-9319-467b-b5a8-518a173a08a7",
+      "name": "Sticky Note2"
+    },
+    {
+      "parameters": {
+        "path": "e3b2ee9a-fd4f-4f7c-bb87-007a78f989fe",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2.1,
+      "position": [
+        -688,
+        -1200
+      ],
+      "id": "c835f96e-f8f0-4ef4-8c50-b1deaea8e4b9",
+      "name": "Veo3 Webhook",
+      "webhookId": "e3b2ee9a-fd4f-4f7c-bb87-007a78f989fe"
+    },
+    {
+      "parameters": {
+        "base": {
+          "__rl": true,
+          "value": "app60z3IR4l5miTAR",
+          "mode": "list",
+          "cachedResultName": "Nano Banana Ad Machine",
+          "cachedResultUrl": "https://airtable.com/app60z3IR4l5miTAR"
+        },
+        "table": {
+          "__rl": true,
+          "value": "tblCzppnhEo5uVeTq",
+          "mode": "list",
+          "cachedResultName": "Table 1",
+          "cachedResultUrl": "https://airtable.com/app60z3IR4l5miTAR/tblCzppnhEo5uVeTq"
+        },
+        "id": "={{ $json.query.recordId }}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.airtable",
+      "typeVersion": 2.1,
+      "position": [
+        -528,
+        -1200
+      ],
+      "id": "c7b9e80a-e051-4482-81cc-641d906dd542",
+      "name": "Get URL + Prompt",
+      "credentials": {
+        "airtableTokenApi": {
+          "id": "fygxhP9tF4d5sz36",
+          "name": "Airtable Personal Access Token account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.kie.ai/api/v1/veo/generate",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"prompt\": {{ JSON.stringify($json.candidates[0].content.parts[0].text) }},\n  \"imageUrls\": [\n    {{ JSON.stringify($('Get URL + Prompt').item.json['Nano Image'][0].url) }}\n  ],\n  \"model\": \"veo3_fast\",\n  \"callbackUrl\": {{ JSON.stringify($execution.resumeUrl) }},\n  \"aspectRatio\": \"16:9\",\n  \"seeds\": 12345,\n  \"enableFallback\": false\n}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        -224,
+        -1200
+      ],
+      "id": "1138f1c1-aa20-4905-b351-89b1e10e043b",
+      "name": "Create Veo 3 Video Kie.AI",
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "FcTxyxYYhQsQgT9A",
+          "name": "Kie.AI"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "resource": "image",
+        "operation": "analyze",
+        "modelId": {
+          "__rl": true,
+          "value": "models/gemini-2.5-flash",
+          "mode": "list",
+          "cachedResultName": "models/gemini-2.5-flash"
+        },
+        "text": "=User's prompt: {{ $json['Video Prompt'] }}\n\n\n\n\nYou are an expert AI assistant named \"AI Animation Director.\" Your purpose is to function as a creative partner to a user. You will receive two inputs: 1) a source image and 2) the user's initial creative prompt for animating that image. Your job is to analyze both inputs in tandem, harmonize the user's ideas with the visual content of the image, and then elevate the concept into a masterfully detailed, cinematic, and effective prompt for an advanced image-to-video generation model.\n\n## Core Process\n\nYour process is to synthesize, refine, and enhance. When you receive the user's prompt and the image, you will follow this chain of thought:\n\nDual Input Analysis: Concurrently analyze the two data points:\n\nThe User's Prompt: Deconstruct the user's text. Identify keywords, desired actions (e.g., \"wind blowing,\" \"car driving\"), mood (e.g., \"peaceful,\" \"epic,\" \"melancholy\"), and any specified stylistic elements (e.g., \"like a Ghibli movie,\" \"hyperrealistic\").\n\nThe Source Image: Meticulously analyze the image's content. Identify the primary subject, secondary elements, environment, lighting, composition, and overall atmosphere. Look for visual details that can be used to bring the user's prompt to life.\n\nHarmonize & Synthesize: Your primary goal is to honor and build upon the user's creative intent.\n\nFind the direct connections between the prompt and the image. If the user asks for \"wind blowing,\" identify hair, clothing, trees, or grass in the image that can plausibly move.\n\nTranslate abstract user ideas into concrete visual actions. If the user says \"make it feel nostalgic,\" you should suggest animations like dust motes floating in a sunbeam, a subtle film grain effect, or a slow zoom that focuses on a thoughtful expression.\n\nCreative Elaboration & Problem-Solving:\n\nEnhance, Don't Replace: Use the user's prompt as the core foundation. Your role is to add layers of professional, cinematic detail. Suggest specific camera movements, atmospheric effects, and subtle secondary animations that support the user's main idea.\n\nHandle Contradictions: If the user's prompt requests something not explicitly in the image (e.g., \"add rain\" to a sunny photo), creatively bridge the gap. Your prompt could describe the sky darkening, clouds rolling in, and the first few drops beginning to fall, making the request a plausible event within the scene.\n\nStructure the Final Prompt: Assemble all the synthesized and enhanced ideas into a clear, structured, and evocative prompt, using the format below.\n\n## Output Format\n\nYour final output must be ONLY the optimized prompt, formatted clearly for the downstream image-to-video model. Structure your response using the following template. If a section is not relevant to the user's request, omit it.\n\n**Primary Subject Animation:**\n[Detailed description of the main subject's movement, directly based on and expanding the user's prompt.]\n\n**Environmental & Background Animation:**\n[Description of movement in the background that supports the main action and mood.]\n\n**Atmospheric Effects:**\n[Description of weather, light, or VFX that enhance the user's desired atmosphere.]\n\n**Camera Movement:**\n[Specific instructions for the virtual camera that add dynamism and focus to the user's concept.]\n\n**Overall Style:**\n[A brief summary of the final video's aesthetic, incorporating and refining the user's stylistic notes.]\n## Example Interaction\n\nUser Provides:\n\nImage: A close-up, black-and-white photo of an elderly man with deep wrinkles, looking thoughtfully out of a window.\n\nUser Prompt: \"I want to show him remembering a happy memory.\"\n\nYour Optimized Output (What you will generate):\n\n**Primary Subject Animation:**\nThe man's eyes, which are focused on something outside the window, slowly soften their gaze as if looking inward. The corners of his mouth curl into a very faint, subtle smile. He takes a slow, peaceful breath.\n\n**Environmental & Background Animation:**\nOutside the window, the scene remains out of focus, with dust motes dancing lazily in the slivers of sunlight. The light streaming through the window gradually grows warmer in color temperature, shifting from neutral white to a soft golden hue.\n\n**Atmospheric Effects:**\nA very subtle rack focus effect occurs, softening the background even further and pulling sharp focus to the man's eyes. Introduce a faint, almost imperceptible film grain to enhance the feeling of memory and nostalgia.\n\n**Camera Movement:**\nAn extremely slow, almost imperceptible dolly zoom, pushing in on the man's face over the duration of the clip to heighten the sense of intimacy with his thoughts.\n\n**Overall Style:**\nIntrospective, nostalgic, and poignant. Black and white with a subtle warming effect. Highly realistic, 8K,\n\nOUTPUT INSTRUCTIONS\n\nENSURE YOUR OUTPUT IS SIMPLY ONE, LONG CONTINUOUS STRING. NO NEW LINES. NO NEW LINES.",
+        "imageUrls": "={{ $json['Nano Image'][0].url }}",
+        "simplify": false,
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.googleGemini",
+      "typeVersion": 1,
+      "position": [
+        -384,
+        -1200
+      ],
+      "id": "8e170408-2618-4580-bd3e-464e8721ab98",
+      "name": "Prompt Optimizer",
+      "retryOnFail": true,
+      "credentials": {
+        "googlePalmApi": {
+          "id": "Stq1yjEutt0qZ84Q",
+          "name": "Free Gemini API Key"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "url": "={{ $json.body.data.info.resultUrls[0] }}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        -528,
+        -976
+      ],
+      "id": "b76e2243-c3f3-45ea-848b-b93191299007",
+      "name": "HTTP Request"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "=https://content.airtable.com/v0/app60z3IR4l5miTAR/{{ $('Veo3 Webhook').item.json.query.recordId }}/Veo3%20Video/uploadAttachment",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "airtableTokenApi",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"contentType\": \"video/mp4\",\n  \"file\": \"{{ $json.data }}\",\n  \"filename\": \"generated_video.mp4\"\n}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        -224,
+        -976
+      ],
+      "id": "f7bafcc2-bd0d-4f99-871f-9848c94572b6",
+      "name": "Airtable Upload2",
+      "credentials": {
+        "airtableTokenApi": {
+          "id": "fygxhP9tF4d5sz36",
+          "name": "Airtable Personal Access Token account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "binaryToPropery",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.extractFromFile",
+      "typeVersion": 1,
+      "position": [
+        -368,
+        -976
+      ],
+      "id": "86ed9915-0219-408c-8482-923079429bed",
+      "name": "Extract from File"
+    },
+    {
+      "parameters": {
+        "resume": "webhook",
+        "httpMethod": "POST",
+        "limitWaitTime": true,
+        "resumeAmount": 3,
+        "resumeUnit": "minutes",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.wait",
+      "typeVersion": 1.1,
+      "position": [
+        -672,
+        -976
+      ],
+      "id": "6bf157f4-eb75-4c0e-8abf-7ebcbe16c664",
+      "name": "Wait",
+      "webhookId": "8c730ed2-5b32-4ce6-9c6a-078db92a0cb4"
+    },
+    {
+      "parameters": {
+        "content": "## Veo 3 Workflow",
+        "height": 480,
+        "width": 752,
+        "color": 6
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        -752,
+        -1280
+      ],
+      "id": "18e7148a-be26-4500-af7e-5742d56263e2",
+      "name": "Sticky Note1"
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Webhook": {
+      "main": [
+        [
+          {
+            "node": "Get Img URL",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get Img URL": {
+      "main": [
+        [
+          {
+            "node": "Get Original Image Prompt",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get Create Rows": {
+      "main": [
+        [
+          {
+            "node": "Nano Edit Prompt",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Google Gemini Chat Model": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "Nano Edit Prompt",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get Original Image Prompt": {
+      "main": [
+        [
+          {
+            "node": "Get Create Rows",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Nano Edit Prompt": {
+      "main": [
+        [
+          {
+            "node": "Nano B",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Nano B": {
+      "main": [
+        [
+          {
+            "node": "Airtable Upload",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Status Error",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Airtable Upload": {
+      "main": [
+        [
+          {
+            "node": "Status Complete",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Veo3 Webhook": {
+      "main": [
+        [
+          {
+            "node": "Get URL + Prompt",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get URL + Prompt": {
+      "main": [
+        [
+          {
+            "node": "Prompt Optimizer",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Create Veo 3 Video Kie.AI": {
+      "main": [
+        [
+          {
+            "node": "Wait",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Prompt Optimizer": {
+      "main": [
+        [
+          {
+            "node": "Create Veo 3 Video Kie.AI",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "HTTP Request": {
+      "main": [
+        [
+          {
+            "node": "Extract from File",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Extract from File": {
+      "main": [
+        [
+          {
+            "node": "Airtable Upload2",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Wait": {
+      "main": [
+        [
+          {
+            "node": "HTTP Request",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "versionId": "ab291ac4-fa8d-4044-ad54-2ef32b957e34",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "858b0696cb7e4c2d54a791ff0d9e4a3cddc7a852434a593789da95c43379b467"
+  },
+  "id": "EKURRTJ3W4riRn9k",
+  "tags": []
+}

@@ -1,0 +1,187 @@
+services:
+  # =============================================================================
+  # PostgreSQL Database with pgvector Extension
+  # =============================================================================
+  postgres:
+    image: pgvector/pgvector:pg14
+    container_name: brand-infinity-postgres
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-brand_infinity}
+      POSTGRES_USER: ${POSTGRES_USER:-postgres}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_INITDB_ARGS: "-E UTF8 --locale=en_US.UTF-8"
+    ports:
+      - "${POSTGRES_PORT:-5432}:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./database/schema.sql:/docker-entrypoint-initdb.d/01_schema.sql
+      - ./database/migrations:/docker-entrypoint-initdb.d/migrations
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-postgres}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - brand-infinity-network
+    restart: unless-stopped
+
+  # =============================================================================
+  # Redis Cache
+  # =============================================================================
+  redis:
+    image: redis:7-alpine
+    container_name: brand-infinity-redis
+    command: >
+      sh -lc 'if [ -n "${REDIS_PASSWORD}" ]; then
+                exec redis-server --appendonly yes --requirepass "${REDIS_PASSWORD}";
+              else
+                exec redis-server --appendonly yes;
+              fi'
+    ports:
+      - "${REDIS_PORT:-6379}:6379"
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: >
+        sh -c 'if [ -n "${REDIS_PASSWORD}" ]; then \
+                redis-cli -a "${REDIS_PASSWORD}" ping | grep -q PONG; \
+              else \
+                redis-cli ping | grep -q PONG; \
+              fi'
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - brand-infinity-network
+    restart: unless-stopped
+
+  # =============================================================================
+  # n8n Workflow Automation
+  # =============================================================================
+  n8n:
+    image: n8nio/n8n:latest
+    container_name: brand-infinity-n8n
+    profiles: ["local"]
+    environment:
+      # Basic Configuration
+      - N8N_HOST=${N8N_HOST:-localhost}
+      - N8N_PORT=5678
+      - N8N_PROTOCOL=${N8N_PROTOCOL:-https}
+      - WEBHOOK_URL=${N8N_WEBHOOK_URL}
+      
+      # Authentication
+      - N8N_BASIC_AUTH_ACTIVE=${N8N_BASIC_AUTH_ACTIVE:-true}
+      - N8N_BASIC_AUTH_USER=${N8N_BASIC_AUTH_USER:-admin}
+      - N8N_BASIC_AUTH_PASSWORD=${N8N_BASIC_AUTH_PASSWORD}
+      
+      # Database Configuration
+      - DB_TYPE=postgresdb
+      - DB_POSTGRESDB_HOST=postgres
+      - DB_POSTGRESDB_PORT=5432
+      - DB_POSTGRESDB_DATABASE=${N8N_DATABASE_POSTGRESDB_DATABASE:-n8n}
+      - DB_POSTGRESDB_USER=${POSTGRES_USER:-postgres}
+      - DB_POSTGRESDB_PASSWORD=${POSTGRES_PASSWORD}
+      
+      # Encryption
+      - N8N_ENCRYPTION_KEY=${N8N_ENCRYPTION_KEY}
+      
+      # Execution
+      - EXECUTIONS_DATA_SAVE_ON_ERROR=all
+      - EXECUTIONS_DATA_SAVE_ON_SUCCESS=all
+      - EXECUTIONS_DATA_SAVE_ON_PROGRESS=true
+      - EXECUTIONS_DATA_SAVE_MANUAL_EXECUTIONS=true
+      
+      # Timezone
+      - GENERIC_TIMEZONE=America/New_York
+      
+      # Logging
+      - N8N_LOG_LEVEL=${LOG_LEVEL:-info}
+      - N8N_LOG_OUTPUT=console
+    ports:
+      - "${N8N_PORT:-5678}:5678"
+    volumes:
+      - n8n_data:/home/node/.n8n
+      - ./workflows:/workflows
+      - ./utils:/utils
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    networks:
+      - brand-infinity-network
+    restart: unless-stopped
+
+  # =============================================================================
+  # Optional: pgAdmin (Database Management UI)
+  # Uncomment to enable web-based database administration
+  # =============================================================================
+  # pgadmin:
+  #   image: dpage/pgadmin4:latest
+  #   container_name: brand-infinity-pgadmin
+  #   environment:
+  #     PGADMIN_DEFAULT_EMAIL: admin@brandinfinity.com
+  #     PGADMIN_DEFAULT_PASSWORD: ${POSTGRES_PASSWORD}
+  #     PGADMIN_CONFIG_SERVER_MODE: 'False'
+  #   ports:
+  #     - "5050:80"
+  #   volumes:
+  #     - pgadmin_data:/var/lib/pgadmin
+  #   depends_on:
+  #     - postgres
+  #   networks:
+  #     - brand-infinity-network
+  #   restart: unless-stopped
+
+  # =============================================================================
+  # Optional: Redis Commander (Redis Management UI)
+  # Uncomment to enable web-based Redis administration
+  # =============================================================================
+  # redis-commander:
+  #   image: rediscommander/redis-commander:latest
+  #   container_name: brand-infinity-redis-commander
+  #   environment:
+  #     - REDIS_HOSTS=local:redis:6379
+  #     - REDIS_PASSWORD=${REDIS_PASSWORD:-}
+  #   ports:
+  #     - "8081:8081"
+  #   depends_on:
+  #     - redis
+  #   networks:
+  #     - brand-infinity-network
+  #   restart: unless-stopped
+
+# =============================================================================
+# Networks
+# =============================================================================
+networks:
+  brand-infinity-network:
+    driver: bridge
+    name: brand-infinity-network
+
+# =============================================================================
+# Volumes
+# =============================================================================
+volumes:
+  postgres_data:
+    name: brand-infinity-postgres-data
+  redis_data:
+    name: brand-infinity-redis-data
+  n8n_data:
+    name: brand-infinity-n8n-data
+  # pgadmin_data:
+  #   name: brand-infinity-pgadmin-data
+
+# =============================================================================
+# Usage Instructions
+# =============================================================================
+# 1. Copy .env.example to .env and fill in your credentials
+# 2. Start all services: docker-compose up -d
+# 3. View logs: docker-compose logs -f
+# 4. Stop all services: docker-compose down
+# 5. Stop and remove volumes: docker-compose down -v
+# 6. Restart a service: docker-compose restart <service-name>
+# 7. Access n8n: https://localhost:5678
+# 8. Access pgAdmin (if enabled): http://localhost:5050
+# 9. Access Redis Commander (if enabled): http://localhost:8081
+# =============================================================================

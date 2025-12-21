@@ -1,0 +1,1922 @@
+{
+  "name": "Agentic RAG Template",
+  "nodes": [
+    {
+      "parameters": {},
+      "id": "a3f12134-027c-4147-9a3d-bdd8bb191a63",
+      "name": "Start Here",
+      "type": "n8n-nodes-base.manualTrigger",
+      "typeVersion": 1,
+      "position": [
+        -512,
+        784
+      ],
+      "disabled": true
+    },
+    {
+      "parameters": {
+        "jsCode": "// This version of the code is updated to get the file name from the\n// node named 'IF' in the workflow.\n\n// --- HELPER FUNCTIONS ---\n\nfunction sanitizeName(name) {\n  if (!name) {\n    return null;\n  }\n  \n  const lastDotIndex = name.lastIndexOf('.');\n  const baseName = (lastDotIndex > 0) ? name.substring(0, lastDotIndex) : name;\n\n  return baseName.toString().toLowerCase()\n    .replace(/\\s+/g, '_')\n    .replace(/[^\\w]/g, '_')\n    .replace(/_{2,}/g, '_')\n    .replace(/^_+|_+$/g, '');\n}\n\n// Converts Excel serial number to a JavaScript Date object\nfunction excelSerialToDate(serial) {\n  if (typeof serial !== 'number' || serial < 1) {\n    return null;\n  }\n  const utc_days  = Math.floor(serial - 25569);\n  const date = new Date(utc_days * 86400 * 1000);\n  const timezoneOffset = date.getTimezoneOffset() * 60000;\n  return new Date(date.getTime() + timezoneOffset);\n}\n\n\nfunction inferDataType(header, values) {\n  // Check the column header for date-related keywords first.\n  const sanitizedHeader = sanitizeName(header);\n  const dateKeywords = ['date', 'day', 'time', 'hire', 'join', 'created', 'updated', 'modified'];\n  const headerIsDateHint = dateKeywords.some(keyword => sanitizedHeader.includes(keyword));\n\n  let isInteger = true;\n  let isNumeric = true;\n  let isDate = true;\n  let isExcelSerial = true;\n  const dateRegex = /^\\d{4}-\\d{2}-\\d{2}|\\d{1,2}\\/\\d{1,2}\\/\\d{4}/;\n\n  for (const value of values) {\n    if (value === null || value === undefined || value === '') continue;\n    const strValue = String(value);\n    if (isInteger && !/^-?\\d+$/.test(strValue)) isInteger = false;\n    if (isNumeric && isNaN(Number(strValue.replace(/[$,]/g, '')))) isNumeric = false;\n    \n    if (isDate && (!dateRegex.test(strValue) || isNaN(Date.parse(strValue)))) {\n        isDate = false;\n    }\n    \n    if (isExcelSerial) {\n        const numValue = Number(strValue);\n        if (isNaN(numValue) || numValue < 1) {\n            isExcelSerial = false;\n        }\n    }\n  }\n  \n  // PRIMARY LOGIC: If the header suggests a date AND the content looks like a date, we are confident.\n  if (headerIsDateHint && (isDate || isExcelSerial)) {\n      if (isDate) return 'DATE';\n      if (isExcelSerial) return 'EXCEL_SERIAL_DATE';\n  }\n\n  // CORRECTED FALLBACK LOGIC: If the header doesn't provide a hint, be more specific.\n  // This prevents misidentifying numeric IDs as dates.\n  if (isInteger) return 'INTEGER';\n  if (isNumeric) return 'NUMERIC';\n  if (isDate) return 'DATE'; // Standard dates without a keyword header\n  if (isExcelSerial) return 'EXCEL_SERIAL_DATE'; // Excel dates without a keyword header\n  return 'TEXT';\n}\n\n// --- MAIN LOGIC ---\n\nconst fileName = $('If').item.json.name;\nconst tableName = sanitizeName(fileName);\n\nconst items = $input.all();\n\nif (items.length === 0) {\n  return [{ json: { error: \"Input data is missing or empty.\" } }];\n}\n\nconst firstItem = items[0].json;\nconst headers = Object.keys(firstItem);\nconst samples = items.map(item => item.json);\n\nconst schema = {};\nconst columnDefinitions = [];\n\nfor (const header of headers) {\n  const sanitizedHeader = sanitizeName(header);\n  const columnValues = samples.map(sample => sample[header]);\n  // Pass the original header to the inference function\n  let dataType = inferDataType(header, columnValues);\n  \n  if (dataType === 'EXCEL_SERIAL_DATE') {\n      schema[header] = dataType;\n      columnDefinitions.push(`\"${sanitizedHeader}\" DATE`);\n  } else {\n      schema[header] = dataType;\n      columnDefinitions.push(`\"${sanitizedHeader}\" ${dataType}`);\n  }\n}\n\nconst createQuery = `CREATE TABLE IF NOT EXISTS public.\"${tableName}\" (\n  \"n8n_id\" SERIAL PRIMARY KEY,\n  ${columnDefinitions.join(',\\n  ')}\n);`;\n\nconst cleanedData = items.map(item => {\n  const newRow = {};\n  for (const header of headers) {\n    const sanitizedHeader = sanitizeName(header);\n    const dataType = schema[header];\n    let value = item.json[header];\n    \n    if (dataType === 'EXCEL_SERIAL_DATE' && typeof value === 'number') {\n        const date = excelSerialToDate(value);\n        value = date ? date.toISOString().split('T')[0] : null; // Format as YYYY-MM-DD\n    } else if ((dataType === 'INTEGER' || dataType === 'NUMERIC') && typeof value === 'string') {\n      value = Number(String(value).replace(/[$,]/g, ''));\n      if (isNaN(value)) value = null;\n    } else if (dataType === 'DATE' && value) {\n      const date = new Date(value);\n      if (!isNaN(date.getTime())) {\n        value = date.toISOString();\n      } else {\n        value = null;\n      }\n    }\n    newRow[sanitizedHeader] = value;\n  }\n  return newRow;\n});\n\nreturn [{\n  json: {\n    createQuery,\n    tableName,\n    cleanedData,\n  }\n}];\n"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        672,
+        576
+      ],
+      "id": "5a132930-386d-4b73-8101-93d08dab9c75",
+      "name": "Code"
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "{{ $json.createQuery }}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [
+        912,
+        464
+      ],
+      "id": "2e167b4a-8a7c-49c1-8ad6-fd7ac9057187",
+      "name": "Execute a SQL query",
+      "credentials": {
+        "postgres": {
+          "id": "fUf1F8ooMp5G8rrM",
+          "name": "SQL-RAG"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "fieldToSplitOut": "cleanedData",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.splitOut",
+      "typeVersion": 1,
+      "position": [
+        912,
+        624
+      ],
+      "id": "e24d05aa-3f60-4a73-944e-4740a9b20689",
+      "name": "Split Out"
+    },
+    {
+      "parameters": {
+        "schema": {
+          "__rl": true,
+          "mode": "list",
+          "value": "public"
+        },
+        "table": {
+          "__rl": true,
+          "value": "={{ $('Code').item.json.tableName }}",
+          "mode": "name"
+        },
+        "columns": {
+          "mappingMode": "autoMapInputData",
+          "value": {},
+          "matchingColumns": [],
+          "schema": [
+            {
+              "id": "n8n_id",
+              "displayName": "n8n_id",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "number",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "order_id",
+              "displayName": "order_id",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "number",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "order_date",
+              "displayName": "order_date",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "dateTime",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "customer_email",
+              "displayName": "customer_email",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "first_name",
+              "displayName": "first_name",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "last_name",
+              "displayName": "last_name",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "shipping_address",
+              "displayName": "shipping_address",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "product_sku",
+              "displayName": "product_sku",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "product_name",
+              "displayName": "product_name",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "category",
+              "displayName": "category",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "status",
+              "displayName": "status",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "quantity",
+              "displayName": "quantity",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "number",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "price_per_item",
+              "displayName": "price_per_item",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "number",
+              "canBeUsedToMatch": true
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [
+        1120,
+        624
+      ],
+      "id": "44fb62d6-5bd7-46bd-9e01-1cbfe9cf65df",
+      "name": "Insert rows in a table",
+      "credentials": {
+        "postgres": {
+          "id": "fUf1F8ooMp5G8rrM",
+          "name": "SQL-RAG"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "options": {
+          "systemMessage": "=You are a master data analyst. Your primary role is to provide accurate answers by intelligently routing user questions to the correct data source: either a SQL database for quantitative analysis or a GraphRAG knowledge base for conceptual and qualitative questions.\n\n## Core Decision-Making Workflow\nAnalyze User Intent: First, carefully examine the user's question to determine its nature. Are they asking for a specific number, a list, and an aggregation (quantitative)? Or are they asking for a summary, an explanation, or insights from a document (qualitative)?\n\nSelect the Correct Tool: Based on your analysis, choose the appropriate tool for the job.\n\nExecute and Respond: Follow the specific instructions for your chosen toolset below.\n\n## Tool Selection Guidelines\nWhen to use the SQL Database Tools (get_database_schema, execute_sql_query)\nChoose this path for questions about structured data, metrics, and exact figures. The query will likely involve:\n\nKeywords: \"how many\", \"what is the total/average\", \"list all\", \"count\", \"top 5\", \"sum\", \"who\", \"when\".\n\nTasks: Calculations, aggregations, filtering for specific records, and retrieving lists of data from tables.\n\nExample: \"What were the total sales for the 'Gadgets' category last month?\"\n\nWhen to use the GraphRAG Tool (GraphRAG)\nChoose this path for questions about unstructured information, summaries, and conceptual knowledge found in text documents. The query will likely involve:\n\nKeywords: \"explain\", \"summarize\", \"what are the key points of\", \"describe\", \"why\".\n\nTasks: Retrieving thematic insights, understanding document content, and answering knowledge-based questions.\n\nExample: \"Summarize the findings from the Q3 2025 market analysis report.\"\n\n## 📜 Instructions for SQL Database Tools\nIf you determine the question is for the SQL database, you are a helpful SQL database analyst. Follow this sub-workflow precisely:\n\nSchema Discovery: ALWAYS start by using get_database_schema to understand available tables and columns.\n\nExecute Query: Run your SQL query based on the user's request.\n\nProvide Analysis: After getting results, explain your findings with context.\n\nQuery Approach: Default to single tables unless the user explicitly requests a JOIN.\n\nResponse Format:\n\nResults: Present the data clearly.\n\nAnalysis: Explain what the results show.\n\nInsights: Highlight key patterns.\n\nLimitations: Mention any constraints.\n\nError Handling: If results are empty, suggest alternatives. If a JOIN makes sense but wasn't requested, mention it as a follow-up option.\n\n## 🧠 Instructions for the GraphRAG Tool\nIf you determine the question is for the GraphRAG tool, follow this sub-workflow precisely:\n\nRoute your question to the graphRAG tool with a single call. Once you get the response, return that exact response to the user immediately without any modifications, simply format it nicely."
+        }
+      },
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "typeVersion": 2.2,
+      "position": [
+        -144,
+        16
+      ],
+      "id": "9c4a78d3-f3ad-43b4-b48a-02ba1ff71bbd",
+      "name": "AI Agent"
+    },
+    {
+      "parameters": {
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.chatTrigger",
+      "typeVersion": 1.3,
+      "position": [
+        -336,
+        16
+      ],
+      "id": "928a3e8b-4610-4991-aea1-19e3bdc3aa65",
+      "name": "When chat message received",
+      "webhookId": "14167d89-491b-4ec7-9461-5daaf8f4a2fc"
+    },
+    {
+      "parameters": {
+        "model": {
+          "__rl": true,
+          "value": "gpt-5-mini",
+          "mode": "list",
+          "cachedResultName": "gpt-5-mini"
+        },
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.lmChatOpenAi",
+      "typeVersion": 1.2,
+      "position": [
+        -368,
+        224
+      ],
+      "id": "d10d0dc0-14c0-485f-b46a-e1291a1a78f2",
+      "name": "OpenAI Chat Model",
+      "credentials": {
+        "openAiApi": {
+          "id": "kX5rZbh5l5A7I4I7",
+          "name": "OpenAi account"
+        }
+      }
+    },
+    {
+      "parameters": {},
+      "type": "@n8n/n8n-nodes-langchain.memoryPostgresChat",
+      "typeVersion": 1.3,
+      "position": [
+        -224,
+        224
+      ],
+      "id": "b31c2372-8d7c-4bfc-a8c0-8bcc1a9a2e1f",
+      "name": "Postgres Chat Memory",
+      "credentials": {
+        "postgres": {
+          "id": "fUf1F8ooMp5G8rrM",
+          "name": "SQL-RAG"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "{{ $fromAI('sql_query') }}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.postgresTool",
+      "typeVersion": 2.6,
+      "position": [
+        -64,
+        208
+      ],
+      "id": "acdc5760-b573-4447-a9a2-d0106c71b7b5",
+      "name": "Execute a SQL query in Postgres",
+      "credentials": {
+        "postgres": {
+          "id": "fUf1F8ooMp5G8rrM",
+          "name": "SQL-RAG"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "description": "Use this tool first to get the schema of all available tables and columns in the database.",
+        "workflowId": {
+          "__rl": true,
+          "value": "K5LW3FpLFHjOAzcp",
+          "mode": "list",
+          "cachedResultName": "SQL RAG"
+        },
+        "workflowInputs": {
+          "mappingMode": "defineBelow",
+          "value": {},
+          "matchingColumns": [],
+          "schema": [],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        }
+      },
+      "type": "@n8n/n8n-nodes-langchain.toolWorkflow",
+      "typeVersion": 2.2,
+      "position": [
+        256,
+        208
+      ],
+      "id": "ae28ccac-7b96-43a5-8c7c-d3817bd7d1f6",
+      "name": "Get Database Schema"
+    },
+    {
+      "parameters": {
+        "inputSource": "passthrough"
+      },
+      "type": "n8n-nodes-base.executeWorkflowTrigger",
+      "typeVersion": 1.1,
+      "position": [
+        448,
+        176
+      ],
+      "id": "51abad23-2d61-4fcd-aacc-c569064ee632",
+      "name": "When Executed by Another Workflow"
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT table_name, string_agg(column_name, ', ') as columns\nFROM information_schema.columns\nWHERE table_schema = 'public'\nGROUP BY table_name;",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [
+        624,
+        176
+      ],
+      "id": "97f92e3b-9d3f-4597-80be-b25aea6734c1",
+      "name": "Get DB Schemas",
+      "credentials": {
+        "postgres": {
+          "id": "fUf1F8ooMp5G8rrM",
+          "name": "SQL-RAG"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "aggregate": "aggregateAllItemData",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.aggregate",
+      "typeVersion": 1,
+      "position": [
+        800,
+        176
+      ],
+      "id": "9b0620e8-5869-4172-ab0a-458c92601deb",
+      "name": "Aggregate"
+    },
+    {
+      "parameters": {
+        "content": "## GraphRAG Text Ingestion",
+        "height": 400,
+        "width": 806
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        32,
+        848
+      ],
+      "id": "415e9d66-f682-42e7-b704-bcc1697e844d",
+      "name": "Sticky Note"
+    },
+    {
+      "parameters": {
+        "resource": "fileFolder",
+        "searchMethod": "query",
+        "queryString": "='1vz5uAoD4DPzyxhRiGt3qfjcmSZRXA1mj' in parents and trashed=false",
+        "returnAll": true,
+        "filter": {},
+        "options": {
+          "fields": [
+            "webViewLink",
+            "id",
+            "name",
+            "mimeType"
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.googleDrive",
+      "typeVersion": 3,
+      "position": [
+        -352,
+        912
+      ],
+      "id": "028717ad-bc15-4a65-81a9-91e9508191f8",
+      "name": "Search files and folders",
+      "credentials": {
+        "googleDriveOAuth2Api": {
+          "id": "hcZM0AC3Yd3WIo3v",
+          "name": "Google Drive account"
+        }
+      },
+      "disabled": true
+    },
+    {
+      "parameters": {
+        "options": {}
+      },
+      "type": "n8n-nodes-base.splitInBatches",
+      "typeVersion": 3,
+      "position": [
+        96,
+        928
+      ],
+      "id": "ba0c4b10-dca1-4c1e-aeb5-1d90557be8bf",
+      "name": "Loop Over Items"
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "10646eae-ae46-4327-a4dc-9987c2d76173",
+              "name": "file_id",
+              "value": "={{ $json.id }}",
+              "type": "string"
+            },
+            {
+              "id": "f4536df5-d0b1-4392-bf17-b8137fb31a44",
+              "name": "file_type",
+              "value": "={{ $json.mimeType }}",
+              "type": "string"
+            },
+            {
+              "id": "77d782de-169d-4a46-8a8e-a3831c04d90f",
+              "name": "file_title",
+              "value": "={{ $json.name }}",
+              "type": "string"
+            },
+            {
+              "id": "9bde4d7f-e4f3-4ebd-9338-dce1350f9eab",
+              "name": "file_url",
+              "value": "={{ $json.webViewLink }}",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "5625061b-d2a8-46b4-9a87-4a8b2e9ff6dd",
+      "name": "Set File ID",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        256,
+        992
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "download",
+        "fileId": {
+          "__rl": true,
+          "value": "={{ $json.file_id }}",
+          "mode": "id"
+        },
+        "options": {
+          "googleFileConversion": {
+            "conversion": {
+              "docsToFormat": "text/plain"
+            }
+          }
+        }
+      },
+      "id": "696f0570-ba51-41df-b1ad-db29c0330906",
+      "name": "Download File",
+      "type": "n8n-nodes-base.googleDrive",
+      "typeVersion": 3,
+      "position": [
+        480,
+        992
+      ],
+      "executeOnce": true,
+      "retryOnFail": true,
+      "credentials": {
+        "googleDriveOAuth2Api": {
+          "id": "hcZM0AC3Yd3WIo3v",
+          "name": "Google Drive account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://lightrag-test.onrender.com/documents/upload",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "accept",
+              "value": "application/json"
+            },
+            {
+              "name": "X-API-Key"
+            }
+          ]
+        },
+        "sendBody": true,
+        "contentType": "multipart-form-data",
+        "bodyParameters": {
+          "parameters": [
+            {
+              "parameterType": "formBinaryData",
+              "name": "file",
+              "inputDataFieldName": "data"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        672,
+        992
+      ],
+      "id": "637f7939-7e07-4446-9561-3c475459befe",
+      "name": "Upload Docs to LightRAG"
+    },
+    {
+      "parameters": {
+        "pollTimes": {
+          "item": [
+            {
+              "mode": "everyMinute"
+            }
+          ]
+        },
+        "triggerOn": "specificFolder",
+        "folderToWatch": {
+          "__rl": true,
+          "value": "1vz5uAoD4DPzyxhRiGt3qfjcmSZRXA1mj",
+          "mode": "list",
+          "cachedResultName": "2) LightRAG Demo",
+          "cachedResultUrl": "https://drive.google.com/drive/folders/1vz5uAoD4DPzyxhRiGt3qfjcmSZRXA1mj"
+        },
+        "event": "fileCreated",
+        "options": {}
+      },
+      "id": "233d99ad-24be-416b-944a-5dd8dbdee840",
+      "name": "File Created",
+      "type": "n8n-nodes-base.googleDriveTrigger",
+      "typeVersion": 1,
+      "position": [
+        -368,
+        640
+      ],
+      "credentials": {
+        "googleDriveOAuth2Api": {
+          "id": "hcZM0AC3Yd3WIo3v",
+          "name": "Google Drive account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "options": {}
+      },
+      "type": "n8n-nodes-base.splitInBatches",
+      "typeVersion": 3,
+      "position": [
+        80,
+        560
+      ],
+      "id": "218defd7-8d3b-4157-834a-a19c946e25df",
+      "name": "Loop Over Items1"
+    },
+    {
+      "parameters": {
+        "operation": "download",
+        "fileId": {
+          "__rl": true,
+          "value": "={{ $json.id }}",
+          "mode": "id"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleDrive",
+      "typeVersion": 3,
+      "position": [
+        288,
+        576
+      ],
+      "id": "cd096737-1ad8-4f1c-b174-b6ab21ba665e",
+      "name": "Download file",
+      "credentials": {
+        "googleDriveOAuth2Api": {
+          "id": "hcZM0AC3Yd3WIo3v",
+          "name": "Google Drive account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "7c556fab-7dfb-417f-9790-d981c06d8fac",
+              "leftValue": "={{ $json.mimeType }}",
+              "rightValue": "application/vnd.google-apps.spreadsheet",
+              "operator": {
+                "type": "string",
+                "operation": "equals",
+                "name": "filter.operator.equals"
+              }
+            },
+            {
+              "id": "45bef2e3-954f-4630-bde5-0dcc84df944c",
+              "leftValue": "={{ $json.mimeType }}",
+              "rightValue": "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+              "operator": {
+                "type": "string",
+                "operation": "equals",
+                "name": "filter.operator.equals"
+              }
+            }
+          ],
+          "combinator": "or"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        -144,
+        784
+      ],
+      "id": "6439f51d-83b8-4202-ada2-2bc668d2395f",
+      "name": "If"
+    },
+    {
+      "parameters": {
+        "operation": "xlsx",
+        "options": {
+          "headerRow": true
+        }
+      },
+      "type": "n8n-nodes-base.extractFromFile",
+      "typeVersion": 1,
+      "position": [
+        464,
+        576
+      ],
+      "id": "12d41e57-ca99-43cd-92ec-8e1265c00c9d",
+      "name": "Extract from File"
+    },
+    {
+      "parameters": {
+        "content": "## Excel -> Postgres DB",
+        "height": 400,
+        "width": 1302,
+        "color": 5
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        32,
+        448
+      ],
+      "id": "06942b9c-82a3-4771-8028-a5d11f6ab914",
+      "name": "Sticky Note1"
+    },
+    {
+      "parameters": {
+        "content": "## Trigger System",
+        "height": 480,
+        "width": 608,
+        "color": 4
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        -576,
+        608
+      ],
+      "id": "73530fcf-fc49-4dca-acc6-d24d03483874",
+      "name": "Sticky Note2"
+    },
+    {
+      "parameters": {
+        "content": "## Grabs all schemas\n- allows for dynamic table situations",
+        "height": 256,
+        "width": 592,
+        "color": 4
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        400,
+        96
+      ],
+      "id": "82809634-f842-46f6-b16d-9c1d5066a421",
+      "name": "Sticky Note3"
+    },
+    {
+      "parameters": {
+        "resource": "fileFolder",
+        "searchMethod": "query",
+        "queryString": "'1vz5uAoD4DPzyxhRiGt3qfjcmSZRXA1mj' in parents and trashed=false",
+        "returnAll": true,
+        "filter": {},
+        "options": {
+          "fields": [
+            "name"
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.googleDrive",
+      "typeVersion": 3,
+      "position": [
+        -304,
+        1504
+      ],
+      "id": "586bb50e-a989-40be-a605-64613286785f",
+      "name": "Get File IDs",
+      "credentials": {
+        "googleDriveOAuth2Api": {
+          "id": "hcZM0AC3Yd3WIo3v",
+          "name": "Google Drive account"
+        }
+      }
+    },
+    {
+      "parameters": {},
+      "type": "n8n-nodes-base.merge",
+      "typeVersion": 3,
+      "position": [
+        -64,
+        1584
+      ],
+      "id": "f8052e67-b754-4c75-9ac0-b98f2573cfb2",
+      "name": "Merge"
+    },
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {}
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.2,
+      "position": [
+        -544,
+        1584
+      ],
+      "id": "bf8b3af3-45b2-40a7-9a50-a862e7b0e20e",
+      "name": "Schedule Trigger",
+      "disabled": true
+    },
+    {
+      "parameters": {
+        "url": "https://lightrag-test.onrender.com/documents",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "accept",
+              "value": "application/json"
+            },
+            {
+              "name": "X-API-Key"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        -304,
+        1728
+      ],
+      "id": "59a60c64-8acf-4535-9fba-3eaf6a3fecc6",
+      "name": "Get LightRag Docs"
+    },
+    {
+      "parameters": {
+        "content": "## LightRAG Data Cleanup",
+        "height": 464,
+        "width": 1136,
+        "color": 3
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        -592,
+        1440
+      ],
+      "id": "aafb1aff-f392-475b-a270-2df1ced64b3f",
+      "name": "Sticky Note4"
+    },
+    {
+      "parameters": {
+        "pollTimes": {
+          "item": [
+            {
+              "mode": "everyMinute"
+            }
+          ]
+        },
+        "triggerOn": "specificFolder",
+        "folderToWatch": {
+          "__rl": true,
+          "value": "1vz5uAoD4DPzyxhRiGt3qfjcmSZRXA1mj",
+          "mode": "list",
+          "cachedResultName": "2) LightRAG Demo",
+          "cachedResultUrl": "https://drive.google.com/drive/folders/1vz5uAoD4DPzyxhRiGt3qfjcmSZRXA1mj"
+        },
+        "event": "fileUpdated",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleDriveTrigger",
+      "typeVersion": 1,
+      "position": [
+        624,
+        1520
+      ],
+      "id": "e5cf86da-6fc6-4e5a-ade7-7df23d8af40f",
+      "name": "Google Drive Trigger",
+      "credentials": {
+        "googleDriveOAuth2Api": {
+          "id": "hcZM0AC3Yd3WIo3v",
+          "name": "Google Drive account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "7c556fab-7dfb-417f-9790-d981c06d8fac",
+              "leftValue": "={{ $json.mimeType }}",
+              "rightValue": "application/vnd.google-apps.spreadsheet",
+              "operator": {
+                "type": "string",
+                "operation": "equals",
+                "name": "filter.operator.equals"
+              }
+            },
+            {
+              "id": "45bef2e3-954f-4630-bde5-0dcc84df944c",
+              "leftValue": "={{ $json.mimeType }}",
+              "rightValue": "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+              "operator": {
+                "type": "string",
+                "operation": "equals",
+                "name": "filter.operator.equals"
+              }
+            }
+          ],
+          "combinator": "or"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        784,
+        1520
+      ],
+      "id": "82f41993-1f3f-44a1-9724-70655f77fb92",
+      "name": "If1"
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "a0a13427-ad01-4205-ae8d-0bc34a314996",
+              "name": "tableName",
+              "value": "={{ ($json.name.lastIndexOf('.') > 0 ? $json.name.substring(0, $json.name.lastIndexOf('.')) : $json.name).toLowerCase().replace(/\\s+/g, '_').replace(/[^\\w]/g, '_').replace(/_{2,}/g, '_').replace(/^_+|_+$/g, '') }}",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        992,
+        1504
+      ],
+      "id": "92d9daff-f34d-4b11-ba1a-88173a5457a2",
+      "name": "Edit Fields"
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "TRUNCATE TABLE public.\"{{ $json.tableName }}\" RESTART IDENTITY;",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [
+        1184,
+        1504
+      ],
+      "id": "8490c16f-b756-441b-ad05-bfe40df45a41",
+      "name": "Execute a SQL query1",
+      "credentials": {
+        "postgres": {
+          "id": "fUf1F8ooMp5G8rrM",
+          "name": "SQL-RAG"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "download",
+        "fileId": {
+          "__rl": true,
+          "value": "={{ $('Google Drive Trigger').item.json.id }}",
+          "mode": "id"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleDrive",
+      "typeVersion": 3,
+      "position": [
+        656,
+        1712
+      ],
+      "id": "1ef396c0-dd63-42cc-84b1-10d7cb65e304",
+      "name": "Download file1",
+      "credentials": {
+        "googleDriveOAuth2Api": {
+          "id": "hcZM0AC3Yd3WIo3v",
+          "name": "Google Drive account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "xlsx",
+        "options": {
+          "headerRow": true
+        }
+      },
+      "type": "n8n-nodes-base.extractFromFile",
+      "typeVersion": 1,
+      "position": [
+        816,
+        1712
+      ],
+      "id": "1eabe664-c0ba-4b72-8673-71f6532f53cf",
+      "name": "Extract from File1"
+    },
+    {
+      "parameters": {
+        "schema": {
+          "__rl": true,
+          "mode": "list",
+          "value": "public"
+        },
+        "table": {
+          "__rl": true,
+          "value": "={{ $('Edit Fields').item.json.tableName }}",
+          "mode": "name"
+        },
+        "columns": {
+          "mappingMode": "autoMapInputData",
+          "value": {},
+          "matchingColumns": [],
+          "schema": [
+            {
+              "id": "n8n_id",
+              "displayName": "n8n_id",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "number",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "employee_id",
+              "displayName": "employee_id",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "number",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "full_name",
+              "displayName": "full_name",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "email_address",
+              "displayName": "email_address",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "department",
+              "displayName": "department",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "job_title",
+              "displayName": "job_title",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "start_date",
+              "displayName": "start_date",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "number",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "salary",
+              "displayName": "salary",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "number",
+              "canBeUsedToMatch": true,
+              "removed": false
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [
+        1152,
+        1712
+      ],
+      "id": "b8ad88ae-3803-4626-a88e-22b3e5678371",
+      "name": "Insert rows in a table1",
+      "credentials": {
+        "postgres": {
+          "id": "fUf1F8ooMp5G8rrM",
+          "name": "SQL-RAG"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "content": "## Excel Edit Syncs",
+        "height": 464,
+        "width": 800,
+        "color": 3
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        576,
+        1440
+      ],
+      "id": "c537ecfb-f4ec-40e8-976e-c263cb9a9cac",
+      "name": "Sticky Note5"
+    },
+    {
+      "parameters": {
+        "resource": "fileFolder",
+        "searchMethod": "query",
+        "queryString": "'1vz5uAoD4DPzyxhRiGt3qfjcmSZRXA1mj' in parents and trashed=false",
+        "returnAll": true,
+        "filter": {},
+        "options": {
+          "fields": [
+            "name"
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.googleDrive",
+      "typeVersion": 3,
+      "position": [
+        -320,
+        1968
+      ],
+      "id": "661e07b7-01e7-4360-b717-1161d28d38df",
+      "name": "Get File IDs1",
+      "credentials": {
+        "googleDriveOAuth2Api": {
+          "id": "hcZM0AC3Yd3WIo3v",
+          "name": "Google Drive account"
+        }
+      }
+    },
+    {
+      "parameters": {},
+      "type": "n8n-nodes-base.merge",
+      "typeVersion": 3,
+      "position": [
+        -64,
+        2064
+      ],
+      "id": "69549d5e-fe5e-4ed4-866b-b3a7db1edcbd",
+      "name": "Merge1"
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT table_name FROM information_schema.tables WHERE table_schema = 'public';",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [
+        -320,
+        2208
+      ],
+      "id": "d8e2e563-d49d-4894-8f7d-88d7037f8d64",
+      "name": "Execute a SQL query2",
+      "credentials": {
+        "postgres": {
+          "id": "fUf1F8ooMp5G8rrM",
+          "name": "SQL-RAG"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "content": "# Data Ingestion Pipeline",
+        "height": 880,
+        "width": 2048,
+        "color": 7
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        -624,
+        416
+      ],
+      "id": "ca37113d-887d-437f-8121-dc457683ca29",
+      "name": "Sticky Note6"
+    },
+    {
+      "parameters": {
+        "content": "# Data Sync Pipeline",
+        "height": 1152,
+        "width": 2048,
+        "color": 7
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        -624,
+        1344
+      ],
+      "id": "dcc13ceb-a64a-4013-901e-38724edb416e",
+      "name": "Sticky Note7"
+    },
+    {
+      "parameters": {
+        "jsCode": "// Helper function to sanitize names - UPDATED to remove file extensions\nfunction sanitizeName(name) {\n  if (!name) {\n    return null;\n  }\n  \n  // Remove the file extension before sanitizing\n  const lastDotIndex = name.lastIndexOf('.');\n  const baseName = (lastDotIndex > 0) ? name.substring(0, lastDotIndex) : name;\n\n  // Sanitize the base name\n  return baseName.toString().toLowerCase()\n    .replace(/\\s+/g, '_')\n    .replace(/[^\\w]/g, '_')\n    .replace(/_{2,}/g, '_')\n    .replace(/^_+|_+$/g, '');\n}\n\nconst allItems = $input.all();\n\n// Create empty lists to sort the merged data into\nconst driveItems = [];\nconst postgresItems = [];\n\n// Loop through all merged items and sort them\nfor (const item of allItems) {\n  if (item.json.name) {\n    driveItems.push(item);\n  } else if (item.json.table_name) {\n    postgresItems.push(item);\n  }\n}\n\n// 1. Create a clean list of table names that SHOULD exist\nconst expectedTableNames = driveItems\n  .map(item => sanitizeName(item.json.name))\n  .filter(Boolean); // Filter out any nulls from nameless files\n\n// 2. Create a clean list of table names that ACTUALLY exist\nconst actualTableNames = postgresItems.map(item => item.json.table_name);\n\n// 3. Find the tables that are in Postgres but NOT in Google Drive anymore\nconst orphanTables = actualTableNames.filter(tableName => {\n  // UPDATED LOGIC: Create a list of tables to always ignore\n  const ignoreList = ['n8n_chat_histories'];\n\n  // Check if the table is a system table or in our explicit ignore list\n  const isSystemTable = tableName.startsWith('pg_') || ignoreList.includes(tableName);\n  \n  if (isSystemTable) {\n    return false; // If it's a system table, it's NOT an orphan.\n  }\n  \n  // If it's not a system table, check if it's missing from our Drive files.\n  return !expectedTableNames.includes(tableName);\n});\n\n// 4. Return a list of the orphan tables to be deleted\nif (orphanTables.length === 0) {\n  return [{ json: { status: \"No orphan tables found.\" } }];\n}\n\nreturn orphanTables.map(tableName => ({ json: { tableName } }));"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        112,
+        2064
+      ],
+      "id": "ad34b28b-a18e-4fde-9b10-48ce8c76d5a7",
+      "name": "ID Table Orphans"
+    },
+    {
+      "parameters": {
+        "jsCode": "// 1. Separate the inputs into two lists: one for Drive, one for LightRAG.\nconst driveItems = [];\nlet lightragData = null;\n\nfor (const item of items) {\n  if (item.json.name) {\n    // This looks like a Google Drive item\n    driveItems.push(item.json);\n  } else if (item.json.statuses) {\n    // This looks like the LightRAG item\n    lightragData = item.json;\n  }\n}\n\n// 2. Create a simple list of all valid file names from Google Drive.\nconst driveFileNames = driveItems.map(file => file.name);\n\n// 3. Get the list of all documents currently in LightRAG.\nconst lightragDocs = lightragData?.statuses?.processed || [];\n\n// 4. Filter the LightRAG list to find the orphans.\nconst orphans = lightragDocs.filter(doc => !driveFileNames.includes(doc.file_path));\n\n// 5. Return a new list containing ONLY THE IDs of the orphan documents.\nif (orphans.length === 0) {\n  return [{ json: { status: \"No orphans found.\" } }];\n}\n\nreturn orphans.map(orphan => ({ json: { id: orphan.id } }));"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        112,
+        1584
+      ],
+      "id": "903dcbf7-ecab-4481-a977-512477cedc6b",
+      "name": "ID Doc Orphans"
+    },
+    {
+      "parameters": {
+        "content": "## Excel Data Cleanup",
+        "height": 464,
+        "width": 1136,
+        "color": 3
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        -592,
+        1936
+      ],
+      "id": "10b2ced7-a682-4f58-adae-0e14e3bb3505",
+      "name": "Sticky Note9"
+    },
+    {
+      "parameters": {
+        "content": "## Agentic RAG Hub",
+        "height": 416,
+        "width": 1488,
+        "color": 6
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        -416,
+        -48
+      ],
+      "id": "6d8ac8b7-8846-4aa6-958a-22ba2f19328f",
+      "name": "Sticky Note10"
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "DROP TABLE IF EXISTS public.\"{{ $json.tableName }}\";",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [
+        304,
+        2064
+      ],
+      "id": "c43e86fc-5ad3-48c9-b4b6-7ed1456c6abd",
+      "name": "Delete Table",
+      "credentials": {
+        "postgres": {
+          "id": "fUf1F8ooMp5G8rrM",
+          "name": "SQL-RAG"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "method": "DELETE",
+        "url": "https://lightrag-test.onrender.com/documents/delete_document",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "accept",
+              "value": "application/json"
+            },
+            {
+              "name": "X-API-Key"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"doc_ids\": [\n    \"{{ $json.id }}\"\n  ],\n  \"delete_file\": false\n}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        304,
+        1584
+      ],
+      "id": "32c5b08f-2406-4368-a512-1ba67684d591",
+      "name": "Delete Doc"
+    },
+    {
+      "parameters": {
+        "jsCode": "// --- HELPER FUNCTIONS ---\n\n// Sanitizes names for files and columns.\nfunction sanitizeName(name) {\n  if (!name) {\n    return null;\n  }\n  const lastDotIndex = name.lastIndexOf('.');\n  const baseName = (lastDotIndex > 0) ? name.substring(0, lastDotIndex) : name;\n  return baseName.toString().toLowerCase()\n    .replace(/\\s+/g, '_')\n    .replace(/[^\\w]/g, '_')\n    .replace(/_{2,}/g, '_')\n    .replace(/^_+|_+$/g, '');\n}\n\n// Converts Excel serial number to a JavaScript Date object.\nfunction excelSerialToDate(serial) {\n  if (typeof serial !== 'number' || serial < 1) {\n    return null;\n  }\n  const utc_days  = Math.floor(serial - 25569);\n  const date = new Date(utc_days * 86400 * 1000);\n  const timezoneOffset = date.getTimezoneOffset() * 60000;\n  return new Date(date.getTime() + timezoneOffset);\n}\n\n// Infers data type by checking the header and a sample of values.\nfunction inferDataType(header, values) {\n  const sanitizedHeader = sanitizeName(header);\n  const dateKeywords = ['date', 'day', 'time', 'hire', 'join', 'created', 'updated', 'modified'];\n  const headerIsDateHint = dateKeywords.some(keyword => sanitizedHeader.includes(keyword));\n\n  let isDate = true;\n  let isExcelSerial = true;\n  const dateRegex = /^\\d{4}-\\d{2}-\\d{2}|\\d{1,2}\\/\\d{1,2}\\/\\d{4}/;\n\n  for (const value of values) {\n    if (value === null || value === undefined || value === '') continue;\n    const strValue = String(value);\n    \n    if (isDate && (!dateRegex.test(strValue) || isNaN(Date.parse(strValue)))) {\n        isDate = false;\n    }\n    \n    if (isExcelSerial) {\n        const numValue = Number(strValue);\n        if (isNaN(numValue) || numValue < 1) {\n            isExcelSerial = false;\n        }\n    }\n  }\n  \n  if (headerIsDateHint && (isDate || isExcelSerial)) {\n      if (isDate) return 'DATE';\n      if (isExcelSerial) return 'EXCEL_SERIAL_DATE';\n  }\n\n  // Fallback for non-date types\n  if (values.every(v => v === null || v === undefined || /^-?\\d+$/.test(String(v)))) return 'INTEGER';\n  if (values.every(v => v === null || v === undefined || !isNaN(Number(String(v).replace(/[$,]/g, ''))))) return 'NUMERIC';\n  return 'TEXT';\n}\n\n// --- MAIN LOGIC ---\n\nconst items = $input.all();\n\nif (items.length === 0) {\n  return [];\n}\n\nconst headers = Object.keys(items[0].json);\nconst samples = items.map(item => item.json);\nconst schema = {};\n\n// First, build the schema by inferring data types for each column\nfor (const header of headers) {\n  const columnValues = samples.map(sample => sample[header]);\n  schema[header] = inferDataType(header, columnValues);\n}\n\n// Now, clean the data using the schema we just built\nconst cleanedData = items.map(item => {\n  const newRow = {};\n  for (const header of headers) {\n    const sanitizedHeader = sanitizeName(header);\n    const dataType = schema[header];\n    let value = item.json[header];\n    \n    // UPDATED: Added complete data transformation logic to match the ingestion workflow\n    if (dataType === 'EXCEL_SERIAL_DATE' && typeof value === 'number') {\n        const date = excelSerialToDate(value);\n        value = date ? date.toISOString().split('T')[0] : null; // Format as YYYY-MM-DD\n    } else if ((dataType === 'INTEGER' || dataType === 'NUMERIC') && typeof value === 'string') {\n      value = Number(String(value).replace(/[$,]/g, ''));\n      if (isNaN(value)) value = null;\n    } else if (dataType === 'DATE' && value) {\n      const date = new Date(value);\n      if (!isNaN(date.getTime())) {\n        value = date.toISOString();\n      } else {\n        value = null;\n      }\n    }\n    \n    newRow[sanitizedHeader] = value;\n  }\n  return { json: newRow };\n});\n\nreturn cleanedData;"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        992,
+        1712
+      ],
+      "id": "c1856581-247d-468c-9866-c2b226cdacc1",
+      "name": "Sanitize Data"
+    },
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {}
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.2,
+      "position": [
+        -560,
+        2096
+      ],
+      "id": "9e757c81-230e-4280-b78d-24c7051df5e3",
+      "name": "Schedule Trigger1"
+    },
+    {
+      "parameters": {
+        "content": "## 💡 Agentic RAG AI Agent\n## | [Created by Chase AI](https://www.skool.com/chase-ai)\n\n## Features\n### - RAG w/ Excel via SQL queries\n### - GraphRAG for PDFs & Text Docs\n### - Data Ingestion Pipeline via G Drive\n### - Automated Edit Syncing\n### - Scheduled Data Cleanup\n\n## How it Works\n### - AI agent determines whether to use GraphRAG or SQL\n### - Queries are sent to LightRAG server or SQL commands are generated\n### - LightRAG answers question via knowledge graph\n### - SQL answers questions vis Postgres\n### - Answers are returned to the AI Agent\n\n## APIs Needed\n### - Supabase / Postgres\n### - LightRAG\n### - OpenAI\n### - Cohere\n\n## LightRag GitHub\n### - [Click Here](https://github.com/HKUDS/LightRAG)",
+        "height": 864,
+        "width": 512,
+        "color": 6
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        -1200,
+        480
+      ],
+      "id": "2dd58dea-7b47-4801-a3ef-53dc0deb3d4b",
+      "name": "Sticky Note8"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://lightrag-test.onrender.com/query",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "accept",
+              "value": "application/json"
+            },
+            {
+              "name": "X-API-Key"
+            }
+          ]
+        },
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "query",
+              "value": "={{ $json.chatInput }}"
+            },
+            {
+              "name": "mode",
+              "value": "mix"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequestTool",
+      "typeVersion": 4.2,
+      "position": [
+        112,
+        208
+      ],
+      "id": "12459fcf-8f6e-4892-8eee-d06ee50a2315",
+      "name": "GraphRAG"
+    },
+    {
+      "parameters": {
+        "content": "@[youtube](BTxghC1qHbw)",
+        "height": 672,
+        "width": 1120,
+        "color": 7
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        1536,
+        512
+      ],
+      "id": "fc8e662b-001a-40d2-848b-9a3b28e8e63b",
+      "name": "Sticky Note11"
+    }
+  ],
+  "pinData": {
+    "Search files and folders": [
+      {
+        "json": {
+          "id": "1a9xHrAKu2cFj8dxpSU8KXBgP2JvQvs08IM1hk2SQ8jQ",
+          "name": "Excel Example ",
+          "mimeType": "application/vnd.google-apps.spreadsheet",
+          "webViewLink": "https://docs.google.com/spreadsheets/d/1a9xHrAKu2cFj8dxpSU8KXBgP2JvQvs08IM1hk2SQ8jQ/edit?usp=drivesdk"
+        }
+      }
+    ]
+  },
+  "connections": {
+    "Start Here": {
+      "main": [
+        [
+          {
+            "node": "Search files and folders",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code": {
+      "main": [
+        [
+          {
+            "node": "Execute a SQL query",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Split Out",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Execute a SQL query": {
+      "main": [
+        []
+      ]
+    },
+    "Split Out": {
+      "main": [
+        [
+          {
+            "node": "Insert rows in a table",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "When chat message received": {
+      "main": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "OpenAI Chat Model": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Postgres Chat Memory": {
+      "ai_memory": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "ai_memory",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Execute a SQL query in Postgres": {
+      "ai_tool": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get Database Schema": {
+      "ai_tool": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "When Executed by Another Workflow": {
+      "main": [
+        [
+          {
+            "node": "Get DB Schemas",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get DB Schemas": {
+      "main": [
+        [
+          {
+            "node": "Aggregate",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Search files and folders": {
+      "main": [
+        [
+          {
+            "node": "If",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Loop Over Items": {
+      "main": [
+        [],
+        [
+          {
+            "node": "Set File ID",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Set File ID": {
+      "main": [
+        [
+          {
+            "node": "Download File",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Download File": {
+      "main": [
+        [
+          {
+            "node": "Upload Docs to LightRAG",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Upload Docs to LightRAG": {
+      "main": [
+        [
+          {
+            "node": "Loop Over Items",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "File Created": {
+      "main": [
+        [
+          {
+            "node": "If",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Loop Over Items1": {
+      "main": [
+        [],
+        [
+          {
+            "node": "Download file",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Insert rows in a table": {
+      "main": [
+        [
+          {
+            "node": "Loop Over Items1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Download file": {
+      "main": [
+        [
+          {
+            "node": "Extract from File",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "If": {
+      "main": [
+        [
+          {
+            "node": "Loop Over Items1",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Loop Over Items",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Extract from File": {
+      "main": [
+        [
+          {
+            "node": "Code",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get File IDs": {
+      "main": [
+        [
+          {
+            "node": "Merge",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Merge": {
+      "main": [
+        [
+          {
+            "node": "ID Doc Orphans",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Schedule Trigger": {
+      "main": [
+        [
+          {
+            "node": "Get File IDs",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Get LightRag Docs",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get LightRag Docs": {
+      "main": [
+        [
+          {
+            "node": "Merge",
+            "type": "main",
+            "index": 1
+          }
+        ]
+      ]
+    },
+    "Google Drive Trigger": {
+      "main": [
+        [
+          {
+            "node": "If1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "If1": {
+      "main": [
+        [
+          {
+            "node": "Edit Fields",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Edit Fields": {
+      "main": [
+        [
+          {
+            "node": "Execute a SQL query1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Execute a SQL query1": {
+      "main": [
+        [
+          {
+            "node": "Download file1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Download file1": {
+      "main": [
+        [
+          {
+            "node": "Extract from File1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Extract from File1": {
+      "main": [
+        [
+          {
+            "node": "Sanitize Data",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get File IDs1": {
+      "main": [
+        [
+          {
+            "node": "Merge1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Merge1": {
+      "main": [
+        [
+          {
+            "node": "ID Table Orphans",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Execute a SQL query2": {
+      "main": [
+        [
+          {
+            "node": "Merge1",
+            "type": "main",
+            "index": 1
+          }
+        ]
+      ]
+    },
+    "ID Table Orphans": {
+      "main": [
+        [
+          {
+            "node": "Delete Table",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "ID Doc Orphans": {
+      "main": [
+        [
+          {
+            "node": "Delete Doc",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Sanitize Data": {
+      "main": [
+        [
+          {
+            "node": "Insert rows in a table1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Schedule Trigger1": {
+      "main": [
+        [
+          {
+            "node": "Execute a SQL query2",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Get File IDs1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "GraphRAG": {
+      "ai_tool": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "versionId": "4708a0bb-7769-41fe-a563-ed22f3e106ee",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "858b0696cb7e4c2d54a791ff0d9e4a3cddc7a852434a593789da95c43379b467"
+  },
+  "id": "btrQP9dN1H97RFk8",
+  "tags": []
+}
