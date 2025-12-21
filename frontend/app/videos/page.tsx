@@ -264,7 +264,7 @@ export default function VideosPage() {
                     <h3 className="font-medium text-gray-900">
                       {video.campaign_name || `Video ${video.video_id.slice(-4)}`}
                     </h3>
-                    <p className="text-sm text-gray-500">
+                    <p className="text-sm text-gray-500" suppressHydrationWarning>
                       {formatDate(video.created_at)}
                     </p>
                   </div>
