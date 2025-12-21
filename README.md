@@ -1,64 +1,371 @@
 # 🎬 Brand Infinity Engine
 
-> An AI-powered marketing content pipeline that transforms text into cinematic video campaigns
+> **AI-Powered Marketing Content Pipeline** — Transform text into cinematic video campaigns, fully automated.
 
-Transform brand guidelines and trending topics into high-performing video campaigns across Instagram, TikTok, YouTube, and LinkedIn—fully automated with AI.
+[![Node.js](https://img.shields.io/badge/Node.js-18+-339933?logo=node.js)](https://nodejs.org/)
+[![PostgreSQL](https://img.shields.io/badge/PostgreSQL-14+-4169E1?logo=postgresql)](https://postgresql.org/)
+[![Supabase](https://img.shields.io/badge/Supabase-Backend-3ECF8E?logo=supabase)](https://supabase.com/)
+[![n8n](https://img.shields.io/badge/n8n-Workflows-EA4B71?logo=n8n)](https://n8n.io/)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
+
+---
+
+## 📋 Table of Contents
+
+- [Overview](#-overview)
+- [System Architecture](#-system-architecture)
+- [Data Flow Diagram](#-data-flow-diagram)
+- [The 5 Pillars](#-the-5-pillars)
+- [Tech Stack](#-tech-stack)
+- [Quick Start](#-quick-start)
+- [Project Structure](#-project-structure)
+- [Database Schema](#-database-schema)
+- [API Reference](#-api-reference)
+- [Cost Optimization](#-cost-optimization)
+- [Deployment](#-deployment)
+- [Contributing](#-contributing)
 
 ---
 
 ## 🌟 Overview
 
-The **Brand Infinity Engine** is a complete end-to-end system that takes your brand guidelines as input and produces finished, published video ads with zero manual intervention. Built on a 5-pillar architecture powered by cutting-edge AI models (GPT-4o, Claude, Sora, Veo3, ElevenLabs), it handles everything from strategy to distribution.
+The **Brand Infinity Engine** is a complete end-to-end system that takes your brand guidelines as input and produces finished, published video ads with zero manual intervention.
 
 ### What It Does
 
-1. **Analyzes** trending topics across social platforms
-2. **Generates** creative briefs aligned with your brand
-3. **Writes** compelling video scripts with hooks and CTAs
-4. **Produces** cinematic videos using AI video generation
-5. **Manages** A/B test variants for optimization
-6. **Publishes** directly to Instagram, TikTok, YouTube, and LinkedIn
-7. **Tracks** engagement metrics and costs in real-time
+| Step | Action | Output |
+|------|--------|--------|
+| 1️⃣ | **Analyze** trending topics across social platforms | Trend insights |
+| 2️⃣ | **Generate** creative briefs aligned with your brand | Campaign strategy |
+| 3️⃣ | **Write** compelling video scripts with hooks & CTAs | Multi-variant scripts |
+| 4️⃣ | **Produce** cinematic videos using AI generation | HD video content |
+| 5️⃣ | **Optimize** with A/B test variants | Performance variants |
+| 6️⃣ | **Publish** directly to social platforms | Live campaigns |
+| 7️⃣ | **Track** engagement metrics in real-time | Analytics dashboard |
 
 ### Key Features
 
-- ✅ **Fully Automated**: From strategy to publication
-- ✅ **Brand-Aware**: RAG-based brand guideline validation
-- ✅ **Cost-Optimized**: Intelligent model routing (Sora vs. Nano B)
-- ✅ **A/B Testing**: Automatic campaign variants
-- ✅ **Multi-Platform**: Instagram, TikTok, YouTube, LinkedIn
-- ✅ **Production-Ready**: Docker, PostgreSQL, n8n orchestration
+- ✅ **Fully Automated** — Strategy to publication pipeline
+- ✅ **Brand-Aware** — RAG-based brand guideline validation
+- ✅ **Cost-Optimized** — Intelligent model routing (Sora ↔ Nano B)
+- ✅ **A/B Testing** — Automatic campaign variants
+- ✅ **Multi-Platform** — Instagram, TikTok, YouTube, LinkedIn
+- ✅ **Cloud-Native** — Supabase backend with PostgreSQL + Storage
 
 ---
 
-## 🏗️ Architecture
+## 🏗️ System Architecture
 
-The system is built on **5 interconnected pillars**:
+```mermaid
+flowchart TB
+    subgraph Client["🖥️ Client Layer"]
+        direction LR
+        WebApp["Next.js Frontend<br/>Port 3000"]
+        API["REST API Client"]
+    end
 
-### 1. 🧠 Strategist Pillar
-- Scrapes trending content from social platforms
-- Analyzes competitor ads
-- Generates creative briefs using brand guidelines + trends
+    subgraph Gateway["🌐 API Gateway"]
+        direction TB
+        Express["Express.js Server<br/>Port 3001"]
+        RateLimit["Rate Limiter<br/>1000 req/min"]
+        Auth["JWT Auth<br/>Middleware"]
+    end
 
-### 2. ✍️ Copywriter Pillar
-- Writes video scripts from creative briefs
-- Generates multiple hook variations
-- Breaks scripts into scene-by-scene descriptions
+    subgraph Orchestration["⚙️ Workflow Orchestration"]
+        direction TB
+        n8n["n8n Workflow Engine<br/>Port 5678"]
+        
+        subgraph Workflows["Workflow Templates"]
+            WF1["Strategist<br/>Workflow"]
+            WF2["Copywriter<br/>Workflow"]
+            WF3["Production<br/>Workflow"]
+            WF4["Campaign<br/>Workflow"]
+            WF5["Broadcast<br/>Workflow"]
+        end
+    end
 
-### 3. 🎥 Production House Pillar
-- Generates video scenes using AI (Sora, Veo3, Seedream, Nano B)
-- Creates voiceovers with ElevenLabs or OpenAI TTS
-- Assembles final video with timing and transitions
+    subgraph AI_Layer["🤖 AI Services Layer"]
+        direction TB
+        
+        subgraph TextGen["Text Generation"]
+            GPT4["OpenAI GPT-4o"]
+            Claude["Anthropic Claude"]
+            DeepSeek["DeepSeek R1"]
+        end
+        
+        subgraph VideoGen["Video Generation"]
+            Sora["OpenAI Sora<br/>$$$"]
+            Veo3["Google Veo3<br/>$$"]
+            NanoB["Nano B<br/>$"]
+        end
+        
+        subgraph AudioGen["Audio Generation"]
+            ElevenLabs["ElevenLabs TTS"]
+            OpenAITTS["OpenAI TTS-1"]
+        end
+        
+        subgraph Embeddings["Vector Embeddings"]
+            Embed["text-embedding-3-small"]
+        end
+    end
 
-### 4. 📊 Campaign Manager Pillar
-- Creates A/B test variants (different hooks, CTAs)
-- Tracks costs per model/operation
-- Manages campaign lifecycle
+    subgraph DataLayer["💾 Data Layer"]
+        direction TB
+        
+        subgraph Supabase["Supabase Cloud"]
+            PostgreSQL[("PostgreSQL 14<br/>+ pgvector")]
+            Storage[("Supabase Storage<br/>campaign-assets")]
+            Realtime["Realtime<br/>Subscriptions"]
+        end
+        
+        subgraph Cache["Caching"]
+            Redis[("Redis<br/>Brand Guidelines")]
+        end
+    end
 
-### 5. 📡 Broadcaster Pillar
-- Publishes videos to Instagram, TikTok, YouTube, LinkedIn
-- Schedules posts for optimal times
-- Collects engagement metrics (views, likes, shares)
+    subgraph External["🌍 External Services"]
+        direction TB
+        
+        subgraph Social["Social Media APIs"]
+            Instagram["Instagram<br/>Graph API"]
+            TikTok["TikTok<br/>API"]
+            YouTube["YouTube<br/>Data API v3"]
+            LinkedIn["LinkedIn<br/>Marketing API"]
+        end
+        
+        subgraph Trends["Trend Sources"]
+            TrendAPI["Social Scrapers"]
+            CompetitorAPI["Competitor Analysis"]
+        end
+    end
+
+    %% Connections
+    WebApp --> Express
+    API --> Express
+    Express --> RateLimit --> Auth
+    Auth --> n8n
+    
+    n8n --> WF1 & WF2 & WF3 & WF4 & WF5
+    
+    WF1 --> GPT4 & Claude & Embed
+    WF2 --> GPT4 & DeepSeek
+    WF3 --> Sora & Veo3 & NanoB & ElevenLabs & OpenAITTS
+    WF4 --> GPT4
+    WF5 --> Instagram & TikTok & YouTube & LinkedIn
+    
+    n8n --> PostgreSQL
+    n8n --> Storage
+    n8n --> Redis
+    
+    WF1 --> TrendAPI & CompetitorAPI
+    
+    PostgreSQL --> Realtime --> WebApp
+
+    classDef primary fill:#3b82f6,stroke:#1e40af,color:#fff
+    classDef secondary fill:#8b5cf6,stroke:#5b21b6,color:#fff
+    classDef ai fill:#10b981,stroke:#047857,color:#fff
+    classDef storage fill:#f59e0b,stroke:#b45309,color:#fff
+    classDef external fill:#ec4899,stroke:#be185d,color:#fff
+    
+    class WebApp,Express primary
+    class n8n,WF1,WF2,WF3,WF4,WF5 secondary
+    class GPT4,Claude,DeepSeek,Sora,Veo3,NanoB,ElevenLabs,OpenAITTS,Embed ai
+    class PostgreSQL,Storage,Redis storage
+    class Instagram,TikTok,YouTube,LinkedIn,TrendAPI,CompetitorAPI external
+```
+
+---
+
+## 🔄 Data Flow Diagram
+
+```mermaid
+sequenceDiagram
+    autonumber
+    participant U as 👤 User
+    participant FE as 🖥️ Frontend
+    participant API as ⚡ Express API
+    participant N8N as ⚙️ n8n Engine
+    participant AI as 🤖 AI Models
+    participant DB as 💾 Supabase
+    participant SM as 📱 Social Media
+    
+    rect rgb(59, 130, 246, 0.1)
+        Note over U,DB: Phase 1: Strategy Generation
+        U->>FE: Create Campaign Request
+        FE->>API: POST /api/v1/briefs
+        API->>N8N: Trigger Strategist Workflow
+        N8N->>DB: Fetch Brand Guidelines
+        DB-->>N8N: Brand Data + Embeddings
+        N8N->>AI: Generate Creative Brief (GPT-4o)
+        AI-->>N8N: Creative Brief JSON
+        N8N->>DB: Store Brief
+        N8N-->>API: brief_id: 42
+        API-->>FE: { brief_id: 42, status: "ready" }
+    end
+    
+    rect rgb(139, 92, 246, 0.1)
+        Note over N8N,AI: Phase 2: Script Generation
+        N8N->>AI: Generate Script + Hooks (GPT-4o)
+        AI-->>N8N: Script with 3 Hook Variants
+        N8N->>AI: Scene Segmentation (Claude)
+        AI-->>N8N: 8 Scene Descriptions
+        N8N->>DB: Store Script + Scenes
+    end
+    
+    rect rgb(16, 185, 129, 0.1)
+        Note over N8N,AI: Phase 3: Video Production
+        loop For Each Scene (Parallel)
+            N8N->>AI: Generate Video (Veo3/Sora)
+            AI-->>N8N: Video Blob
+            N8N->>DB: Upload to Supabase Storage
+        end
+        N8N->>AI: Generate Voiceover (ElevenLabs)
+        AI-->>N8N: Audio File
+        N8N->>N8N: Compose Final Video (FFmpeg)
+        N8N->>DB: Store Master Video
+    end
+    
+    rect rgb(245, 158, 11, 0.1)
+        Note over N8N,SM: Phase 4: Publishing
+        N8N->>DB: Create A/B Variants
+        N8N->>SM: Publish to Instagram
+        N8N->>SM: Publish to TikTok
+        SM-->>N8N: Post IDs
+        N8N->>DB: Store Publication Records
+    end
+    
+    rect rgb(236, 72, 153, 0.1)
+        Note over SM,FE: Phase 5: Analytics
+        loop Every 15 minutes
+            N8N->>SM: Fetch Engagement Metrics
+            SM-->>N8N: Views, Likes, Shares
+            N8N->>DB: Update Metrics
+            DB-->>FE: Realtime Push (WebSocket)
+        end
+    end
+```
+
+---
+
+## 🏛️ The 5 Pillars
+
+```mermaid
+graph LR
+    subgraph P1["🧠 PILLAR 1<br/>Strategist"]
+        S1[Trend Analysis]
+        S2[Brand RAG]
+        S3[Brief Generation]
+        S1 --> S2 --> S3
+    end
+    
+    subgraph P2["✍️ PILLAR 2<br/>Copywriter"]
+        C1[Script Writing]
+        C2[Hook Variants]
+        C3[Scene Breakdown]
+        C1 --> C2 --> C3
+    end
+    
+    subgraph P3["🎥 PILLAR 3<br/>Production"]
+        V1[Video Generation]
+        V2[Audio/TTS]
+        V3[Composition]
+        V1 --> V3
+        V2 --> V3
+    end
+    
+    subgraph P4["📊 PILLAR 4<br/>Campaign Manager"]
+        M1[A/B Variants]
+        M2[Cost Tracking]
+        M3[Quality Score]
+        M1 --> M2 --> M3
+    end
+    
+    subgraph P5["📡 PILLAR 5<br/>Broadcaster"]
+        B1[Multi-Platform]
+        B2[Scheduling]
+        B3[Metrics]
+        B1 --> B2 --> B3
+    end
+    
+    P1 -->|brief| P2
+    P2 -->|script| P3
+    P3 -->|video| P4
+    P4 -->|campaign| P5
+    
+    style P1 fill:#3b82f6,stroke:#1e40af,color:#fff
+    style P2 fill:#8b5cf6,stroke:#5b21b6,color:#fff
+    style P3 fill:#10b981,stroke:#047857,color:#fff
+    style P4 fill:#f59e0b,stroke:#b45309,color:#fff
+    style P5 fill:#ec4899,stroke:#be185d,color:#fff
+```
+
+### Pillar Details
+
+| Pillar | Module | Key Functions |
+|--------|--------|---------------|
+| **1. Strategist** | `src/pillars/strategist/` | `generateCreativeBrief()`, `scrapeTrends()`, `queryBrandGuidelines()` |
+| **2. Copywriter** | `src/pillars/copywriter/` | `generateScript()`, `createHookVariants()`, `segmentScenes()` |
+| **3. Production** | `src/pillars/production/` | `generateVideo()`, `generateVoiceover()`, `composeVideo()` |
+| **4. Campaign** | `src/pillars/distribution/` | `createVariants()`, `trackCosts()`, `scoreQuality()` |
+| **5. Broadcaster** | `src/pillars/publisher/` | `publishToInstagram()`, `schedulePost()`, `collectMetrics()` |
+
+---
+
+## 🛠️ Tech Stack
+
+```mermaid
+mindmap
+  root((Brand Infinity<br/>Engine))
+    Frontend
+      Next.js 16
+      React 19
+      TailwindCSS 4
+      React Query
+      TypeScript
+    Backend
+      Node.js 18+
+      Express.js
+      n8n Workflows
+    Database
+      Supabase
+        PostgreSQL 14
+        pgvector
+        Realtime
+        Storage
+      Redis Cache
+    AI Models
+      Text
+        GPT-4o
+        Claude 3.5
+        DeepSeek R1
+      Video
+        Sora
+        Veo3
+        Seedream
+        Nano B
+      Audio
+        ElevenLabs
+        OpenAI TTS
+    DevOps
+      Docker
+      GitHub Actions
+      Vercel
+```
+
+### Technology Breakdown
+
+| Layer | Technology | Purpose |
+|-------|------------|---------|
+| **Frontend** | Next.js 16 + React 19 | Modern React with Turbopack |
+| **Styling** | TailwindCSS 4 | Utility-first CSS |
+| **State** | React Query | Server state management |
+| **Backend** | Express.js | REST API server |
+| **Orchestration** | n8n | Visual workflow automation |
+| **Database** | Supabase PostgreSQL | Cloud-native PostgreSQL |
+| **Vector Search** | pgvector | Brand guideline embeddings |
+| **File Storage** | Supabase Storage | Campaign assets (images, videos) |
+| **Caching** | Redis | Brand guidelines cache |
+| **Containerization** | Docker | Development & deployment |
 
 ---
 
@@ -68,436 +375,314 @@ The system is built on **5 interconnected pillars**:
 
 - **Node.js 18+**
 - **Docker & Docker Compose**
-- **OpenAI API Key** (minimum requirement)
+- **Supabase Account** (free tier works)
+- **OpenAI API Key** (required)
 
-### 1. Install
+### 1. Clone & Install
 
 ```bash
-# Clone or navigate to project
-cd brand-infinity-engine
+git clone https://github.com/nishchith-m1015/Marketing-Content-Engine.git
+cd Marketing-Content-Engine
 
-# Run automated setup
-bash scripts/setup/install_dependencies.sh
+# Install dependencies
+npm install
+cd frontend && npm install && cd ..
 ```
 
-### 2. Configure
+### 2. Configure Environment
 
 ```bash
-# Edit .env and add your API keys
-nano .env
-
-# Minimum configuration:
-OPENAI_API_KEY=sk-your-key-here
-POSTGRES_PASSWORD=your-secure-password
+cp .env.example .env
 ```
 
-### 3. Launch
+Edit `.env` with your credentials:
+
+```env
+# Supabase (Required)
+DATABASE_URL=postgresql://postgres.[project]:[password]@aws-0-[region].pooler.supabase.com:5432/postgres
+SUPABASE_URL=https://[project].supabase.co
+SUPABASE_ANON_KEY=eyJ...
+SUPABASE_SERVICE_ROLE_KEY=eyJ...
+SUPABASE_STORAGE_BUCKET=campaign-assets
+
+# AI Models (Required)
+OPENAI_API_KEY=sk-...
+
+# Optional AI Models
+ANTHROPIC_API_KEY=sk-ant-...
+DEEPSEEK_API_KEY=sk-...
+ELEVENLABS_API_KEY=...
+```
+
+### 3. Initialize Database
 
 ```bash
-# Start all services (PostgreSQL, Redis, n8n)
-npm run docker:up
-
-# Initialize database
+# Run migrations
 npm run db:migrate
 
 # Seed sample data (optional)
 npm run db:seed
 ```
 
-### 4. Access n8n
-
-```
-http://localhost:5678
-
-Username: admin
-Password: (from your .env)
-```
-
-### 5. Deploy Workflows
+### 4. Start Development Server
 
 ```bash
-# Deploy n8n workflows
-npm run deploy:workflows
-
-# Or import manually via n8n UI
+# Start both backend (3001) and frontend (3000)
+npm run dev
 ```
 
-### 6. Generate Your First Video
+Open **http://localhost:3000** 🎉
+
+---
+
+## 📁 Project Structure
+
+```
+Brand-Infinity-Engine/
+├── 📂 frontend/                    # Next.js 16 Application
+│   ├── app/                        # App Router pages
+│   │   ├── campaigns/              # Campaign management
+│   │   │   └── earlybloom/         # EarlyBloom template
+│   │   ├── analytics/              # Performance dashboard
+│   │   ├── distribution/           # Multi-platform publishing
+│   │   └── ...
+│   ├── components/                 # React components
+│   │   └── ui/                     # Reusable UI components
+│   └── lib/                        # Utilities & API client
+│
+├── 📂 src/pillars/                 # Core Business Logic
+│   ├── strategist/                 # Pillar 1: Strategy
+│   ├── copywriter/                 # Pillar 2: Scripts
+│   ├── production/                 # Pillar 3: Videos
+│   ├── distribution/               # Pillar 4: Campaigns
+│   └── publisher/                  # Pillar 5: Publishing
+│
+├── 📂 database/migrations/         # SQL Migrations (23 tables)
+├── 📂 workflows/                   # n8n Workflow JSONs
+├── 📂 utils/                       # Shared Utilities
+│   ├── db.js                       # Database connection
+│   ├── file_upload.js              # Supabase Storage
+│   ├── model_router.js             # AI Model Selection
+│   └── cost_calculator.js          # Cost Tracking
+│
+├── 📂 docs/                        # Documentation
+├── 📂 scripts/                     # Setup & Deployment Scripts
+├── 📄 index.js                     # Express Server Entry
+├── 📄 docker-compose.yml           # Local Development Stack
+└── 📄 package.json                 # Dependencies
+```
+
+---
+
+## 💾 Database Schema
+
+```mermaid
+erDiagram
+    %% Strategist Pillar
+    BRAND_GUIDELINES ||--o{ CREATIVE_BRIEFS : generates
+    TRENDS ||--o{ CREATIVE_BRIEFS : influences
+    COMPETITOR_ADS ||--o{ CREATIVE_BRIEFS : informs
+    
+    %% Copywriter Pillar
+    CREATIVE_BRIEFS ||--o{ SCRIPTS : produces
+    SCRIPTS ||--o{ HOOKS : has
+    SCRIPTS ||--o{ SCENE_SEGMENTS : contains
+    SCRIPTS ||--o{ SCRIPT_VERSIONS : versions
+    
+    %% Production Pillar
+    SCRIPTS ||--o{ VIDEOS : generates
+    VIDEOS ||--o{ SCENES : composed_of
+    VIDEOS ||--o{ AUDIO_ASSETS : uses
+    VIDEOS ||--o{ GENERATION_JOBS : tracks
+    
+    %% Campaign Manager Pillar
+    VIDEOS ||--o{ CAMPAIGNS : featured_in
+    CAMPAIGNS ||--o{ VARIANTS : has
+    CAMPAIGNS ||--o{ CAMPAIGN_ASSETS : contains
+    CAMPAIGNS ||--o{ COST_LEDGER : tracks
+    CAMPAIGNS ||--o{ CAMPAIGN_AUDIT_LOG : logs
+    
+    %% Broadcaster Pillar
+    CAMPAIGNS ||--o{ PUBLICATIONS : publishes
+    PUBLICATIONS ||--o{ PLATFORM_POSTS : creates
+    PLATFORM_POSTS ||--o{ ENGAGEMENT_METRICS : measures
+    PUBLICATIONS ||--o{ SCHEDULED_POSTS : schedules
+    
+    %% Entity Definitions
+    BRAND_GUIDELINES {
+        uuid id PK
+        string name
+        jsonb guidelines
+        vector embedding
+        timestamp created_at
+    }
+    
+    CAMPAIGNS {
+        uuid id PK
+        string name
+        string status
+        uuid video_id FK
+        jsonb metadata
+        timestamp created_at
+    }
+    
+    VIDEOS {
+        uuid id PK
+        string title
+        string storage_url
+        integer duration_seconds
+        string status
+        timestamp created_at
+    }
+    
+    ENGAGEMENT_METRICS {
+        uuid id PK
+        uuid platform_post_id FK
+        integer views
+        integer likes
+        integer shares
+        float engagement_rate
+        timestamp fetched_at
+    }
+```
+
+### Table Count by Pillar
+
+| Pillar | Tables | Key Tables |
+|--------|--------|------------|
+| **Strategist** | 4 | `brand_guidelines`, `creative_briefs`, `trends` |
+| **Copywriter** | 4 | `scripts`, `hooks`, `scene_segments` |
+| **Production** | 4 | `videos`, `scenes`, `generation_jobs` |
+| **Campaign** | 5 | `campaigns`, `variants`, `cost_ledger` |
+| **Broadcaster** | 4 | `publications`, `platform_posts`, `engagement_metrics` |
+| **Total** | **21** | |
+
+---
+
+## 📡 API Reference
+
+### Base URL
+```
+http://localhost:3001/api/v1
+```
+
+### Endpoints
+
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| `GET` | `/health` | Health check |
+| `POST` | `/briefs` | Generate creative brief |
+| `GET` | `/briefs/:id` | Get brief by ID |
+| `POST` | `/scripts` | Generate script from brief |
+| `GET` | `/scripts/:id` | Get script by ID |
+| `POST` | `/videos/generate` | Generate video from script |
+| `GET` | `/videos/:id` | Get video by ID |
+| `POST` | `/campaigns` | Create campaign |
+| `POST` | `/campaigns/:id/publish` | Publish campaign |
+| `GET` | `/campaigns/:id/metrics` | Get engagement metrics |
+| `POST` | `/assets/upload` | Upload campaign asset |
+| `GET` | `/assets/:campaignId` | List campaign assets |
+
+### Example Request
 
 ```bash
-# Trigger the full pipeline
-curl -X POST http://localhost:5678/webhook/strategist \
+curl -X POST http://localhost:3001/api/v1/briefs \
   -H "Content-Type: application/json" \
   -d '{
-    "brand_guideline_id": 1,
-    "campaign_goal": "Increase product awareness",
-    "target_platform": "Instagram"
+    "brand_guideline_id": "uuid-here",
+    "campaign_goal": "Product launch awareness",
+    "target_platform": "instagram",
+    "video_duration": 15
   }'
 ```
 
 ---
 
-## 📚 Documentation
-
-- **[Setup Guide](docs/SETUP_GUIDE.md)** - Complete installation and configuration
-- **[API Documentation](docs/API_DOCUMENTATION.md)** - Webhook endpoints and database schema
-- **[Troubleshooting](docs/TROUBLESHOOTING.md)** - Common issues and solutions
-- **[Architecture](Plan.md)** - System design and workflow details
-
----
-
-## 🛠️ Tech Stack
-
-### Core Infrastructure
-- **n8n** - Workflow automation and orchestration
-- **PostgreSQL 14** - Primary database with pgvector for embeddings
-- **Redis** - Caching layer for brand guidelines
-- **Docker** - Containerization
-
-### AI Models
-
-**Text Generation:**
-- OpenAI GPT-4o, GPT-4o-mini
-- Anthropic Claude 3.5 Sonnet, Haiku
-- DeepSeek Chat, Reasoner
-
-**Video Generation:**
-- OpenAI Sora
-- Google Veo3
-- Seedream
-- Nano B
-
-**Audio/TTS:**
-- ElevenLabs (Multilingual V2, Turbo V2.5)
-- OpenAI TTS-1, TTS-1-HD
-
-**Embeddings:**
-- OpenAI text-embedding-3-small/large
-
-### Storage & Distribution
-- **Vector DB**: Pinecone or Supabase Vector
-- **Object Storage**: AWS S3 or Google Drive
-- **CDN**: CloudFront (optional)
-
-### Social Media APIs
-- Instagram Graph API
-- TikTok API
-- YouTube Data API v3
-- LinkedIn Marketing API
-
----
-
-## 🔑 Required API Keys
-
-### Essential (Required)
-- [x] **OpenAI** - GPT-4o, embeddings
-- [x] **PostgreSQL** - Database credentials
-
-### Recommended
-- [ ] **Anthropic Claude** - Advanced reasoning
-- [ ] **DeepSeek** - Cost-effective generation
-- [ ] **ElevenLabs** - Natural TTS voices
-- [ ] **Pinecone** or **Supabase** - Vector search
-- [ ] **AWS S3** or **Google Drive** - Video storage
-
-### Video Generation (Choose One+)
-- [ ] **OpenAI Sora** - Cinematic quality (slow, expensive)
-- [ ] **Google Veo3** - High quality (medium speed/cost)
-- [ ] **Seedream** - Good quality (fast, medium cost)
-- [ ] **Nano B** - Prototyping (very fast, low cost)
-
-### Social Media (Optional)
-- [ ] Instagram, TikTok, YouTube, LinkedIn APIs
-
-See [Setup Guide](docs/SETUP_GUIDE.md) for how to obtain each API key.
-
----
-
 ## 💰 Cost Optimization
 
-The system includes intelligent cost management:
+### Model Router Logic
 
-### Model Router
-Automatically selects the best model based on:
-- Task complexity
-- Budget constraints
-- Speed requirements
-
-```javascript
-// Example: Fast, cost-effective generation
-const model = router.selectTextModel({
-    complexity: 'low',
-    budget: 'low',
-    priority: 'speed'
-});
-// Returns: gpt-4o-mini
-
-// Example: High-quality video
-const videoModel = router.selectVideoModel({
-    quality: 'cinematic',
-    budget: 'high'
-});
-// Returns: sora
+```mermaid
+flowchart TD
+    A[Request] --> B{Budget?}
+    B -->|High| C{Quality?}
+    B -->|Low| D{Speed?}
+    
+    C -->|Cinematic| E[Sora<br/>$0.50/scene]
+    C -->|Standard| F[Veo3<br/>$0.40/scene]
+    
+    D -->|Fast| G[Nano B<br/>$0.25/scene]
+    D -->|Normal| H[Seedream<br/>$0.30/scene]
+    
+    style E fill:#ef4444
+    style F fill:#f97316
+    style G fill:#22c55e
+    style H fill:#eab308
 ```
 
-### Cost Tracking
-Every API call is logged to `cost_ledger`:
+### Estimated Costs
 
-```sql
-SELECT 
-    DATE(timestamp) as date,
-    SUM(cost_usd) as total_cost
-FROM cost_ledger
-GROUP BY DATE(timestamp)
-ORDER BY date DESC;
-```
-
-### Estimated Costs Per Video (30-second ad)
-
-| Component | Model | Cost |
-|-----------|-------|------|
+| Component | Model | Cost per Unit |
+|-----------|-------|---------------|
 | Creative Brief | GPT-4o | $0.02 |
 | Script (3 variants) | GPT-4o-mini | $0.05 |
-| 8 Video Scenes | Sora | $12.00 |
-| Voiceover | ElevenLabs | $0.03 |
-| **Total** | | **$12.10** |
+| Video Scene | Sora | $0.50 |
+| Video Scene | Veo3 | $0.40 |
+| Video Scene | Nano B | $0.25 |
+| Voiceover (30s) | ElevenLabs | $0.03 |
 
-**Budget Options:**
-- **Premium** (Sora): ~$12/video
-- **Standard** (Veo3): ~$9.60/video
-- **Fast** (Seedream): ~$7.20/video
-- **Economy** (Nano B): ~$6.00/video
+**30-Second Video Cost Range:** `$6.00 - $12.00`
 
 ---
 
-## 📊 Database Schema
+## 🚢 Deployment
 
-### 21 Tables Across 5 Pillars
+### Supabase Setup
 
-**Strategist:**
-- `trends` - Viral content tracking
-- `brand_guidelines` - Brand identity + embeddings
-- `competitor_ads` - Competitor analysis
-- `creative_briefs` - Campaign concepts
+1. Create project at [supabase.com](https://supabase.com)
+2. Run migrations: `npm run db:migrate`
+3. Create storage bucket: `campaign-assets` (public)
 
-**Copywriter:**
-- `scripts` - Video scripts
-- `hooks` - Attention-grabbing openings
-- `scene_segments` - Scene descriptions
-- `script_versions` - A/B test variations
-
-**Production House:**
-- `videos` - Master video records
-- `scenes` - Individual scene videos
-- `generation_jobs` - Async job tracking
-- `audio_assets` - Voiceover files
-
-**Campaign Manager:**
-- `campaigns` - Campaign metadata
-- `variants` - A/B test variants
-- `assets` - Media files
-- `cost_ledger` - Cost tracking
-- `campaign_audit_log` - Change history
-
-**Broadcaster:**
-- `publications` - Publication batches
-- `platform_posts` - Platform-specific posts
-- `scheduled_posts` - Scheduling queue
-- `engagement_metrics` - Performance data
-
-See [API Documentation](docs/API_DOCUMENTATION.md) for complete schema details.
-
----
-
-## 🔄 Workflow Examples
-
-### Example 1: Full Pipeline
+### Vercel Deployment (Frontend)
 
 ```bash
-# 1. Generate creative brief
-curl -X POST http://localhost:5678/webhook/strategist \
-  -d '{"brand_guideline_id": 1, "campaign_goal": "Product launch"}'
-# Returns: creative_brief_id: 42
-
-# 2. Generate scripts
-curl -X POST http://localhost:5678/webhook/copywriter \
-  -d '{"creative_brief_id": 42, "hooks_count": 3}'
-# Returns: script_id: 156
-
-# 3. Produce video
-curl -X POST http://localhost:5678/webhook/production \
-  -d '{"script_id": 156, "quality": "high"}'
-# Returns: video_id: 89
-
-# 4. Create campaign
-curl -X POST http://localhost:5678/webhook/campaign \
-  -d '{"video_id": 89, "variants_count": 3}'
-# Returns: campaign_id: 23
-
-# 5. Publish
-curl -X POST http://localhost:5678/webhook/broadcast \
-  -d '{"campaign_id": 23, "platforms": ["instagram", "tiktok"]}'
-# Returns: publication_id: 45
+cd frontend
+vercel deploy
 ```
 
-### Example 2: A/B Testing
-
-```javascript
-// Create 3 variants with different hooks
-const campaign = await createCampaign({
-    video_id: 89,
-    variants_count: 3,
-    test_hooks: true
-});
-
-// Publish all variants
-await broadcast({
-    campaign_id: campaign.id,
-    platforms: ["instagram"],
-    schedule: {
-        type: "scheduled",
-        publish_at: "2024-02-15T10:00:00Z"
-    }
-});
-
-// Monitor performance
-const metrics = await getEngagementMetrics(campaign.id);
-// Find winning variant based on engagement_rate
-```
-
----
-
-## 🧪 Testing
+### Railway/Render (Backend)
 
 ```bash
-# Run unit tests
-npm test
-
-# Test database connection
-npm run db:test
-
-# Test API integrations
-npm run test:apis
-
-# Test workflow execution
-npm run test:workflows
-```
-
----
-
-## 🔐 Security
-
-### Environment Variables
-- Never commit `.env` file
-- Use strong passwords (16+ characters)
-- Rotate API keys regularly
-
-### Database
-- PostgreSQL passwords are encrypted
-- SSL connections in production
-- Regular backups (use `pg_dump`)
-
-### API Keys
-- Store in `.env` only
-- Use read-only keys where possible
-- Monitor usage for anomalies
-
-### Production Deployment
-- Use Docker secrets
-- Enable HTTPS for n8n
-- Implement rate limiting
-- Set up monitoring (Grafana)
-
----
-
-## 📈 Monitoring
-
-### Cost Dashboard
-
-```bash
-# Daily cost report
-npm run costs:report
-
-# View in database
-SELECT 
-    DATE(timestamp) as date,
-    provider,
-    SUM(cost_usd) as cost
-FROM cost_ledger
-WHERE timestamp > NOW() - INTERVAL '7 days'
-GROUP BY date, provider
-ORDER BY date DESC;
-```
-
-### Performance Metrics
-
-```bash
-# Workflow execution times
-# View in n8n UI: Executions tab
-
-# Database performance
-psql -U postgres -d brand_infinity -c "SELECT * FROM pg_stat_statements ORDER BY mean_exec_time DESC LIMIT 10;"
-```
-
-### Engagement Tracking
-
-```sql
--- Top performing posts
-SELECT 
-    pp.platform,
-    pp.post_url,
-    em.views,
-    em.engagement_rate
-FROM platform_posts pp
-JOIN engagement_metrics em ON pp.platform_post_id = em.platform_post_id
-ORDER BY em.engagement_rate DESC
-LIMIT 10;
+# Dockerfile included
+docker build -t brand-infinity .
+docker run -p 3001:3001 brand-infinity
 ```
 
 ---
 
 ## 🤝 Contributing
 
-We welcome contributions! Please:
-
 1. Fork the repository
-2. Create a feature branch
-3. Make your changes
-4. Add tests
-5. Submit a pull request
+2. Create feature branch: `git checkout -b feature/amazing`
+3. Commit changes: `git commit -m 'Add amazing feature'`
+4. Push to branch: `git push origin feature/amazing`
+5. Open Pull Request
 
 ---
 
 ## 📝 License
 
-This project is licensed under the MIT License.
+MIT License — see [LICENSE](LICENSE) for details.
 
 ---
 
-## 🆘 Support
+## ⭐ Star History
 
-- **Documentation**: [docs/](docs/)
-- **Issues**: [GitHub Issues](https://github.com/your-repo/issues)
-- **Discussions**: [GitHub Discussions](https://github.com/your-repo/discussions)
+If this project helped you, please consider giving it a star!
 
 ---
 
-## 🗺️ Roadmap
-
-- [ ] Real-time video streaming generation
-- [ ] Multi-language support (i18n)
-- [ ] Advanced analytics dashboard
-- [ ] Custom video model training
-- [ ] Mobile app for campaign management
-- [ ] Shopify/WooCommerce integration
-
----
-
-## ⭐ Star This Project
-
-If you find this helpful, please star the repository!
-
----
-
-**Built with ❤️ using AI**
->>>>>>> 860c655 (chore: supabase migration, migrations applied, frontend fixes (badge, scene-editor, file-upload, asset-gallery))
+<p align="center">
+  <b>Built with ❤️ using AI</b><br/>
+  <sub>GPT-4o • Claude • Veo3 • Sora • ElevenLabs</sub>
+</p>
