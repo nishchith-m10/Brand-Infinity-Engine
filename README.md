@@ -314,42 +314,78 @@ graph LR
 ## 🛠️ Tech Stack
 
 ```mermaid
-mindmap
-  root((Brand Infinity<br/>Engine))
-    Frontend
-      Next.js 16
-      React 19
-      TailwindCSS 4
-      React Query
-      TypeScript
-    Backend
-      Node.js 18+
-      Express.js
-      n8n Workflows
-    Database
-      Supabase
-        PostgreSQL 14
-        pgvector
-        Realtime
-        Storage
-      Redis Cache
-    AI Models
-      Text
-        GPT-4o
-        Claude 3.5
-        DeepSeek R1
-      Video
-        Sora
-        Veo3
-        Seedream
-        Nano B
-      Audio
-        ElevenLabs
-        OpenAI TTS
-    DevOps
-      Docker
-      GitHub Actions
-      Vercel
+flowchart LR
+    subgraph Core["🎯 Brand Infinity Engine"]
+        direction TB
+        ENGINE((Engine))
+    end
+
+    subgraph FE["🖥️ Frontend"]
+        direction TB
+        F1["Next.js 16"]
+        F2["React 19"]
+        F3["TailwindCSS 4"]
+        F4["TypeScript"]
+        F5["React Query"]
+    end
+
+    subgraph BE["⚙️ Backend"]
+        direction TB
+        B1["Node.js 18+"]
+        B2["Express.js"]
+        B3["n8n Workflows"]
+    end
+
+    subgraph DB["💾 Database"]
+        direction TB
+        D1["PostgreSQL 14"]
+        D2["pgvector"]
+        D3["Supabase Storage"]
+        D4["Realtime"]
+        D5["Redis Cache"]
+    end
+
+    subgraph AI["🤖 AI Models"]
+        direction TB
+        subgraph Text["📝 Text"]
+            T1["GPT-4o"]
+            T2["Claude 3.5"]
+            T3["DeepSeek R1"]
+        end
+        subgraph Video["🎬 Video"]
+            V1["Sora"]
+            V2["Veo3"]
+            V3["Seedream"]
+            V4["Nano B"]
+        end
+        subgraph Audio["🔊 Audio"]
+            A1["ElevenLabs"]
+            A2["OpenAI TTS"]
+        end
+    end
+
+    subgraph OPS["🚀 DevOps"]
+        direction TB
+        O1["Docker"]
+        O2["GitHub Actions"]
+        O3["Vercel"]
+    end
+
+    ENGINE --- FE
+    ENGINE --- BE
+    ENGINE --- DB
+    ENGINE --- AI
+    ENGINE --- OPS
+
+    style Core fill:#6366f1,stroke:#4338ca,color:#fff
+    style FE fill:#3b82f6,stroke:#1d4ed8,color:#fff
+    style BE fill:#8b5cf6,stroke:#6d28d9,color:#fff
+    style DB fill:#f59e0b,stroke:#d97706,color:#fff
+    style AI fill:#10b981,stroke:#059669,color:#fff
+    style OPS fill:#ef4444,stroke:#dc2626,color:#fff
+    style Text fill:#22c55e,stroke:#16a34a,color:#fff
+    style Video fill:#14b8a6,stroke:#0d9488,color:#fff
+    style Audio fill:#06b6d4,stroke:#0891b2,color:#fff
 ```
 
 ### Technology Breakdown
