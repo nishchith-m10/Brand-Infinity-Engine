@@ -1,0 +1,780 @@
+{
+  "name": "AI Agents (unfinished) work in progress",
+  "nodes": [
+    {
+      "parameters": {
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.chatTrigger",
+      "typeVersion": 1.1,
+      "position": [
+        128,
+        128
+      ],
+      "id": "3ea77150-1337-4af2-84e5-b36da4ef1474",
+      "name": "When chat message received",
+      "webhookId": "39da8cda-28c7-4832-b3f8-f2c11889784e"
+    },
+    {
+      "parameters": {
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "typeVersion": 2.1,
+      "position": [
+        384,
+        16
+      ],
+      "id": "104a18fe-f3cd-48cb-a725-fd512dd08262",
+      "name": "AI Agent"
+    },
+    {
+      "parameters": {
+        "model": "deepseek/deepseek-chat-v3-0324:free",
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.lmChatOpenRouter",
+      "typeVersion": 1,
+      "position": [
+        352,
+        240
+      ],
+      "id": "0facfbc3-3273-4b50-9715-3ddec44a4195",
+      "name": "OpenRouter Chat Model",
+      "credentials": {
+        "openRouterApi": {
+          "id": "brfJKzbu7TgF3gN1",
+          "name": "AI Agent "
+        }
+      }
+    },
+    {
+      "parameters": {},
+      "type": "@n8n/n8n-nodes-langchain.memoryBufferWindow",
+      "typeVersion": 1.3,
+      "position": [
+        480,
+        240
+      ],
+      "id": "befcdae4-1bd1-4980-ac4d-e963bb452e1b",
+      "name": "Simple Memory"
+    },
+    {
+      "parameters": {
+        "operation": "get",
+        "calendar": {
+          "__rl": true,
+          "value": "nishchith.manjunatha@gmail.com",
+          "mode": "list",
+          "cachedResultName": "nishchith.manjunatha@gmail.com"
+        },
+        "eventId": "={{ $fromAI('Event_ID', ``, 'string') }}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleCalendarTool",
+      "typeVersion": 1.3,
+      "position": [
+        608,
+        240
+      ],
+      "id": "48b8f70a-415e-4087-a702-50778f7d92c1",
+      "name": "Get an event in Google Calendar",
+      "credentials": {
+        "googleCalendarOAuth2Api": {
+          "id": "4vvKWP024YVXcIZx",
+          "name": "Google Calendar account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "mode": "raw",
+        "jsonOutput": "{\n  \"firstName\": \"Nishchith\",\n  \"lastName\": \"Manjunatha\"\n}\n",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        128,
+        544
+      ],
+      "id": "dfb6c87c-49df-461e-bedb-8fe240b5e16a",
+      "name": "Edit Fields"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "6456a281-44c6-4b36-bfcf-57ce7e52b698",
+              "leftValue": "={{ $json.firstName }}",
+              "rightValue": "Nishchith",
+              "operator": {
+                "type": "string",
+                "operation": "equals",
+                "name": "filter.operator.equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        352,
+        544
+      ],
+      "id": "19599058-cf0b-465a-8aa3-665e21e2303c",
+      "name": "If"
+    },
+    {
+      "parameters": {
+        "mode": "raw",
+        "jsonOutput": "{\n  \"price\": \"$100\"\n\n}\n",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        576,
+        448
+      ],
+      "id": "0c056e1e-5240-44ad-9f62-7c0a0a8570f8",
+      "name": "$100"
+    },
+    {
+      "parameters": {
+        "mode": "raw",
+        "jsonOutput": "{\n  \"prize\": \"$5\"\n}\n",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        576,
+        640
+      ],
+      "id": "31be8e4f-3b8f-49c6-b7f7-ebfdbef245b1",
+      "name": "$5"
+    },
+    {
+      "parameters": {
+        "resource": "draft",
+        "subject": "=Congrats! You won {{$json.prize}} ",
+        "message": "See title. Lmao Loser. ",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.gmail",
+      "typeVersion": 2.1,
+      "position": [
+        800,
+        640
+      ],
+      "id": "2ec27e39-d0d8-472d-88fc-e2daf8f2952a",
+      "name": "Create a draft",
+      "webhookId": "c4b74c43-a778-4a07-b945-e67a81d553d9",
+      "credentials": {
+        "gmailOAuth2": {
+          "id": "bDmiQTJ2OkZScpNY",
+          "name": "Gmail account 2"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "resource": "draft",
+        "subject": "=Congrats you wom {{ $json.prize }}.",
+        "message": "You are the winner! congrats!",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.gmail",
+      "typeVersion": 2.1,
+      "position": [
+        800,
+        448
+      ],
+      "id": "dab8b42a-87db-41c4-8992-0b6c22480d38",
+      "name": "Create a draft1",
+      "webhookId": "18635571-a3cc-4885-a308-b1c220895f5b",
+      "credentials": {
+        "gmailOAuth2": {
+          "id": "bDmiQTJ2OkZScpNY",
+          "name": "Gmail account 2"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "mode": "raw",
+        "jsonOutput": "{\n  \"personOne\":\"Sally\",\n  \"personTwo\":\"Nick\" \n}\n",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        1184,
+        32
+      ],
+      "id": "07c55974-efb8-498c-8289-aae1baf1e554",
+      "name": "Edit Fields1"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "f4ebe231-b380-4dc4-87a8-c55123e24362",
+              "leftValue": "={{ $json.names }}",
+              "rightValue": "Nick",
+              "operator": {
+                "type": "array",
+                "operation": "contains",
+                "rightType": "any"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.filter",
+      "typeVersion": 2.2,
+      "position": [
+        1184,
+        528
+      ],
+      "id": "4c7bc45b-5c7c-4456-a903-64258527c90f",
+      "name": "Filter"
+    },
+    {
+      "parameters": {
+        "resource": "draft",
+        "subject": "=Congrats you won $100",
+        "message": "You are the winner! congrats!",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.gmail",
+      "typeVersion": 2.1,
+      "position": [
+        1408,
+        528
+      ],
+      "id": "9814a86d-c42a-4c33-a2aa-64cc0c9d292b",
+      "name": "Create a draft2",
+      "webhookId": "18635571-a3cc-4885-a308-b1c220895f5b",
+      "credentials": {
+        "gmailOAuth2": {
+          "id": "bDmiQTJ2OkZScpNY",
+          "name": "Gmail account 2"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "model": "deepseek/deepseek-r1-0528-qwen3-8b:free",
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.lmChatOpenRouter",
+      "typeVersion": 1,
+      "position": [
+        1440,
+        32
+      ],
+      "id": "da62928b-4fbf-4967-a4fd-a399201a7c66",
+      "name": "OpenRouter Chat Model1",
+      "credentials": {
+        "openRouterApi": {
+          "id": "D0qm8ZhmiGpKGwag",
+          "name": "Person 1"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "model": "deepseek/deepseek-r1-0528-qwen3-8b:free",
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.lmChatOpenRouter",
+      "typeVersion": 1,
+      "position": [
+        1456,
+        352
+      ],
+      "id": "21fb3af6-2ffd-438f-92c2-60727a5ff57d",
+      "name": "OpenRouter Chat Model2",
+      "credentials": {
+        "openRouterApi": {
+          "id": "vw7k9ETY6BSks4P4",
+          "name": "Person 2"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "=Write a detailed, fun story about {{ $json.personTwo }}. It should be < 100 words. ",
+        "messages": {
+          "messageValues": [
+            {
+              "message": "=Write a detailed, fun story about {{ $json.personTwo }}. It should be < 100 words. "
+            }
+          ]
+        },
+        "batching": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.chainLlm",
+      "typeVersion": 1.7,
+      "position": [
+        1424,
+        176
+      ],
+      "id": "974190ae-f21d-48e4-8848-5c4bbd834abd",
+      "name": "Nick Story"
+    },
+    {
+      "parameters": {
+        "promptType": "=define",
+        "text": "=Write a detailed, fun story about {{ $json.personOne }}. It should be < 100 words. ",
+        "messages": {
+          "messageValues": [
+            {
+              "message": "=Write a detailed, fun story about {{ $json.personOne }}. It should be < 100 words. "
+            }
+          ]
+        },
+        "batching": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.chainLlm",
+      "typeVersion": 1.7,
+      "position": [
+        1424,
+        -112
+      ],
+      "id": "cecd8cfd-bbef-4b13-a302-f1a25b6a0df3",
+      "name": "Sally Story"
+    },
+    {
+      "parameters": {},
+      "type": "n8n-nodes-base.merge",
+      "typeVersion": 3.2,
+      "position": [
+        1792,
+        48
+      ],
+      "id": "c3c0b590-d0c4-4828-9ff5-d1da0af2c4a6",
+      "name": "Merge"
+    },
+    {
+      "parameters": {
+        "resource": "draft",
+        "subject": "=Story about {{ $json.Sally.includes(\"Nick\")? \"Nick\":\"Sally\"}}",
+        "message": "={{ $json.Sally}} ",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.gmail",
+      "typeVersion": 2.1,
+      "position": [
+        2064,
+        32
+      ],
+      "id": "336b45a5-c1ee-44e2-94c3-9b35eb614e6c",
+      "name": "Create a draft3",
+      "webhookId": "c4b74c43-a778-4a07-b945-e67a81d553d9",
+      "credentials": {
+        "gmailOAuth2": {
+          "id": "bDmiQTJ2OkZScpNY",
+          "name": "Gmail account 2"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        1488,
+        768
+      ],
+      "id": "bc1a05be-3fea-4890-a6e4-7f8c69c0069a",
+      "name": "Edit Fields2"
+    },
+    {
+      "parameters": {
+        "options": {}
+      },
+      "type": "n8n-nodes-base.splitInBatches",
+      "typeVersion": 3,
+      "position": [
+        1808,
+        704
+      ],
+      "id": "62d81c1d-8391-4ae9-94b6-b4676c97e9a7",
+      "name": "Loop Over Items"
+    },
+    {
+      "parameters": {},
+      "type": "n8n-nodes-base.wait",
+      "typeVersion": 1.1,
+      "position": [
+        2064,
+        784
+      ],
+      "id": "4e790ac8-5f53-4f9b-bed7-9538d48d9b0f",
+      "name": "Wait",
+      "webhookId": "1bab9d5b-166b-4520-a707-bea92140b05e"
+    },
+    {
+      "parameters": {
+        "resource": "draft",
+        "subject": "Done Looping",
+        "message": "You successfully waited 10 seconds",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.gmail",
+      "typeVersion": 2.1,
+      "position": [
+        2288,
+        560
+      ],
+      "id": "5914e6c5-540f-4b11-a309-55f3cba95b2b",
+      "name": "Create a draft4",
+      "webhookId": "65077c4e-f1ab-4337-9155-2f40a5bcec3c",
+      "executeOnce": true,
+      "credentials": {
+        "gmailOAuth2": {
+          "id": "bDmiQTJ2OkZScpNY",
+          "name": "Gmail account 2"
+        }
+      }
+    },
+    {
+      "parameters": {},
+      "type": "n8n-nodes-base.manualTrigger",
+      "typeVersion": 1,
+      "position": [
+        1248,
+        736
+      ],
+      "id": "c70d92ef-cb44-4706-a400-40fad31dec59",
+      "name": "When clicking ‘Execute workflow’"
+    }
+  ],
+  "pinData": {
+    "AI Agent": [
+      {
+        "json": {
+          "output": "               \n\nNoizHydrogenOops! I can’t check your calendar or schedule directly. But if you’d like me to look up an event for you, **share the Event ID** from your Google Calendar, and I can fetch the details for **July 31, 2025**.  \n\nAlternatively, here’s how you can check yourself:  \n1. Open **Google Calendar**.  \n2. Navigate to **July 31, 2025**.  \n3. Look for any scheduled events.  \n\nNeed help planning something for that day? Let me know—I’m happy to brainstorm ideas! 😊"
+        }
+      }
+    ],
+    "Nick Story": [
+      {
+        "json": {
+          "Nick": "Okay, picture this:\n\nThe city wasn't known for its sunrises, being perpetually overshadowed by the multi-lane highways and the slightly-too-tall apartment buildings of the rapidly-expanding valley. Nick wasn't usually up for the sunrises, but today he was manning the observation deck of the local museum's rooftop sculpture garden on a volunteer shift named \"Sunny Serenity.\"\n\nThe summer heat shimmered weakly off the polished granite of the main museum building. Below, cars zipped past, their exhaust promises a dull rumble before vanishing into the chewing-gum canyon of freeways. Nick, dressed in mismatched clothes – bright yellow shorts that barely scraped the knees because \"It's a volunteer shift, not a sartorial statement,\" and a \"Get off my lawn!\" slogan hoodie – adjusted the pair of stylish-looking virtual reality goggles dangled around his neck.\n\n\"Yo, Checklist!\" a voice chirped from behind. Maya Lopez, Nick's friend from school, the same Maya with whom Nick had probably 'brainstormed' placing a bet on whether Ms. Evans, the overly responsible Social Worker who handled Nick's foster care placement, preferred pancakes or cereal (Ms. Evans voted cereally), skipped the stairs and swung open the heavy glass door. She lowered her own pair of gleaming VR goggles, temporarily showing off new aviator sunglasses Nick desperately needed for his birthday.\n\n\"Finally, you maggot!\" Nick joked, pointing a thumb-up at the VR display on his own temples. \"Diablo IV almost forgot its purpose without a vigilant screenshot-taker.\"\n\n\"Sorry, sorry,\" Maya said, looking adorable in a borrowed band t-shirt. \"Coffee was delayed. Anyway, that server-side quest update is bothering me. Do I actually lose my rare chaos hammer, or is that a new Rapture skin? Can we, like, short-circuit the servers?\"\n\nNick chuckled. \"Uh, no. Right now? You have your chaos hammer. Rapture skin? Not active. We wait, or we look for alternative build advice. Choice is your enemy.\" He riffled through his pockets until he found a small, slightly wilted lavender flower tucked away. He pulled it out, its color vibrant against the grey concrete. \"Mom gave me these. Said 'Purple sunshine for the gloomy knight looking'. Might be my official mascot.\" He offered it to Maya. \"Want a positive vibe boost?\"\n\n\"Are you trying to take my gaming focus with flowers?\" Maya laughed, taking the flower. \"No. But thanks, Check.\" She tossed the flower over her shoulder back towards the museum lawn. \"Okay, what's the plan? We clear the next boss... or do we play retirement simulator 3 for an hour?\"\n\n\"Boss, definitely. Why would we retire while the game is barely level 20?\" Nick slung an arm around Maya's shoulders. \"Besides, Ser Soulgrazer needs beating. It's a tough cookie. Has a phase, knows ocular delay. Ruthless.\" He mimed stabbing intensely, complete with a ridiculous grimace.\n\nMustering up all the patience Nick usually reserved for arguing with Ms. Evans over bedtimes (a battle long lost), Maya playfully shoved him. \"Alright, Trigger Happy. Let's go beat a *buffalo*.\"\n\nBack inside, the museum buzzed with the low thrum of tourists. Nick and Maya navigated towards the prehistoric exhibits. Maya chatted, bouncing on her tiptoes, talking about an upcoming role-playing club drama she was writing where players fight monsters. Nick, mostly engrossed in mentally mapping the museum layout for potential hiding spots for the museum cat nobody claimed to see, hummed along occasionally.\n\n\"I still can't believe you're named Nick,\" Maya declared, gesturing dramatically as they walked past the triceratops skeleton. \"I mean, like, isn't it a shorter name? A guy's name? 'Nick' is just... generic. And points to his social worker for giving creative names.\"\n\nNick straightened up, glancing at his friend. Maya was right, actually. His real name was Eugene, something he'd agreed to change to when he signed his foster care papers, thinking it sounded a bit like something out of a Jerry Bruckheimer movie *after* agreeing. \"Yeah, 'Generic' or 'Rolled out of bed this morning'?\" He pulled up the notifications on the museum tablet he was assigned, squinting at tiny graph paper squares. \"Really, you just have to find the right character. 'Generic Eugene' works surprisingly well against weak armored foes.\"\n\nBy the end of the afternoon, Maya had a strategy for her drama scene (incorporating carefully timed Power Auras and a distract-a-roar macro), the museum was slightly less chaotic, and Nick felt a strange satisfaction. Not just from completing the museum walkthrough for the volunteer logbook, but from being exactly where he wanted to be: breathing in the stale museum air, sharing popcorn puns with his friend, pretending his VR headset wasn't his actual lifeline sometimes.\n\nThey emerged onto the observation deck one last time, the city lights starting to dot the horizon like misplaced constellations. Maya stretched, looking slightly worn but happy.\n\n\"Diablo... seriously, Nick. When they release version four, are you going to get, like, champagne for leveling up?\" she asked, leaning against the railing.\n\n\"There will be bubbly,\" Nick promised, removing his VR goggles and replacing them with the \"Get off my lawn!\" cap for the final time. \"But first, we eat.\" He pointed a thumb back towards the museum cafeteria, stained with questionable juice spills and bohemian patterns. \"And maybe Maya owes me chips for the coffee delay and the very questionable plant DNA Mom sent.\"\n\nMaya rolled her eyes, then leaned back again, letting out a long sigh. \"Still, I don't know how I got so lucky to work with you, Check. Besides the epic gaming sessions.\" She gave him a wink.\n\nNick grinned, the kind of wide, happy grin no logging algorithm could consistently replicate. \"Guilty as charged. Now come on, epic cheese-puff craving awaits.\"\n\nBecause even in a city that felt sometimes like concrete soup, with foster families coming and going like passing traffic, and a history in crisis foster care that felt heavy, Nick was still just trying, amidst the museum visits and video game quests, to navigate his way into a comic book that had a stable plot.\n\nHe was just Nick, the lilac-flower-holding, overly-serious-about-RPG-bosses gamer boy, making his own kind of victory."
+        }
+      }
+    ],
+    "Sally Story": [
+      {
+        "json": {
+          "Sally": "Okay, let's dive into this tale about Sally.\n\nSally wasn't like most girls. She preferred thinking about space adventures while sitting on her sofa (designated 'Command Center') instead of scrolling through social media. Her room wasn't filled with typical pink flamingos and glitter, but with blueprint print bedspreads, a collection of vintage binoculars that were centuries old, and a small, suspiciously sticky cabinet labeled \"Potentially Explosive Materials.\" Most collected action figures; Sally collected bottle caps she'd found on long, solitary strolls.\n\nToday was particularly exciting. Sally wasn't just buying bubble gum at the corner store – oh no. She was on a mission. A proper, interdimensional bubble gum delivery mission. (Funny thing, dimension hopping with bubble gum. It’s a Sally original.)\n\nShe'd donned her (supposedly) stealthy – and undeniably awesome – camo leggings, a bright yellow zip-up hoodie that glowed faintly in the dark (a Sally invention, naturally), and heavily accessorized with two mismatched goggles and a pair of comically large binoculars. Her trusty sidekick, a small, green alien translator chip (actually just a fancy language blocker she constructed from spare parts), was snug in her pocket.\n\n\"Balloon-o-Matic ready! Translation protocols enabled! Quantum chew factor calibrated for maximum stealth!\" Sally whispered to herself, pacing in her kitchen. She'd actually grown a miniature, fluorescent green space plant near the window (courtesy of salvaged parts from 'an old lady selling crystals') and pointed the device at it. It hissed and pulsed, humming with contained energy.\n\nThe journey began, not in a spaceship (hers was currently being debated over aesthetics with her mother's car), but via her bedroom window, overlooking the daily parade of mailboxes down the street. \"Strategy, Sally,\" she muttered, adjusting her goggles. \"They're all just regular, old-fashioned houses. How do you get Ultra-Cloud-Gum to them secretly?\"\n\nA sudden realization struck her, sparkles forming above her head: she'd overlooked the most obvious targets! \"The Mail-o-Bot!\" she screamed, causing a dead goldfish in a nearby bowl to jump slightly (shock, not fear). Sally zoomed to her desk where a complex, robot-looking device rested, built from a broken lawnmower, hamster wheel parts, and sheer force of will.\n\n\"Grandfather, you hunk of clanging ingenuity! Channel my inner force! *Click!* Override central! Code X-Bubble!\"\n\nThe Mail-o-Bot, a clunky, four-wheeled contraption cobbled from spare parts, sprang to life with a louder-than-expected ROAR. It jiggled its internal contents (including an unfortunate but experimental rubber band) and began its programmed mission: to deliver packages. Well, re-deliver... and perhaps add a little surprise.\n\nSally pressed the glowing green button on her remote (an old TV remote she'd uncovered with alien symbols on it) and zoomed out the window, leaning way too close, navigating with hand gestures. \"Left! Spin! Do a doughnut!\" she directed the bewildered Mail-o-Bot, which obediently performed a jerky U-turn.\n\nShe spotted the Thompson house down the street. Mrs. Thompson, next door neighbor, owner of the perpetually-screaming parrot *Franky*, and user of peculiar lavender-scented detergents. It was time. Sally pointed downwards. \"Ultra-Cloud-Gum! To Mail-o-Bot!\"\n\nA shimmer of green light enveloped the robot. Inside, binocular-bolted Sally felt a slightly dizzy wave. *Pop! CRUNCH!* A loud noise, somewhat reminiscent of a surprised badger meeting bubblegum, echoed from the Thompson house. Sally winced slightly. \"Did it just make a bubblegum burp?\" she wondered.\n\nBut Sally was more focused on her next target: Mr. Henderson's mailbox, from which a small, crying baby doll was poking out the gap. Clearly, he needed cheerful distraction. She zoomed in, guided by her binocular-glasses. \"Aww... It's Baby Gus? Okay... *Pop!* Go, Mail-o-Bot, GO!\" This resulted in another bright, green-yellow bubble being projected directly from the bot's gurgling chassis towards Baby Gus, who immediately stopped crying and began clapping his hands muffled behind the doll's window.\n\nSally giggled. \"Okay, maybe putting bubblegum *in* someone's washing machine was a bad idea, but Baby Gus seems happy!\" Her euphoria was short-lived. The Mail-o-Bot had taken an unexpected detour, zipping straight towards Bubba's pond. *WHOOSH!* It crashed into the murky water, sending a small ripple and half-eaten hotdog smearing against the glass.\n\n\"Oh no! Bubba sees you!\" Sally squeaked. Bubba lived in a small, rotting wooden car converted into a surprisingly nice house for her (he was quite smart, actually). But the Mail-o-Bot, dampened and possibly making strange constipated noises, continued its journey, moving slowly through the yard. Sally saw the flashing light: it was heading straight for the flowerbeds Bubba had painstakingly labeled 'Danger Zone' with his own paw prints.\n\nSuddenly, a low growl came from across the street. Two German Shepherds, clearly *not* named Lucky and Fetch, were swiveling their heads towards Sally's window, muscles twitching.\n\n\"W-whoa! Back!\" Sally accidentally yelled, clutching her goggles. The dogs started running erratically in the opposite direction. \"Okay, okay! Very smooth, Sally! Next time, introduce a little hesitation!\" she coached herself sternly as she checked her reflection in her ever-present magnifying glass.\n\nAs if on cue, Mr. Henderson's grandchildren appeared at the curb, minions in green shirts, vans with sirens. Mail-o-Bot, now covered in mystery turtle trails, was inching towards Bubba's prize-winning petunias. Not just any petunias, but the seasonally changing, light-up petunias Bubba bragged about.\n\nSally sighed dramatically, pulling out a final, rainbow-hued bubblegum. With a swift aiming motion (using her laser pointer *dot*, naturally), she inflated it to colossal size. *WHOOSH!* The bubble removed the Mail-o-Bot from the flowerbeds and gently deposited it onto Mrs. Henderson's prize-winning prize-winning prize-winning prize-winning prize-winning prize-winning prize-winning prize-winning prize-winning prize-winning prize-winning *range*. Wait, never mind.\n\n\"The-- the-- let's just get away!\" Sally decided, scrambling back through her window, closing it, shaking the cobwebs (and the faint scent of pond slime) away. She was safe on her sofa, Command Center fully operational.\n\nThe journey home felt momentous. Maybe, just maybe, these silly missions weren't so pointless after all. They certainly kept things interesting.\n\nThat night, when her parents weren't looking, Sally added a small, sticky cube of bright yellow bubblegum to her secret cache of \"Potentially Explosive Materials.\" Sometimes, mixing realities, inventing things from boredom, and possibly harming mailbox plants just seemed like something heroes do.\n\nAnd soon, Sally noticed a strange humming noise coming from her binocular shelves..."
+        }
+      }
+    ],
+    "Merge": [
+      {
+        "json": {
+          "Sally": "Okay, let's dive into this tale about Sally.\n\nSally wasn't like most girls. She preferred thinking about space adventures while sitting on her sofa (designated 'Command Center') instead of scrolling through social media. Her room wasn't filled with typical pink flamingos and glitter, but with blueprint print bedspreads, a collection of vintage binoculars that were centuries old, and a small, suspiciously sticky cabinet labeled \"Potentially Explosive Materials.\" Most collected action figures; Sally collected bottle caps she'd found on long, solitary strolls.\n\nToday was particularly exciting. Sally wasn't just buying bubble gum at the corner store – oh no. She was on a mission. A proper, interdimensional bubble gum delivery mission. (Funny thing, dimension hopping with bubble gum. It’s a Sally original.)\n\nShe'd donned her (supposedly) stealthy – and undeniably awesome – camo leggings, a bright yellow zip-up hoodie that glowed faintly in the dark (a Sally invention, naturally), and heavily accessorized with two mismatched goggles and a pair of comically large binoculars. Her trusty sidekick, a small, green alien translator chip (actually just a fancy language blocker she constructed from spare parts), was snug in her pocket.\n\n\"Balloon-o-Matic ready! Translation protocols enabled! Quantum chew factor calibrated for maximum stealth!\" Sally whispered to herself, pacing in her kitchen. She'd actually grown a miniature, fluorescent green space plant near the window (courtesy of salvaged parts from 'an old lady selling crystals') and pointed the device at it. It hissed and pulsed, humming with contained energy.\n\nThe journey began, not in a spaceship (hers was currently being debated over aesthetics with her mother's car), but via her bedroom window, overlooking the daily parade of mailboxes down the street. \"Strategy, Sally,\" she muttered, adjusting her goggles. \"They're all just regular, old-fashioned houses. How do you get Ultra-Cloud-Gum to them secretly?\"\n\nA sudden realization struck her, sparkles forming above her head: she'd overlooked the most obvious targets! \"The Mail-o-Bot!\" she screamed, causing a dead goldfish in a nearby bowl to jump slightly (shock, not fear). Sally zoomed to her desk where a complex, robot-looking device rested, built from a broken lawnmower, hamster wheel parts, and sheer force of will.\n\n\"Grandfather, you hunk of clanging ingenuity! Channel my inner force! *Click!* Override central! Code X-Bubble!\"\n\nThe Mail-o-Bot, a clunky, four-wheeled contraption cobbled from spare parts, sprang to life with a louder-than-expected ROAR. It jiggled its internal contents (including an unfortunate but experimental rubber band) and began its programmed mission: to deliver packages. Well, re-deliver... and perhaps add a little surprise.\n\nSally pressed the glowing green button on her remote (an old TV remote she'd uncovered with alien symbols on it) and zoomed out the window, leaning way too close, navigating with hand gestures. \"Left! Spin! Do a doughnut!\" she directed the bewildered Mail-o-Bot, which obediently performed a jerky U-turn.\n\nShe spotted the Thompson house down the street. Mrs. Thompson, next door neighbor, owner of the perpetually-screaming parrot *Franky*, and user of peculiar lavender-scented detergents. It was time. Sally pointed downwards. \"Ultra-Cloud-Gum! To Mail-o-Bot!\"\n\nA shimmer of green light enveloped the robot. Inside, binocular-bolted Sally felt a slightly dizzy wave. *Pop! CRUNCH!* A loud noise, somewhat reminiscent of a surprised badger meeting bubblegum, echoed from the Thompson house. Sally winced slightly. \"Did it just make a bubblegum burp?\" she wondered.\n\nBut Sally was more focused on her next target: Mr. Henderson's mailbox, from which a small, crying baby doll was poking out the gap. Clearly, he needed cheerful distraction. She zoomed in, guided by her binocular-glasses. \"Aww... It's Baby Gus? Okay... *Pop!* Go, Mail-o-Bot, GO!\" This resulted in another bright, green-yellow bubble being projected directly from the bot's gurgling chassis towards Baby Gus, who immediately stopped crying and began clapping his hands muffled behind the doll's window.\n\nSally giggled. \"Okay, maybe putting bubblegum *in* someone's washing machine was a bad idea, but Baby Gus seems happy!\" Her euphoria was short-lived. The Mail-o-Bot had taken an unexpected detour, zipping straight towards Bubba's pond. *WHOOSH!* It crashed into the murky water, sending a small ripple and half-eaten hotdog smearing against the glass.\n\n\"Oh no! Bubba sees you!\" Sally squeaked. Bubba lived in a small, rotting wooden car converted into a surprisingly nice house for her (he was quite smart, actually). But the Mail-o-Bot, dampened and possibly making strange constipated noises, continued its journey, moving slowly through the yard. Sally saw the flashing light: it was heading straight for the flowerbeds Bubba had painstakingly labeled 'Danger Zone' with his own paw prints.\n\nSuddenly, a low growl came from across the street. Two German Shepherds, clearly *not* named Lucky and Fetch, were swiveling their heads towards Sally's window, muscles twitching.\n\n\"W-whoa! Back!\" Sally accidentally yelled, clutching her goggles. The dogs started running erratically in the opposite direction. \"Okay, okay! Very smooth, Sally! Next time, introduce a little hesitation!\" she coached herself sternly as she checked her reflection in her ever-present magnifying glass.\n\nAs if on cue, Mr. Henderson's grandchildren appeared at the curb, minions in green shirts, vans with sirens. Mail-o-Bot, now covered in mystery turtle trails, was inching towards Bubba's prize-winning petunias. Not just any petunias, but the seasonally changing, light-up petunias Bubba bragged about.\n\nSally sighed dramatically, pulling out a final, rainbow-hued bubblegum. With a swift aiming motion (using her laser pointer *dot*, naturally), she inflated it to colossal size. *WHOOSH!* The bubble removed the Mail-o-Bot from the flowerbeds and gently deposited it onto Mrs. Henderson's prize-winning prize-winning prize-winning prize-winning prize-winning prize-winning prize-winning prize-winning prize-winning prize-winning prize-winning *range*. Wait, never mind.\n\n\"The-- the-- let's just get away!\" Sally decided, scrambling back through her window, closing it, shaking the cobwebs (and the faint scent of pond slime) away. She was safe on her sofa, Command Center fully operational.\n\nThe journey home felt momentous. Maybe, just maybe, these silly missions weren't so pointless after all. They certainly kept things interesting.\n\nThat night, when her parents weren't looking, Sally added a small, sticky cube of bright yellow bubblegum to her secret cache of \"Potentially Explosive Materials.\" Sometimes, mixing realities, inventing things from boredom, and possibly harming mailbox plants just seemed like something heroes do.\n\nAnd soon, Sally noticed a strange humming noise coming from her binocular shelves..."
+        }
+      },
+      {
+        "json": {
+          "Nick": "Okay, picture this:\n\nThe city wasn't known for its sunrises, being perpetually overshadowed by the multi-lane highways and the slightly-too-tall apartment buildings of the rapidly-expanding valley. Nick wasn't usually up for the sunrises, but today he was manning the observation deck of the local museum's rooftop sculpture garden on a volunteer shift named \"Sunny Serenity.\"\n\nThe summer heat shimmered weakly off the polished granite of the main museum building. Below, cars zipped past, their exhaust promises a dull rumble before vanishing into the chewing-gum canyon of freeways. Nick, dressed in mismatched clothes – bright yellow shorts that barely scraped the knees because \"It's a volunteer shift, not a sartorial statement,\" and a \"Get off my lawn!\" slogan hoodie – adjusted the pair of stylish-looking virtual reality goggles dangled around his neck.\n\n\"Yo, Checklist!\" a voice chirped from behind. Maya Lopez, Nick's friend from school, the same Maya with whom Nick had probably 'brainstormed' placing a bet on whether Ms. Evans, the overly responsible Social Worker who handled Nick's foster care placement, preferred pancakes or cereal (Ms. Evans voted cereally), skipped the stairs and swung open the heavy glass door. She lowered her own pair of gleaming VR goggles, temporarily showing off new aviator sunglasses Nick desperately needed for his birthday.\n\n\"Finally, you maggot!\" Nick joked, pointing a thumb-up at the VR display on his own temples. \"Diablo IV almost forgot its purpose without a vigilant screenshot-taker.\"\n\n\"Sorry, sorry,\" Maya said, looking adorable in a borrowed band t-shirt. \"Coffee was delayed. Anyway, that server-side quest update is bothering me. Do I actually lose my rare chaos hammer, or is that a new Rapture skin? Can we, like, short-circuit the servers?\"\n\nNick chuckled. \"Uh, no. Right now? You have your chaos hammer. Rapture skin? Not active. We wait, or we look for alternative build advice. Choice is your enemy.\" He riffled through his pockets until he found a small, slightly wilted lavender flower tucked away. He pulled it out, its color vibrant against the grey concrete. \"Mom gave me these. Said 'Purple sunshine for the gloomy knight looking'. Might be my official mascot.\" He offered it to Maya. \"Want a positive vibe boost?\"\n\n\"Are you trying to take my gaming focus with flowers?\" Maya laughed, taking the flower. \"No. But thanks, Check.\" She tossed the flower over her shoulder back towards the museum lawn. \"Okay, what's the plan? We clear the next boss... or do we play retirement simulator 3 for an hour?\"\n\n\"Boss, definitely. Why would we retire while the game is barely level 20?\" Nick slung an arm around Maya's shoulders. \"Besides, Ser Soulgrazer needs beating. It's a tough cookie. Has a phase, knows ocular delay. Ruthless.\" He mimed stabbing intensely, complete with a ridiculous grimace.\n\nMustering up all the patience Nick usually reserved for arguing with Ms. Evans over bedtimes (a battle long lost), Maya playfully shoved him. \"Alright, Trigger Happy. Let's go beat a *buffalo*.\"\n\nBack inside, the museum buzzed with the low thrum of tourists. Nick and Maya navigated towards the prehistoric exhibits. Maya chatted, bouncing on her tiptoes, talking about an upcoming role-playing club drama she was writing where players fight monsters. Nick, mostly engrossed in mentally mapping the museum layout for potential hiding spots for the museum cat nobody claimed to see, hummed along occasionally.\n\n\"I still can't believe you're named Nick,\" Maya declared, gesturing dramatically as they walked past the triceratops skeleton. \"I mean, like, isn't it a shorter name? A guy's name? 'Nick' is just... generic. And points to his social worker for giving creative names.\"\n\nNick straightened up, glancing at his friend. Maya was right, actually. His real name was Eugene, something he'd agreed to change to when he signed his foster care papers, thinking it sounded a bit like something out of a Jerry Bruckheimer movie *after* agreeing. \"Yeah, 'Generic' or 'Rolled out of bed this morning'?\" He pulled up the notifications on the museum tablet he was assigned, squinting at tiny graph paper squares. \"Really, you just have to find the right character. 'Generic Eugene' works surprisingly well against weak armored foes.\"\n\nBy the end of the afternoon, Maya had a strategy for her drama scene (incorporating carefully timed Power Auras and a distract-a-roar macro), the museum was slightly less chaotic, and Nick felt a strange satisfaction. Not just from completing the museum walkthrough for the volunteer logbook, but from being exactly where he wanted to be: breathing in the stale museum air, sharing popcorn puns with his friend, pretending his VR headset wasn't his actual lifeline sometimes.\n\nThey emerged onto the observation deck one last time, the city lights starting to dot the horizon like misplaced constellations. Maya stretched, looking slightly worn but happy.\n\n\"Diablo... seriously, Nick. When they release version four, are you going to get, like, champagne for leveling up?\" she asked, leaning against the railing.\n\n\"There will be bubbly,\" Nick promised, removing his VR goggles and replacing them with the \"Get off my lawn!\" cap for the final time. \"But first, we eat.\" He pointed a thumb back towards the museum cafeteria, stained with questionable juice spills and bohemian patterns. \"And maybe Maya owes me chips for the coffee delay and the very questionable plant DNA Mom sent.\"\n\nMaya rolled her eyes, then leaned back again, letting out a long sigh. \"Still, I don't know how I got so lucky to work with you, Check. Besides the epic gaming sessions.\" She gave him a wink.\n\nNick grinned, the kind of wide, happy grin no logging algorithm could consistently replicate. \"Guilty as charged. Now come on, epic cheese-puff craving awaits.\"\n\nBecause even in a city that felt sometimes like concrete soup, with foster families coming and going like passing traffic, and a history in crisis foster care that felt heavy, Nick was still just trying, amidst the museum visits and video game quests, to navigate his way into a comic book that had a stable plot.\n\nHe was just Nick, the lilac-flower-holding, overly-serious-about-RPG-bosses gamer boy, making his own kind of victory."
+        }
+      }
+    ],
+    "Edit Fields2": [
+      {
+        "json": {
+          "name": "First Item",
+          "code": 1
+        }
+      },
+      {
+        "json": {
+          "name": "Second Item",
+          "code": 2
+        }
+      }
+    ]
+  },
+  "connections": {
+    "When chat message received": {
+      "main": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "OpenRouter Chat Model": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Simple Memory": {
+      "ai_memory": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "ai_memory",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get an event in Google Calendar": {
+      "ai_tool": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Edit Fields": {
+      "main": [
+        [
+          {
+            "node": "If",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "If": {
+      "main": [
+        [
+          {
+            "node": "$100",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "$5",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "$100": {
+      "main": [
+        [
+          {
+            "node": "Create a draft1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "$5": {
+      "main": [
+        [
+          {
+            "node": "Create a draft",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Edit Fields1": {
+      "main": [
+        [
+          {
+            "node": "Sally Story",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Nick Story",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Filter": {
+      "main": [
+        [
+          {
+            "node": "Create a draft2",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "OpenRouter Chat Model1": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "Sally Story",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "OpenRouter Chat Model2": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "Nick Story",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Nick Story": {
+      "main": [
+        [
+          {
+            "node": "Merge",
+            "type": "main",
+            "index": 1
+          }
+        ]
+      ]
+    },
+    "Sally Story": {
+      "main": [
+        [
+          {
+            "node": "Merge",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Merge": {
+      "main": [
+        [
+          {
+            "node": "Create a draft3",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Create a draft3": {
+      "main": [
+        []
+      ]
+    },
+    "Edit Fields2": {
+      "main": [
+        [
+          {
+            "node": "Loop Over Items",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Loop Over Items": {
+      "main": [
+        [
+          {
+            "node": "Create a draft4",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Wait",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Wait": {
+      "main": [
+        [
+          {
+            "node": "Loop Over Items",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "When clicking ‘Execute workflow’": {
+      "main": [
+        [
+          {
+            "node": "Edit Fields2",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "versionId": "9e911c0f-f9f5-4a60-b278-bd596e855da4",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "b4d0a398b72ca12117856c6a3674bcbea56accfcb647ef0c19ce62c4648c9d06"
+  },
+  "id": "v83ZV5tpZzP5rzO5",
+  "tags": [
+    {
+      "createdAt": "2025-08-01T08:05:15.788Z",
+      "updatedAt": "2025-08-01T08:05:15.788Z",
+      "id": "BwFZWVo556jF7P6o",
+      "name": "n8n course"
+    }
+  ]
+}

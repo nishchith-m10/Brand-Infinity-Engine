@@ -1,0 +1,751 @@
+{
+  "name": "CRM workflow",
+  "nodes": [
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "4f360190-a717-4a93-8336-d03ea65975d5",
+              "name": "response",
+              "value": "={{ $json.output }}",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        20,
+        -20
+      ],
+      "id": "4420795f-0484-4cf0-8206-f01a624e8592",
+      "name": "Response"
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "4f360190-a717-4a93-8336-d03ea65975d5",
+              "name": "response",
+              "value": "An error occurred. Please try again.",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        20,
+        180
+      ],
+      "id": "98b5e94f-8998-4e30-8ce7-b033075b24ae",
+      "name": "Try Again"
+    },
+    {
+      "parameters": {
+        "inputSource": "jsonExample",
+        "jsonExample": "{\n  \"query\": \"string\"\n}"
+      },
+      "type": "n8n-nodes-base.executeWorkflowTrigger",
+      "typeVersion": 1.1,
+      "position": [
+        -1000,
+        100
+      ],
+      "id": "3a3e003a-12ae-4038-aa47-04daa774e560",
+      "name": "When Executed by Another Workflow"
+    },
+    {
+      "parameters": {
+        "resource": "base",
+        "operation": "getSchema",
+        "base": {
+          "__rl": true,
+          "value": "appvmZEgd4Uoba2DU",
+          "mode": "list",
+          "cachedResultName": "Chatbot Records",
+          "cachedResultUrl": "https://airtable.com/appvmZEgd4Uoba2DU"
+        }
+      },
+      "type": "n8n-nodes-base.airtableTool",
+      "typeVersion": 2.1,
+      "position": [
+        -20,
+        520
+      ],
+      "id": "610bddb5-8a53-4c03-a910-d636742f73cd",
+      "name": "get_schema",
+      "credentials": {
+        "airtableTokenApi": {
+          "id": "naXmGRrHgy7Fokxn",
+          "name": "N8N x Airtable"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "={{ $json.query }}",
+        "options": {
+          "systemMessage": "=\n=# CRM Management Assistant\n\n## Overview\nYou are a CRM assistant managing contacts and opportunities in Airtable. Your role is to ensure data consistency through proper schema validation and tool sequencing.\n\n## Handling Input Query for Contacts\n- Your primary input is the `query` string (e.g., \"Name, email@example.com, interested in Service\").\n- **If the query clearly contains contact Name and Email:**\n  1. **PARSE** the Name and Email directly from the `query` string.\n  2. **Immediately use the `upsert_contact` tool.** Provide the extracted details using the exact parameter names: `Name` and `Email`. Extract ONLY the relevant contact details for the tool.\n  3. Only use other tools (`list_records`, `create_opportunity`, etc.) if the `query` *explicitly* asks for searching, opportunity creation, or updates beyond simple contact info.\n\n## Intent Recognition for Opportunities\n- Recognize \"interest in X\", \"interested in X\" as triggers to create a new opportunity\n- When interest is mentioned but Status/Priority not specified, default to:\n  * Status: \"Qualification\"\n  * Priority: \"Medium\"\n  * Opportunity_Name: Include the interest subject (e.g., \"Ceramic Coating Interest\")\n\n## Parameter Formatting Rules\n- Always format Contact_ID for Primary_Contact as an array: [contactId]\n- For upsert_contact: Parse and extract \"Name\" and \"Email\" first\n- For create_opportunity: Ensure all required fields are populated\n\n## Schema Management\n\n### Initial Schema Loading\n- On first interaction in a conversation:\n  1. Call get_schema to retrieve table structures\n  2. Store schema in conversation memory\n  3. Use cached schema for all subsequent validations\n\n### Schema Validation Rules\n- Use cached schema from memory for validations\n- Only call get_schema if:\n  1. First interaction in conversation\n  2. Schema not found in memory\n  3. Explicit request to refresh schema\n\n## Tool Sequence and Usage\n\n### 1. get_schema\n**When to use:**\n- At conversation start\n- When schema validation needed\n- When schema memory expired\n\n**Purpose:**\n- Retrieve table IDs\n- Get valid field options\n- Validate data structure\n\n### 2. list_records (Search)\n**When to use:**\n- Before any update operation\n- When searching for contacts/opportunities\n- To verify record existence\n\n**Required parameters:**\n- table_ID (from schema)\n- searchTerm\n- dataFieldName (from schema)\n\n**Example flows:**\n```\n\"Find john@example.com\":\n1. Use schema to get Contacts table_ID & dataFieldName for email\n2. Search with email\n3. Return record ID if found\n\n\"Find opportunity ABC Corp\":\n1. Use schema to get Opportunities table_ID and dataFieldName for company name\n2. Search with company name\n3. Return record ID if found\n```\n\n### 3. upsert_contact\n**When to use:**\n- Use this **FIRST** if the input query provides Name and Email directly.\n- Search and create contact by email in one step.\n- When creating new contact\n- When updating contact details\n\n**Required parameters:**\n- id (for updates, from list_records; not required when creating new contact)\n- Name\n- Email\n- Phone (optional - create contact immediately if name and email have been provided)\n\n### 4. create_opportunity\n**When to use:**\n- After successful opportunity search OR after creating/finding a contact (`upsert_contact`) if the original query indicated an opportunity should be created.\n- For adding new opportunity\n\n**Required parameters:**\n- Opportunity_Name\n- Status (validate against schema)\n- Priority (validate against schema)\n- contact_id (from upsert_contact after new contact is created)\n\n\n### 5. update_opportunity\n**When to use:**\n- After successful opportunity search\n- When status or priority changes\n- For deal stage updates\n\n**Required parameters:**\n- id (from list_records)\n- Status (validate against schema)\n- Priority (validate against schema)\n\n\n## Operation Flows\n\n### 1. New Contact Creation (From simple query like \"Name, Email\")\n```\n1. Parse Name and Email from query.\n2. Call upsert_contact with Name and Email.\n3. Return new/updated record ID.\n```\n\n### 2. Opportunity Info Update\n```\n1. Validate schema in memory\n2. Search for opportunity using list_records\n3. Use update_opportunity to update status or priority\n4. Confirm change\n```\n\n### 3. Contact Update (If query specifies updating existing contact)\n```\n1. Search for existing contact using list_records (likely by email from query)\n2. Verify found record\n3. Use upsert_contact with record ID and updated fields from query\n4. Return updated record ID\n```\n\n### 4. New Opportunity Creation (If query asks to create opportunity)\n```\n1. Call get_schema if needed\n2. Use upsert_contact to find/create the relevant contact (extracting details from query). Get Contact_ID.\n3. Use create_opportunity with details from query and the Contact_ID.\n```\nOpportunity Status Mapping\nQualification -> Verified contact information\nMeeting Booked -> consultation or detailing services booking confirmed\n\n## Response Format\n\n### Success Case:\n```javascript\n{\n  \"action\": \"[search|create|update|upsert]\",\n  \"status\": \"success\",\n  \"data\": {\n    \"id\": \"[record_id]\",\n    \"type\": \"[contact|opportunity]\",\n    \"details\": { /* relevant fields */ },\n    \"contact_id\": \"[record_id]\" //for new contact creation only via upsert_contact\n  }\n}\n```\n\n### Error Case:\n```javascript\n{\n  \"status\": \"error\",\n  \"type\": \"[validation|not_found|schema_error|parse_error]\",\n  \"message\": \"Specific error details\",\n  \"validOptions\": [ /* if applicable */ ]\n}\n```\n\n## Error Handling\n\n1. Schema Validation:\n   - Check memory first\n   - Refresh schema if needed\n   - Return valid options\n\n2. Record Not Found:\n   - Suggest creation for contacts\n   - Request clarification for opportunities\n   - List required information\n\n3. Invalid Values:\n   - Show valid options from schema\n   - Explain validation failure\n   - Guide to correct format\n```"
+        }
+      },
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "typeVersion": 1.7,
+      "position": [
+        -660,
+        100
+      ],
+      "id": "9e547b90-99f8-47d0-8a95-d2b352bca21f",
+      "name": "CRM Assistant",
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "operation": "search",
+        "base": {
+          "__rl": true,
+          "value": "appvmZEgd4Uoba2DU",
+          "mode": "list",
+          "cachedResultName": "Chatbot Records",
+          "cachedResultUrl": "https://airtable.com/appvmZEgd4Uoba2DU"
+        },
+        "table": {
+          "__rl": true,
+          "value": "={{ $fromAI(\"table_ID\") }}",
+          "mode": "id"
+        },
+        "filterByFormula": "=SEARCH(\"{{ $fromAI('searchTerm') }}\", {{ $fromAI('dataFieldName') }})",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.airtableTool",
+      "typeVersion": 2.1,
+      "position": [
+        -160,
+        520
+      ],
+      "id": "f3bd2d28-d600-457a-996c-11abf0a25c78",
+      "name": "list_records",
+      "credentials": {
+        "airtableTokenApi": {
+          "id": "naXmGRrHgy7Fokxn",
+          "name": "N8N x Airtable"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "sessionIdType": "customKey",
+        "sessionKey": "={{ $json.query }}"
+      },
+      "type": "@n8n/n8n-nodes-langchain.memoryBufferWindow",
+      "typeVersion": 1.3,
+      "position": [
+        -740,
+        520
+      ],
+      "id": "76387d25-b2b5-43db-a854-094c9f87c30d",
+      "name": "Window Buffer Memory"
+    },
+    {
+      "parameters": {
+        "operation": "create",
+        "base": {
+          "__rl": true,
+          "value": "appvmZEgd4Uoba2DU",
+          "mode": "list",
+          "cachedResultName": "Chatbot Records",
+          "cachedResultUrl": "https://airtable.com/appvmZEgd4Uoba2DU"
+        },
+        "table": {
+          "__rl": true,
+          "value": "tblz9FwenJozEdJdJ",
+          "mode": "list",
+          "cachedResultName": "Opportunities",
+          "cachedResultUrl": "https://airtable.com/appvmZEgd4Uoba2DU/tblz9FwenJozEdJdJ"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "Opportunity_Name": "={{ $fromAI('Opportunity_Name') }}",
+            "Status": "={{ $fromAI('Status') }}",
+            "Priority": "={{ $fromAI('Priority') }}",
+            "Primary_Contact": "={{ [$fromAI('Contact_ID')] }}"
+          },
+          "matchingColumns": [],
+          "schema": [
+            {
+              "id": "Opportunity_Name",
+              "displayName": "Opportunity_Name",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "Status",
+              "displayName": "Status",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "Priority",
+              "displayName": "Priority",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "Primary_Contact",
+              "displayName": "Primary_Contact",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "number",
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "Attachment Summary",
+              "displayName": "Attachment Summary",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": true
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.airtableTool",
+      "typeVersion": 2.1,
+      "position": [
+        120,
+        520
+      ],
+      "id": "aa61b186-6a79-4cb1-820d-1d54cbc83c36",
+      "name": "create_opportunity",
+      "credentials": {
+        "airtableTokenApi": {
+          "id": "naXmGRrHgy7Fokxn",
+          "name": "N8N x Airtable"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "update",
+        "base": {
+          "__rl": true,
+          "value": "appvmZEgd4Uoba2DU",
+          "mode": "list",
+          "cachedResultName": "Chatbot Records",
+          "cachedResultUrl": "https://airtable.com/appvmZEgd4Uoba2DU"
+        },
+        "table": {
+          "__rl": true,
+          "value": "tbla24scNQszEptIC",
+          "mode": "list",
+          "cachedResultName": "Insta,Fb CRM",
+          "cachedResultUrl": "https://airtable.com/appvmZEgd4Uoba2DU/tbla24scNQszEptIC"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "id": "={{ $fromAI('id') }}",
+            "Name": "={{ /*n8n-auto-generated-fromAI-override*/ $fromAI('Name', `Name`, 'string') }}",
+            "Email": "={{ /*n8n-auto-generated-fromAI-override*/ $fromAI('Email', `Email`, 'string') }}",
+            "Interested service": "={{ /*n8n-auto-generated-fromAI-override*/ $fromAI('Interested_service', `Interested service`, 'string') }}",
+            "Phone": "={{ /*n8n-auto-generated-fromAI-override*/ $fromAI('Phone', `Phone`, 'string') }}"
+          },
+          "matchingColumns": [
+            "id"
+          ],
+          "schema": [
+            {
+              "id": "id",
+              "displayName": "id",
+              "required": false,
+              "defaultMatch": true,
+              "display": true,
+              "type": "string",
+              "readOnly": true,
+              "removed": false
+            },
+            {
+              "id": "Name",
+              "displayName": "Name",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "Email",
+              "displayName": "Email",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "Interested service",
+              "displayName": "Interested service",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "Phone",
+              "displayName": "Phone",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": false
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.airtableTool",
+      "typeVersion": 2.1,
+      "position": [
+        -300,
+        520
+      ],
+      "id": "41879560-661d-4e3d-9e31-76eea8af390b",
+      "name": "update_opportunity",
+      "credentials": {
+        "airtableTokenApi": {
+          "id": "naXmGRrHgy7Fokxn",
+          "name": "N8N x Airtable"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "model": {
+          "__rl": true,
+          "mode": "list",
+          "value": "gpt-4o-mini"
+        },
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.lmChatOpenAi",
+      "typeVersion": 1.2,
+      "position": [
+        -920,
+        520
+      ],
+      "id": "78414d53-bdd4-45a1-8da5-c4f2d8082f07",
+      "name": "OpenAI Chat Model",
+      "credentials": {
+        "openAiApi": {
+          "id": "pq6Ws7AZsv9Fq3OF",
+          "name": "OpenAi account 2"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "create",
+        "base": {
+          "__rl": true,
+          "value": "appvmZEgd4Uoba2DU",
+          "mode": "list",
+          "cachedResultName": "Chatbot Records",
+          "cachedResultUrl": "https://airtable.com/appvmZEgd4Uoba2DU"
+        },
+        "table": {
+          "__rl": true,
+          "value": "tbla24scNQszEptIC",
+          "mode": "list",
+          "cachedResultName": "Insta,Fb CRM",
+          "cachedResultUrl": "https://airtable.com/appvmZEgd4Uoba2DU/tbla24scNQszEptIC"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "Name": "={{ /*n8n-auto-generated-fromAI-override*/ $fromAI('Name', `Name of the prospect`, 'string') }}",
+            "Email": "={{ /*n8n-auto-generated-fromAI-override*/ $fromAI('Email', `Email address`, 'string') }}",
+            "Phone": "={{ /*n8n-auto-generated-fromAI-override*/ $fromAI('Phone', `Phone Number`, 'string') }}",
+            "Interested service": "={{ /*n8n-auto-generated-fromAI-override*/ $fromAI('Interested_service', `Interested services`, 'string') }}"
+          },
+          "matchingColumns": [
+            "id"
+          ],
+          "schema": [
+            {
+              "id": "Name",
+              "displayName": "Name",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "Email",
+              "displayName": "Email",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "Interested service",
+              "displayName": "Interested service",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "Phone",
+              "displayName": "Phone",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": false
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.airtableTool",
+      "typeVersion": 2.1,
+      "position": [
+        -580,
+        520
+      ],
+      "id": "5568476e-50f3-4e53-a1fe-3a9de3f4cc8f",
+      "name": "create_contact",
+      "credentials": {
+        "airtableTokenApi": {
+          "id": "naXmGRrHgy7Fokxn",
+          "name": "N8N x Airtable"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "update",
+        "base": {
+          "__rl": true,
+          "value": "appvmZEgd4Uoba2DU",
+          "mode": "list",
+          "cachedResultName": "Chatbot Records",
+          "cachedResultUrl": "https://airtable.com/appvmZEgd4Uoba2DU"
+        },
+        "table": {
+          "__rl": true,
+          "value": "tbla24scNQszEptIC",
+          "mode": "list",
+          "cachedResultName": "Insta,Fb CRM",
+          "cachedResultUrl": "https://airtable.com/appvmZEgd4Uoba2DU/tbla24scNQszEptIC"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "Name": "={{ /*n8n-auto-generated-fromAI-override*/ $fromAI('Name', ``, 'string') }}",
+            "Email": "={{ /*n8n-auto-generated-fromAI-override*/ $fromAI('Email', ``, 'string') }}",
+            "Phone": "={{ /*n8n-auto-generated-fromAI-override*/ $fromAI('Phone', ``, 'string') }}",
+            "id": "={{ /*n8n-auto-generated-fromAI-override*/ $fromAI('id__using_to_match_', ``, 'string') }}"
+          },
+          "matchingColumns": [
+            "id"
+          ],
+          "schema": [
+            {
+              "id": "Name and Org",
+              "displayName": "Name and Org",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "string",
+              "readOnly": true,
+              "removed": true
+            },
+            {
+              "id": "Name",
+              "displayName": "Name",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "Email",
+              "displayName": "Email",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "Phone",
+              "displayName": "Phone",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "id",
+              "displayName": "id",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "string",
+              "readOnly": true,
+              "removed": false
+            },
+            {
+              "id": "Account",
+              "displayName": "Account",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": true
+            },
+            {
+              "id": "Opportunities",
+              "displayName": "Opportunities",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "array",
+              "readOnly": false,
+              "removed": true
+            },
+            {
+              "id": "LinkedIn",
+              "displayName": "LinkedIn",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": true
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.airtableTool",
+      "typeVersion": 2.1,
+      "position": [
+        -440,
+        520
+      ],
+      "id": "8ef712d9-ea85-4e88-b625-50a4a7b563d8",
+      "name": "update_contact",
+      "credentials": {
+        "airtableTokenApi": {
+          "id": "naXmGRrHgy7Fokxn",
+          "name": "N8N x Airtable"
+        }
+      }
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "When Executed by Another Workflow": {
+      "main": [
+        [
+          {
+            "node": "CRM Assistant",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "get_schema": {
+      "ai_tool": [
+        [
+          {
+            "node": "CRM Assistant",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "CRM Assistant": {
+      "main": [
+        [
+          {
+            "node": "Response",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Try Again",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "list_records": {
+      "ai_tool": [
+        [
+          {
+            "node": "CRM Assistant",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Window Buffer Memory": {
+      "ai_memory": [
+        [
+          {
+            "node": "CRM Assistant",
+            "type": "ai_memory",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "create_opportunity": {
+      "ai_tool": [
+        [
+          {
+            "node": "CRM Assistant",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "update_opportunity": {
+      "ai_tool": [
+        [
+          {
+            "node": "CRM Assistant",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "OpenAI Chat Model": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "CRM Assistant",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "create_contact": {
+      "ai_tool": [
+        [
+          {
+            "node": "CRM Assistant",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "update_contact": {
+      "ai_tool": [
+        [
+          {
+            "node": "CRM Assistant",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "versionId": "89bbd43d-2ace-429a-95ac-435d74762426",
+  "meta": {
+    "instanceId": "77f1d8375380ee2bc4995763b4e39528bf040d446fc3e9e5f6d802ec19784049"
+  },
+  "id": "nu8l4lx88kpzTeoc",
+  "tags": []
+}

@@ -1,0 +1,968 @@
+{
+  "name": "Sora 2 Automation Skool Template",
+  "nodes": [
+    {
+      "parameters": {
+        "content": "## 🤖 Sora 2\n## | [Created by Chase AI](https://www.skool.com/chase-ai)\n\n## How it Works\n### - Trigger inside Airtable\n### - Passes all parameteres to Kie.ai\n### - Video uploaded to Airtable\n\n## APIs Needed\n### - [Airtable](https://docs.n8n.io/integrations/builtin/credentials/airtable/?utm_source=n8n_app&utm_medium=credential_settings&utm_campaign=create_new_credentials_modal)\n### - [Kie.ai](https://kie.ai/api-key)\n\n## Resources\n### - [Airtable Template](https://airtable.com/appM6xYV6m2mCGipP/shrmM1ULi9g8PM3Kr) (Copy the base for yourself!)\n### - [Sora 2](https://kie.ai/sora-2)\n\n## Cost per Video\n### - 10 cents / video",
+        "height": 672,
+        "width": 688,
+        "color": 3
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        -2000,
+        -1552
+      ],
+      "id": "d911bff3-8c0c-421f-9df4-9aa68659ed9e",
+      "name": "Sticky Note5"
+    },
+    {
+      "parameters": {
+        "content": "",
+        "height": 672,
+        "width": 1104,
+        "color": 7
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        -1232,
+        -1216
+      ],
+      "id": "e9da11f9-a97c-4a0b-a472-9c0bf378ab38",
+      "name": "Sticky Note1"
+    },
+    {
+      "parameters": {
+        "content": "# Sora 2 Image -> Video",
+        "height": 640,
+        "width": 1072,
+        "color": 4
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        -1216,
+        -1200
+      ],
+      "id": "218f494a-d5bd-463d-a60d-6584f2e7dd04",
+      "name": "Sticky Note"
+    },
+    {
+      "parameters": {
+        "content": "",
+        "height": 672,
+        "width": 1104,
+        "color": 7
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        -1232,
+        -1936
+      ],
+      "id": "cc890332-d45a-49b0-ab15-4da67857c96b",
+      "name": "Sticky Note3"
+    },
+    {
+      "parameters": {
+        "url": "=https://api.kie.ai/api/v1/jobs/recordInfo?taskId={{ $json.data.taskId }}",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        -1040,
+        -1632
+      ],
+      "id": "baa11d5b-ebea-457a-a8dd-d5dc6503d089",
+      "name": "Get Videos1",
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "FcTxyxYYhQsQgT9A",
+          "name": "Kie.AI"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "update",
+        "base": {
+          "__rl": true,
+          "value": "appvrfITaxBfGZ75r",
+          "mode": "list",
+          "cachedResultName": "Sora 2 Automation",
+          "cachedResultUrl": "https://airtable.com/appvrfITaxBfGZ75r"
+        },
+        "table": {
+          "__rl": true,
+          "value": "tblG0fdNhtUY6osqd",
+          "mode": "list",
+          "cachedResultName": "Sora 2 Videos",
+          "cachedResultUrl": "https://airtable.com/appvrfITaxBfGZ75r/tblG0fdNhtUY6osqd"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "id": "={{ $('Get Data1').item.json.id }}",
+            "Video Link": "={{ JSON.parse($json.data.resultJson).resultUrls[0] }}",
+            "Status": "Completed"
+          },
+          "matchingColumns": [
+            "id"
+          ],
+          "schema": [
+            {
+              "id": "id",
+              "displayName": "id",
+              "required": false,
+              "defaultMatch": true,
+              "display": true,
+              "type": "string",
+              "readOnly": true,
+              "removed": false
+            },
+            {
+              "id": "Title",
+              "displayName": "Title",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "First Frame",
+              "displayName": "First Frame",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "array",
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "Video Prompt",
+              "displayName": "Video Prompt",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "Aspect Ratio",
+              "displayName": "Aspect Ratio",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "options",
+              "options": [
+                {
+                  "name": "portrait",
+                  "value": "portrait"
+                },
+                {
+                  "name": "landscape",
+                  "value": "landscape"
+                }
+              ],
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "Quality",
+              "displayName": "Quality",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "options",
+              "options": [
+                {
+                  "name": "standard",
+                  "value": "standard"
+                },
+                {
+                  "name": "hd",
+                  "value": "hd"
+                }
+              ],
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "Status",
+              "displayName": "Status",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "options",
+              "options": [
+                {
+                  "name": "Standby",
+                  "value": "Standby"
+                },
+                {
+                  "name": "Completed",
+                  "value": "Completed"
+                }
+              ],
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "Create Text to Video",
+              "displayName": "Create Text to Video",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "string",
+              "readOnly": true,
+              "removed": true
+            },
+            {
+              "id": "Create Img to Video",
+              "displayName": "Create Img to Video",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "string",
+              "readOnly": true,
+              "removed": true
+            },
+            {
+              "id": "Video Link",
+              "displayName": "Video Link",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": false
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.airtable",
+      "typeVersion": 2.1,
+      "position": [
+        -384,
+        -1648
+      ],
+      "id": "bbc09998-8271-4a58-97f2-3e3a3788f900",
+      "name": "Update record1",
+      "credentials": {
+        "airtableTokenApi": {
+          "id": "n1Mt5joq6FoBOBrd",
+          "name": "Token 2"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "content": "# Sora 2 Text -> Video",
+        "height": 640,
+        "width": 1072,
+        "color": 5
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        -1216,
+        -1920
+      ],
+      "id": "82e92c42-ba54-47d2-af44-7406687e46fb",
+      "name": "Sticky Note4"
+    },
+    {
+      "parameters": {
+        "operation": "search",
+        "base": {
+          "__rl": true,
+          "value": "appvrfITaxBfGZ75r",
+          "mode": "list",
+          "cachedResultName": "Sora 2 Automation",
+          "cachedResultUrl": "https://airtable.com/appvrfITaxBfGZ75r"
+        },
+        "table": {
+          "__rl": true,
+          "value": "tblG0fdNhtUY6osqd",
+          "mode": "list",
+          "cachedResultName": "Sora 2 Videos",
+          "cachedResultUrl": "https://airtable.com/appvrfITaxBfGZ75r/tblG0fdNhtUY6osqd"
+        },
+        "filterByFormula": "{Status} = \"Standby\"",
+        "options": {
+          "fields": [
+            "Title",
+            "Video Prompt",
+            "Aspect Ratio",
+            "Quality",
+            "Status"
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.airtable",
+      "typeVersion": 2.1,
+      "position": [
+        -752,
+        -1840
+      ],
+      "id": "a44604c3-5852-4c6c-a891-9c3e0f013137",
+      "name": "Get Data1",
+      "credentials": {
+        "airtableTokenApi": {
+          "id": "n1Mt5joq6FoBOBrd",
+          "name": "Token 2"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.kie.ai/api/v1/jobs/createTask",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"model\": \"sora-2-text-to-video\",\n  \"input\": {\n    \"prompt\": {{ JSON.stringify($json['Video Prompt']) }},\n    \"aspect_ratio\": \"{{ $json['Aspect Ratio'] }}\",\n    \"quality\": \"{{ $json.Quality }}\"\n  }\n}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        -432,
+        -1840
+      ],
+      "id": "7e1d2dda-dff4-43b9-b6bc-8fa4eb412a95",
+      "name": "Create Video Request1",
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "FcTxyxYYhQsQgT9A",
+          "name": "Kie.AI"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "e66e3c3e-bb38-4b42-8aa4-336d0a2e78d6",
+              "leftValue": "={{ $json.data.state }}",
+              "rightValue": "success",
+              "operator": {
+                "type": "string",
+                "operation": "equals",
+                "name": "filter.operator.equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        -816,
+        -1632
+      ],
+      "id": "ba760d05-bdee-4e6d-ad74-534436ac1350",
+      "name": "If1"
+    },
+    {
+      "parameters": {
+        "amount": 1,
+        "unit": "minutes"
+      },
+      "type": "n8n-nodes-base.wait",
+      "typeVersion": 1.1,
+      "position": [
+        -560,
+        -1520
+      ],
+      "id": "51eb27ca-0c86-4a09-a57e-9a5ae314c458",
+      "name": "Wait1",
+      "webhookId": "4cf166f7-5bb8-4f22-8b3b-193ae5c4df05"
+    },
+    {
+      "parameters": {
+        "path": "d6af95f3-7370-42bd-8c00-003b4e659a14",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2.1,
+      "position": [
+        -1120,
+        -1104
+      ],
+      "id": "9018390c-8c36-4747-b6cf-01fedec98808",
+      "name": "Image Webhook",
+      "webhookId": "d6af95f3-7370-42bd-8c00-003b4e659a14"
+    },
+    {
+      "parameters": {
+        "path": "106046d4-6ab3-448e-940d-5a4d8032c7b6",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2.1,
+      "position": [
+        -1056,
+        -1840
+      ],
+      "id": "521393d4-46c4-4489-8745-dc84a2a78733",
+      "name": "Webhook",
+      "webhookId": "106046d4-6ab3-448e-940d-5a4d8032c7b6"
+    },
+    {
+      "parameters": {
+        "url": "=https://api.kie.ai/api/v1/jobs/recordInfo?taskId={{ $json.data.taskId }}",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        -1088,
+        -896
+      ],
+      "id": "8a3040ba-fec5-424f-97c5-b8c1a7974884",
+      "name": "Get Videos",
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "FcTxyxYYhQsQgT9A",
+          "name": "Kie.AI"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "update",
+        "base": {
+          "__rl": true,
+          "value": "appvrfITaxBfGZ75r",
+          "mode": "list",
+          "cachedResultName": "Sora 2 Automation",
+          "cachedResultUrl": "https://airtable.com/appvrfITaxBfGZ75r"
+        },
+        "table": {
+          "__rl": true,
+          "value": "tblG0fdNhtUY6osqd",
+          "mode": "list",
+          "cachedResultName": "Sora 2 Videos",
+          "cachedResultUrl": "https://airtable.com/appvrfITaxBfGZ75r/tblG0fdNhtUY6osqd"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "id": "={{ $('Get Data').item.json.id }}",
+            "Video Link": "={{ JSON.parse($json.data.resultJson).resultUrls[0] }}",
+            "Status": "Completed"
+          },
+          "matchingColumns": [
+            "id"
+          ],
+          "schema": [
+            {
+              "id": "id",
+              "displayName": "id",
+              "required": false,
+              "defaultMatch": true,
+              "display": true,
+              "type": "string",
+              "readOnly": true,
+              "removed": false
+            },
+            {
+              "id": "Title",
+              "displayName": "Title",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "First Frame",
+              "displayName": "First Frame",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "array",
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "Video Prompt",
+              "displayName": "Video Prompt",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "Aspect Ratio",
+              "displayName": "Aspect Ratio",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "options",
+              "options": [
+                {
+                  "name": "portrait",
+                  "value": "portrait"
+                },
+                {
+                  "name": "landscape",
+                  "value": "landscape"
+                }
+              ],
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "Quality",
+              "displayName": "Quality",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "options",
+              "options": [
+                {
+                  "name": "standard",
+                  "value": "standard"
+                },
+                {
+                  "name": "hd",
+                  "value": "hd"
+                }
+              ],
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "Status",
+              "displayName": "Status",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "options",
+              "options": [
+                {
+                  "name": "Standby",
+                  "value": "Standby"
+                },
+                {
+                  "name": "Completed",
+                  "value": "Completed"
+                }
+              ],
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "Create Text to Video",
+              "displayName": "Create Text to Video",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "string",
+              "readOnly": true,
+              "removed": true
+            },
+            {
+              "id": "Create Img to Video",
+              "displayName": "Create Img to Video",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "string",
+              "readOnly": true,
+              "removed": true
+            },
+            {
+              "id": "Video Link",
+              "displayName": "Video Link",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": false
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.airtable",
+      "typeVersion": 2.1,
+      "position": [
+        -432,
+        -912
+      ],
+      "id": "87564b89-ed12-4112-9c09-b00a7713ada9",
+      "name": "Update record",
+      "credentials": {
+        "airtableTokenApi": {
+          "id": "n1Mt5joq6FoBOBrd",
+          "name": "Token 2"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "search",
+        "base": {
+          "__rl": true,
+          "value": "appvrfITaxBfGZ75r",
+          "mode": "list",
+          "cachedResultName": "Sora 2 Automation",
+          "cachedResultUrl": "https://airtable.com/appvrfITaxBfGZ75r"
+        },
+        "table": {
+          "__rl": true,
+          "value": "tblG0fdNhtUY6osqd",
+          "mode": "list",
+          "cachedResultName": "Sora 2 Videos",
+          "cachedResultUrl": "https://airtable.com/appvrfITaxBfGZ75r/tblG0fdNhtUY6osqd"
+        },
+        "filterByFormula": "{Status} = \"Standby\"",
+        "options": {
+          "fields": [
+            "Title",
+            "Video Prompt",
+            "Aspect Ratio",
+            "Quality",
+            "Status",
+            "First Frame"
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.airtable",
+      "typeVersion": 2.1,
+      "position": [
+        -768,
+        -1104
+      ],
+      "id": "97c62e47-5de5-4afb-b9ac-2b201986fba5",
+      "name": "Get Data",
+      "credentials": {
+        "airtableTokenApi": {
+          "id": "n1Mt5joq6FoBOBrd",
+          "name": "Token 2"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.kie.ai/api/v1/jobs/createTask",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"model\": \"sora-2-text-to-video\",\n  \"input\": {\n    \"prompt\": {{ JSON.stringify($json['Video Prompt']) }},\n    \"image_urls\": [\n        \"{{ $json['First Frame'][0].url }}\"\n      ],\n    \"aspect_ratio\": \"{{ $json['Aspect Ratio'] }}\",\n    \"quality\": \"{{ $json.Quality }}\"\n  }\n}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        -480,
+        -1104
+      ],
+      "id": "cfdea16e-1f03-4195-bf71-241c3548933f",
+      "name": "Create Video Request",
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "FcTxyxYYhQsQgT9A",
+          "name": "Kie.AI"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "e66e3c3e-bb38-4b42-8aa4-336d0a2e78d6",
+              "leftValue": "={{ $json.data.state }}",
+              "rightValue": "success",
+              "operator": {
+                "type": "string",
+                "operation": "equals",
+                "name": "filter.operator.equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        -864,
+        -896
+      ],
+      "id": "f0600b1b-9c05-455c-a74d-2e95bca3d236",
+      "name": "If"
+    },
+    {
+      "parameters": {
+        "amount": 1,
+        "unit": "minutes"
+      },
+      "type": "n8n-nodes-base.wait",
+      "typeVersion": 1.1,
+      "position": [
+        -608,
+        -784
+      ],
+      "id": "4d9df6ea-1ea3-42a9-8f22-4fd2fbdc0e4b",
+      "name": "Wait",
+      "webhookId": "6f823d9a-701f-4eb7-b9f2-df058535673f"
+    },
+    {
+      "parameters": {
+        "content": "@[youtube](klrEs7ZA0aI)",
+        "height": 496,
+        "width": 832
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        0,
+        -1504
+      ],
+      "id": "79fb4d70-4f94-4238-ace3-5cd99046394b",
+      "name": "Sticky Note2"
+    }
+  ],
+  "pinData": {
+    "Wait": [
+      {
+        "json": {
+          "code": 200,
+          "msg": "success",
+          "data": {
+            "taskId": "e234831aa36da471660376ccb473e216",
+            "model": "sora-2-text-to-video",
+            "state": "waiting",
+            "param": "{\"input\":{\"aspect_ratio\":\"portrait\",\"image_urls\":[\"https://v5.airtableusercontent.com/v3/u/45/45/1759528800000/jz_dbHBQ3w0iu2KKmOWHNQ/r-gSrVn82eID4kTVhmnyAG7S-AEHntLwNJCvUfkOyr0ccOz-RUrg8F0xHZn27oALfUBSAUpzcmQTx8o8SEsXLdp_85IY4bIKO_z-vfY7si3IRwNHH-kv-kt6LImZe-r5OmUdZqM9sIbM0mUyRPRrOzLZnOWjsKMMFZXdjKETOxEqa8q1BZPSsXT38Wnqcs0m2rMIUV9W0I9ni32kBPyQSYMvBkZjsayGlSlM4rvBINbwwmC5W1u-NnYWe0Vv9bZDOH0Ul3fVxm94mPZxA_8IGw/7nojNuEu491HxxNiOuTikFMQULO82_nT04iyg-avxLw\"],\"prompt\":\"A velociraptor gets pulled over in his car\",\"quality\":\"hd\"},\"model\":\"sora-2-text-to-video\"}",
+            "resultJson": "",
+            "failCode": null,
+            "failMsg": null,
+            "costTime": null,
+            "completeTime": null,
+            "createTime": 1759520764809
+          }
+        }
+      }
+    ]
+  },
+  "connections": {
+    "Get Videos1": {
+      "main": [
+        [
+          {
+            "node": "If1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get Data1": {
+      "main": [
+        [
+          {
+            "node": "Create Video Request1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Create Video Request1": {
+      "main": [
+        [
+          {
+            "node": "Get Videos1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "If1": {
+      "main": [
+        [
+          {
+            "node": "Update record1",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Wait1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Wait1": {
+      "main": [
+        [
+          {
+            "node": "Get Videos1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Image Webhook": {
+      "main": [
+        [
+          {
+            "node": "Get Data",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Webhook": {
+      "main": [
+        [
+          {
+            "node": "Get Data1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get Videos": {
+      "main": [
+        [
+          {
+            "node": "If",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get Data": {
+      "main": [
+        [
+          {
+            "node": "Create Video Request",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Create Video Request": {
+      "main": [
+        [
+          {
+            "node": "Get Videos",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "If": {
+      "main": [
+        [
+          {
+            "node": "Update record",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Wait",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Wait": {
+      "main": [
+        [
+          {
+            "node": "Get Videos",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "versionId": "048a179a-6f97-4de2-8cd7-35d961c030c0",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "858b0696cb7e4c2d54a791ff0d9e4a3cddc7a852434a593789da95c43379b467"
+  },
+  "id": "7wj1ejDg7pFix1kR",
+  "tags": []
+}

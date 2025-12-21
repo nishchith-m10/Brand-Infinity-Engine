@@ -1,0 +1,1586 @@
+{
+  "name": "Seedream 4.0 Template Skool",
+  "nodes": [
+    {
+      "parameters": {
+        "content": "## 🤖 Nano 🍌 / Seedream -> 4k Video\n## | [Created by Chase AI](https://www.skool.com/chase-ai)\n\n## How it Works\n### - Trigger inside Airtable\n### - Grabs first + last frame images for each scene\n### - Images send to Fal.AI for video creation\n### - Scenes uploaded to Airtable, await approval\n### - Once approved, videos are stiched + upscaled\n### - Clips are stitched together via ffmpeg\n### - Final video upscaled via Topaz\n### - Video uploaded to Airtable\n\n## APIs Needed\n### - [Airtable](https://docs.n8n.io/integrations/builtin/credentials/airtable/?utm_source=n8n_app&utm_medium=credential_settings&utm_campaign=create_new_credentials_modal)\n### - Fal.ai\n\n## Resources\n### - [Airtable Template](https://airtable.com/appc6csgkqrLMZWd4/shrpzijGtV9bVoxq6) (Copy the base + update webhook)\n### - [Nano Banana](https://aistudio.google.com/prompts/new_chat) (Free)\n### - [Seed Dream](https://fal.ai/models/fal-ai/bytedance/seedream/v4/edit) ($0.03 / image)\n### - [Minimax](https://fal.ai/models/fal-ai/minimax/hailuo-02/pro/image-to-video) ($0.08 / second)\n### - [FFMPEG](https://fal.ai/models/fal-ai/ffmpeg-api/merge-videos) ($0.0002 / second)\n### - [Topaz](https://fal.ai/models/fal-ai/topaz/upscale/video) ($0.033 / second)\n\n## Cost per 6s 4k Upscaled Video \"Scene\"\n### ~ $0.68 = $0.48 (Video) + $0.20 (Upscale)\n",
+        "height": 880,
+        "width": 512,
+        "color": 5
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        -1264,
+        -1424
+      ],
+      "id": "45957e23-5880-4cfc-9d37-f95ad8247374",
+      "name": "Sticky Note5"
+    },
+    {
+      "parameters": {
+        "amount": 6,
+        "unit": "minutes"
+      },
+      "type": "n8n-nodes-base.wait",
+      "typeVersion": 1.1,
+      "position": [
+        -432,
+        -1200
+      ],
+      "id": "f457e06f-b692-4da8-8dda-439a43444273",
+      "name": "Wait",
+      "webhookId": "053777d3-57a9-4d21-839c-47910c8eed21"
+    },
+    {
+      "parameters": {
+        "content": "",
+        "height": 1024,
+        "width": 1200,
+        "color": 7
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        -688,
+        -1488
+      ],
+      "id": "fd2c8b4c-6aee-482b-a115-a4a41fc83388",
+      "name": "Sticky Note1"
+    },
+    {
+      "parameters": {
+        "operation": "search",
+        "base": {
+          "__rl": true,
+          "value": "appc6csgkqrLMZWd4",
+          "mode": "list",
+          "cachedResultName": "Nano Banana Automation",
+          "cachedResultUrl": "https://airtable.com/appc6csgkqrLMZWd4"
+        },
+        "table": {
+          "__rl": true,
+          "value": "tblG0fdNhtUY6osqd",
+          "mode": "list",
+          "cachedResultName": "4k Video",
+          "cachedResultUrl": "https://airtable.com/appc6csgkqrLMZWd4/tblG0fdNhtUY6osqd"
+        },
+        "filterByFormula": "{Status} = \"1080p Standby\"",
+        "options": {
+          "fields": [
+            "First Frame",
+            "Last Frame",
+            "Video Prompt"
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.airtable",
+      "typeVersion": 2.1,
+      "position": [
+        -224,
+        -1408
+      ],
+      "id": "021f7324-d126-46d8-a802-adecf6b655c1",
+      "name": "Get Create Rows1",
+      "credentials": {
+        "airtableTokenApi": {
+          "id": "n1Mt5joq6FoBOBrd",
+          "name": "Token 2"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://queue.fal.run/fal-ai/minimax/hailuo-02/pro/image-to-video",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n    \"prompt\": \"{{ $json['Video Prompt'] }}\",\n    \"image_url\": \"{{ $json['First Frame'][0].url }}\",\n    \"prompt_optimizer\": true,\n    \"end_image_url\": \"{{ $json['Last Frame'][0].url }}\",\n    \"fal_webhook\": \"{{ $execution.resumeUrl }}\"\n}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        -32,
+        -1408
+      ],
+      "id": "58bf6280-83e8-4f11-864b-e18b270475bf",
+      "name": "Fal_Video",
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "W0esa2eb0Uc5oMIS",
+          "name": "Fal AI"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "url": "={{ $json.response_url }}",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        -240,
+        -1200
+      ],
+      "id": "35caccb9-47a7-4f15-8e45-9ebfeb024f26",
+      "name": "Get Videos",
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "W0esa2eb0Uc5oMIS",
+          "name": "Fal AI"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "update",
+        "base": {
+          "__rl": true,
+          "value": "appc6csgkqrLMZWd4",
+          "mode": "list",
+          "cachedResultName": "Nano Banana Automation",
+          "cachedResultUrl": "https://airtable.com/appc6csgkqrLMZWd4"
+        },
+        "table": {
+          "__rl": true,
+          "value": "tblG0fdNhtUY6osqd",
+          "mode": "list",
+          "cachedResultName": "4k Video",
+          "cachedResultUrl": "https://airtable.com/appc6csgkqrLMZWd4/tblG0fdNhtUY6osqd"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "id": "={{ $('Get Create Rows1').item.json.id }}",
+            "1080p Video": "={{ $json.video.url }}",
+            "Status": "4k Standby"
+          },
+          "matchingColumns": [
+            "id"
+          ],
+          "schema": [
+            {
+              "id": "id",
+              "displayName": "id",
+              "required": false,
+              "defaultMatch": true,
+              "display": true,
+              "type": "string",
+              "readOnly": true,
+              "removed": false
+            },
+            {
+              "id": "Title",
+              "displayName": "Title",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "Scene",
+              "displayName": "Scene",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "First Frame",
+              "displayName": "First Frame",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "array",
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "Last Frame",
+              "displayName": "Last Frame",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "array",
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "Video Prompt",
+              "displayName": "Video Prompt",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "Status",
+              "displayName": "Status",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "options",
+              "options": [
+                {
+                  "name": "1080p Standby",
+                  "value": "1080p Standby"
+                },
+                {
+                  "name": "4k Standby",
+                  "value": "4k Standby"
+                },
+                {
+                  "name": "Completed",
+                  "value": "Completed"
+                }
+              ],
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "Create 1080p Video",
+              "displayName": "Create 1080p Video",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "string",
+              "readOnly": true,
+              "removed": false
+            },
+            {
+              "id": "1080p Video",
+              "displayName": "1080p Video",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "4k Video",
+              "displayName": "4k Video",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": false
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.airtable",
+      "typeVersion": 2.1,
+      "position": [
+        -32,
+        -1200
+      ],
+      "id": "a9a5de09-afaa-4e71-9a2d-ead8e51659a9",
+      "name": "Update record",
+      "credentials": {
+        "airtableTokenApi": {
+          "id": "n1Mt5joq6FoBOBrd",
+          "name": "Token 2"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "path": "90d5393b-39f1-4722-9455-2fe74a3dfbd7",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2.1,
+      "position": [
+        -624,
+        -896
+      ],
+      "id": "4775cfc9-85f2-4597-8edb-500edd8afb7e",
+      "name": "4k Webhook",
+      "webhookId": "90d5393b-39f1-4722-9455-2fe74a3dfbd7"
+    },
+    {
+      "parameters": {
+        "path": "9e84dce4-edd0-426f-83be-69b9ac874b9f",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2.1,
+      "position": [
+        -464,
+        -1408
+      ],
+      "id": "3d1d4783-8869-4126-8039-9a102d382271",
+      "name": "1080p Webhook",
+      "webhookId": "9e84dce4-edd0-426f-83be-69b9ac874b9f"
+    },
+    {
+      "parameters": {
+        "operation": "search",
+        "base": {
+          "__rl": true,
+          "value": "appc6csgkqrLMZWd4",
+          "mode": "list",
+          "cachedResultName": "Nano Banana Automation",
+          "cachedResultUrl": "https://airtable.com/appc6csgkqrLMZWd4"
+        },
+        "table": {
+          "__rl": true,
+          "value": "tblG0fdNhtUY6osqd",
+          "mode": "list",
+          "cachedResultName": "4k Video",
+          "cachedResultUrl": "https://airtable.com/appc6csgkqrLMZWd4/tblG0fdNhtUY6osqd"
+        },
+        "filterByFormula": "{Status} = \"4k Standby\"",
+        "options": {
+          "fields": [
+            "1080p Video",
+            "Title",
+            "Scene"
+          ]
+        },
+        "sort": {
+          "property": [
+            {
+              "field": "Scene"
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.airtable",
+      "typeVersion": 2.1,
+      "position": [
+        -464,
+        -896
+      ],
+      "id": "847dd8d2-a2d2-4276-9485-41201239a820",
+      "name": "Get Create Rows2",
+      "credentials": {
+        "airtableTokenApi": {
+          "id": "n1Mt5joq6FoBOBrd",
+          "name": "Token 2"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "fieldsToAggregate": {
+          "fieldToAggregate": [
+            {
+              "fieldToAggregate": "1080p Video",
+              "renameField": true,
+              "outputFieldName": "VideoURLs"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.aggregate",
+      "typeVersion": 1,
+      "position": [
+        -272,
+        -896
+      ],
+      "id": "45ca1140-edb8-46d5-a0a4-9437dbf95369",
+      "name": "Aggregate"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://queue.fal.run/fal-ai/ffmpeg-api/merge-videos",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"video_urls\": [{{ $json.VideoURLs.map(url => `\"${url}\"`).join(\", \") }}],\n  \"fal_webhook\": \"{{ $execution.resumeUrl }}\"\n}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        -128,
+        -896
+      ],
+      "id": "072ce888-02b5-448a-b88c-af80df8b63d0",
+      "name": "Merge Videos",
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "W0esa2eb0Uc5oMIS",
+          "name": "Fal AI"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "resume": "webhook",
+        "httpMethod": "POST",
+        "limitWaitTime": true,
+        "resumeAmount": 3,
+        "resumeUnit": "minutes",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.wait",
+      "typeVersion": 1.1,
+      "position": [
+        32,
+        -896
+      ],
+      "id": "7d57cda0-d740-4bc1-96c0-fc4ef8615c87",
+      "name": "Wait1",
+      "webhookId": "b17ca3f6-8908-441a-9d31-9176c6ad9baf"
+    },
+    {
+      "parameters": {
+        "amount": 60
+      },
+      "type": "n8n-nodes-base.wait",
+      "typeVersion": 1.1,
+      "position": [
+        -400,
+        -688
+      ],
+      "id": "0c7e103a-891b-4091-9334-14c16e64f6db",
+      "name": "Wait2",
+      "webhookId": "b99f9fa5-542c-4fe7-ac59-02a7cd88fc15"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "=https://queue.fal.run/fal-ai/topaz/upscale/video",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"video_url\": \"{{ $json.video.url }}\",\n  \"upscale_factor\": 2,\n  \"H264_output\": true,\n  \"target_fps\": \"60\" \n}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        -592,
+        -688
+      ],
+      "id": "2e9976df-72dd-4d63-9991-1583dc6fd68f",
+      "name": "4K Upscale",
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "W0esa2eb0Uc5oMIS",
+          "name": "Fal AI"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "url": "={{ $('4K Upscale').item.json.response_url }}",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        -240,
+        -688
+      ],
+      "id": "fa5b0fd7-3d7f-49db-bf72-5aeff9230419",
+      "name": "HTTP Request",
+      "retryOnFail": false,
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "W0esa2eb0Uc5oMIS",
+          "name": "Fal AI"
+        }
+      },
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "operation": "update",
+        "base": {
+          "__rl": true,
+          "value": "appc6csgkqrLMZWd4",
+          "mode": "list",
+          "cachedResultName": "Nano Banana Automation",
+          "cachedResultUrl": "https://airtable.com/appc6csgkqrLMZWd4"
+        },
+        "table": {
+          "__rl": true,
+          "value": "tblG0fdNhtUY6osqd",
+          "mode": "list",
+          "cachedResultName": "4k Video",
+          "cachedResultUrl": "https://airtable.com/appc6csgkqrLMZWd4/tblG0fdNhtUY6osqd"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "4k Video": "={{ $('Switch').item.json.video.url }}",
+            "Status": "Completed",
+            "id": "={{ $json.id }}"
+          },
+          "matchingColumns": [
+            "id"
+          ],
+          "schema": [
+            {
+              "id": "id",
+              "displayName": "id",
+              "required": false,
+              "defaultMatch": true,
+              "display": true,
+              "type": "string",
+              "readOnly": true,
+              "removed": false
+            },
+            {
+              "id": "Title",
+              "displayName": "Title",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": true
+            },
+            {
+              "id": "Scene",
+              "displayName": "Scene",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "First Frame",
+              "displayName": "First Frame",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "array",
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "Last Frame",
+              "displayName": "Last Frame",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "array",
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "Video Prompt",
+              "displayName": "Video Prompt",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "Status",
+              "displayName": "Status",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "options",
+              "options": [
+                {
+                  "name": "1080p Standby",
+                  "value": "1080p Standby"
+                },
+                {
+                  "name": "4k Standby",
+                  "value": "4k Standby"
+                },
+                {
+                  "name": "Completed",
+                  "value": "Completed"
+                }
+              ],
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "Create 1080p Video",
+              "displayName": "Create 1080p Video",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "string",
+              "readOnly": true,
+              "removed": true
+            },
+            {
+              "id": "1080p Video",
+              "displayName": "1080p Video",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": true
+            },
+            {
+              "id": "Create 4K Video",
+              "displayName": "Create 4K Video",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "string",
+              "readOnly": true,
+              "removed": true
+            },
+            {
+              "id": "4k Video",
+              "displayName": "4k Video",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": false
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.airtable",
+      "typeVersion": 2.1,
+      "position": [
+        272,
+        -704
+      ],
+      "id": "94307e2d-8375-4348-ab44-07d4ff9fcb65",
+      "name": "Update record1",
+      "credentials": {
+        "airtableTokenApi": {
+          "id": "n1Mt5joq6FoBOBrd",
+          "name": "Token 2"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "content": "# Scene Creation",
+        "height": 480,
+        "width": 896,
+        "color": 3
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        -608,
+        -1472
+      ],
+      "id": "294ce96f-19cf-4cf9-b820-f157bbb98a81",
+      "name": "Sticky Note"
+    },
+    {
+      "parameters": {
+        "content": "# Stitch + Upscale",
+        "height": 496,
+        "width": 1152,
+        "color": 6
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        -672,
+        -976
+      ],
+      "id": "03edb62c-7a4c-4f8d-8983-50931a4357b3",
+      "name": "Sticky Note2"
+    },
+    {
+      "parameters": {
+        "operation": "search",
+        "base": {
+          "__rl": true,
+          "value": "appc6csgkqrLMZWd4",
+          "mode": "list",
+          "cachedResultName": "Nano Banana Automation",
+          "cachedResultUrl": "https://airtable.com/appc6csgkqrLMZWd4"
+        },
+        "table": {
+          "__rl": true,
+          "value": "tblG0fdNhtUY6osqd",
+          "mode": "list",
+          "cachedResultName": "4k Video",
+          "cachedResultUrl": "https://airtable.com/appc6csgkqrLMZWd4/tblG0fdNhtUY6osqd"
+        },
+        "filterByFormula": "{Status} = \"4k Standby\"",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.airtable",
+      "typeVersion": 2.1,
+      "position": [
+        128,
+        -704
+      ],
+      "id": "72d4c827-d1e6-4f6c-b6ae-538abb2700de",
+      "name": "Search records",
+      "credentials": {
+        "airtableTokenApi": {
+          "id": "n1Mt5joq6FoBOBrd",
+          "name": "Token 2"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "url": "={{ $json.response_url }}",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        208,
+        -896
+      ],
+      "id": "a36d5ad6-1a5f-46f1-9bfa-70cc7cb1c3f1",
+      "name": "Get Stitch",
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "W0esa2eb0Uc5oMIS",
+          "name": "Fal AI"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "rules": {
+          "values": [
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 2
+                },
+                "conditions": [
+                  {
+                    "id": "cd516266-c1df-4290-988f-45f9ea3cb5f7",
+                    "leftValue": "={{ $json.video.url }}",
+                    "rightValue": "",
+                    "operator": {
+                      "type": "string",
+                      "operation": "exists",
+                      "singleValue": true
+                    }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "Success"
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 2
+                },
+                "conditions": [
+                  {
+                    "leftValue": "={{ $json.error.message }}",
+                    "rightValue": "Request is still in progress",
+                    "operator": {
+                      "type": "string",
+                      "operation": "contains"
+                    },
+                    "id": "0dc60b4d-7689-4877-8b0c-5c1a066a76f1"
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "In progress"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.switch",
+      "typeVersion": 3.2,
+      "position": [
+        -80,
+        -688
+      ],
+      "id": "72ba7ec0-b3a1-463c-80be-b63afcbbed63",
+      "name": "Switch"
+    }
+  ],
+  "pinData": {
+    "1080p Webhook": [
+      {
+        "json": {
+          "headers": {
+            "host": "n8n.srv910413.hstgr.cloud",
+            "user-agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/140.0.0.0 Safari/537.36",
+            "accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3;q=0.7",
+            "accept-encoding": "gzip, deflate, br, zstd",
+            "accept-language": "en-US,en;q=0.9",
+            "cookie": "rl_page_init_referrer=RudderEncrypt%3AU2FsdGVkX19ikFsNxgKVxlCJ0KYclhWj7MfjWuBo%2BSPy78AzlZSssHbpyhmYWcLR; rl_page_init_referring_domain=RudderEncrypt%3AU2FsdGVkX18vjOeRXTYKDhfujD8Fbp1eCSV6FL1CFCeUBb6%2B4qfpV6pCprrCmkGG; rl_anonymous_id=RudderEncrypt%3AU2FsdGVkX19HmaEgteXE7NYrHTAdqOQ9EuY2rO2HtyVjq4Vrhb9lpE%2FPETJOeP7uUHpXzlEQ83kdvODeOJACHg%3D%3D; rl_user_id=RudderEncrypt%3AU2FsdGVkX1%2BnKlxYn8bIp%2By29H0tZ3QAP43%2Fq7VeewZH7ARnJ75KCke8mlpei9L6JVQVGIbX011W6bXX0hCunFX1cdB%2F7yr%2Fu213uX6opAZBDq607kFgaLDcTOucuqnqDd9v%2B%2BJbLNN5Cyr7vMr3H1V3o5xNATUhlQmSNMlx67g%3D; rl_trait=RudderEncrypt%3AU2FsdGVkX1%2BgkQisregHukCegfJEymYdd17%2FyIcZgnTLjPaQCaIK9pEGJSINzmryd4Grg%2BSNYtNAOPIoO1wru8DIqGUmLH6h8tl7tUptmaQO%2FHxaSe8XXn%2Fi%2BOFtcyzC1T0GWaherMJOuDpEELFfnw%3D%3D; ph_phc_4URIAm1uYfJO7j8kWSe0J8lc8IqnstRLS7Jx8NcakHo_posthog=%7B%22distinct_id%22%3A%22858b0696cb7e4c2d54a791ff0d9e4a3cddc7a852434a593789da95c43379b467%232f374834-92dd-4dae-af03-c0410619e7cd%22%2C%22%24sesid%22%3A%5B1758152238089%2C%2201995a07-292d-70cb-8ba5-3ca9c2173ba7%22%2C1758152042797%5D%2C%22%24epp%22%3Atrue%2C%22%24initial_person_info%22%3A%7B%22r%22%3A%22https%3A%2F%2Fhpanel.hostinger.com%2F%22%2C%22u%22%3A%22https%3A%2F%2Fn8n.srv910413.hstgr.cloud%2Fsetup%22%7D%7D; rl_session=RudderEncrypt%3AU2FsdGVkX1%2FU0aj4Y3VoQZ6EtZdPnwcBTyitqS5TmO%2BMjst5ckIzN36evoJTtfKp6h%2FeBxDsvT3IypbYg1IzIiZ2bkHwpl7n151P8KMbRsVx3ZPutSSGFq79%2FY9SU6QRmUV2fBRpfYCozr1dx9Qg5A%3D%3D",
+            "if-none-match": "W/\"22-6OS7cK0FzqnV2NeDHdOSGS1bVUs\"",
+            "priority": "u=0, i",
+            "sec-ch-ua": "\"Chromium\";v=\"140\", \"Not=A?Brand\";v=\"24\", \"Google Chrome\";v=\"140\"",
+            "sec-ch-ua-mobile": "?0",
+            "sec-ch-ua-platform": "\"Windows\"",
+            "sec-fetch-dest": "document",
+            "sec-fetch-mode": "navigate",
+            "sec-fetch-site": "cross-site",
+            "sec-fetch-user": "?1",
+            "upgrade-insecure-requests": "1",
+            "x-forwarded-for": "162.255.56.125",
+            "x-forwarded-host": "n8n.srv910413.hstgr.cloud",
+            "x-forwarded-port": "443",
+            "x-forwarded-proto": "https",
+            "x-forwarded-server": "e81663665ba3",
+            "x-real-ip": "162.255.56.125"
+          },
+          "params": {},
+          "query": {
+            "recordId": "recd0hs8ytGv3CEIQ"
+          },
+          "body": {},
+          "webhookUrl": "https://n8n.srv910413.hstgr.cloud/webhook/641e668d-7918-4b8c-aff3-cfca34ba813e",
+          "executionMode": "production"
+        }
+      }
+    ],
+    "4k Webhook": [
+      {
+        "json": {
+          "headers": {
+            "host": "n8n.srv910413.hstgr.cloud",
+            "user-agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/140.0.0.0 Safari/537.36",
+            "accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3;q=0.7",
+            "accept-encoding": "gzip, deflate, br, zstd",
+            "accept-language": "en-US,en;q=0.9",
+            "cookie": "rl_page_init_referrer=RudderEncrypt%3AU2FsdGVkX19ikFsNxgKVxlCJ0KYclhWj7MfjWuBo%2BSPy78AzlZSssHbpyhmYWcLR; rl_page_init_referring_domain=RudderEncrypt%3AU2FsdGVkX18vjOeRXTYKDhfujD8Fbp1eCSV6FL1CFCeUBb6%2B4qfpV6pCprrCmkGG; rl_anonymous_id=RudderEncrypt%3AU2FsdGVkX1%2BgpQhLNInX5ng4OZ3J%2FwcI3SGbZLqmZP7r5ZAB26DtU6GjQRG%2Bn%2Bticg418H3Z5oCfu5xP9jv9eg%3D%3D; rl_user_id=RudderEncrypt%3AU2FsdGVkX18x9RZ3RtpgffWBszRaVD5xKRVNu442e34mSp9zjmf35QTnkWkXgKwh6ZwTDqjOmZyAJYGkvRrQpF%2FSI%2B0Y74u9Fq6figu2sFci0fZtO5IVbKbRwxL8xtQ4NSgwA8s9bFRBidgmC5nF6X1tYCXH1DFasNX3hNbCfis%3D; rl_trait=RudderEncrypt%3AU2FsdGVkX19eVPLnU6B6DiBz%2Bv%2B0BjWsbQToIAxdeDZjRsH%2F0xFFo1wM44%2F6s3%2F7q6rkfyhgfJCeuuyc3jgr7rXc2yZF36%2B0NFS9ObbUvJkVtO0T0%2FoBdwL8xaOj0GBJoPvs96rewESZqof2O11%2B%2FA%3D%3D; rl_session=RudderEncrypt%3AU2FsdGVkX1%2B9qJ3owxlmE4pK7ybYr11TwDxErHV2kOJ4IVACVlKuQJroj5WjGVBmyUWAOssp3aZrl2nD9Rk%2F6NsgCBWJrVRi8rUD1PtX7AhMjluD1uI50zU0LqVwWyu7SwEoUGlozNR4%2FYM1W7Rxmg%3D%3D; ph_phc_4URIAm1uYfJO7j8kWSe0J8lc8IqnstRLS7Jx8NcakHo_posthog=%7B%22distinct_id%22%3A%22858b0696cb7e4c2d54a791ff0d9e4a3cddc7a852434a593789da95c43379b467%232f374834-92dd-4dae-af03-c0410619e7cd%22%2C%22%24sesid%22%3A%5Bnull%2Cnull%2Cnull%5D%2C%22%24epp%22%3Atrue%2C%22%24initial_person_info%22%3A%7B%22r%22%3A%22https%3A%2F%2Fhpanel.hostinger.com%2F%22%2C%22u%22%3A%22https%3A%2F%2Fn8n.srv910413.hstgr.cloud%2Fsetup%22%7D%7D",
+            "priority": "u=0, i",
+            "sec-ch-ua": "\"Chromium\";v=\"140\", \"Not=A?Brand\";v=\"24\", \"Google Chrome\";v=\"140\"",
+            "sec-ch-ua-mobile": "?0",
+            "sec-ch-ua-platform": "\"Windows\"",
+            "sec-fetch-dest": "document",
+            "sec-fetch-mode": "navigate",
+            "sec-fetch-site": "cross-site",
+            "sec-fetch-user": "?1",
+            "upgrade-insecure-requests": "1",
+            "x-forwarded-for": "162.255.56.125",
+            "x-forwarded-host": "n8n.srv910413.hstgr.cloud",
+            "x-forwarded-port": "443",
+            "x-forwarded-proto": "https",
+            "x-forwarded-server": "e81663665ba3",
+            "x-real-ip": "162.255.56.125"
+          },
+          "params": {},
+          "query": {
+            "recordId": "recHKWL1dHYXR6gH1"
+          },
+          "body": {},
+          "webhookUrl": "https://n8n.srv910413.hstgr.cloud/webhook/989a27bf-87f0-48cf-9156-d4931b96be1d",
+          "executionMode": "production"
+        }
+      }
+    ],
+    "Get Create Rows2": [
+      {
+        "json": {
+          "id": "recHKWL1dHYXR6gH1",
+          "createdTime": "2025-09-17T22:51:31.000Z",
+          "Title": "phone",
+          "Scene": "1",
+          "1080p Video": "https://v3b.fal.media/files/b/monkey/6936mvJTVMF4lcTvkOwoA_output.mp4"
+        }
+      },
+      {
+        "json": {
+          "id": "recvuEOpNJ8t7vN9s",
+          "createdTime": "2025-09-17T23:29:14.000Z",
+          "Title": "phone",
+          "Scene": "2",
+          "1080p Video": "https://v3b.fal.media/files/b/lion/8Q5HtMolF_p4KNFdpAo1A_output.mp4"
+        }
+      }
+    ],
+    "Aggregate": [
+      {
+        "json": {
+          "VideoURLs": [
+            "https://v3b.fal.media/files/b/monkey/6936mvJTVMF4lcTvkOwoA_output.mp4",
+            "https://v3b.fal.media/files/b/lion/8Q5HtMolF_p4KNFdpAo1A_output.mp4"
+          ]
+        }
+      }
+    ],
+    "Merge Videos": [
+      {
+        "json": {
+          "status": "IN_QUEUE",
+          "request_id": "b226523e-7084-480b-baa9-5512e5c7b166",
+          "response_url": "https://queue.fal.run/fal-ai/ffmpeg-api/requests/b226523e-7084-480b-baa9-5512e5c7b166",
+          "status_url": "https://queue.fal.run/fal-ai/ffmpeg-api/requests/b226523e-7084-480b-baa9-5512e5c7b166/status",
+          "cancel_url": "https://queue.fal.run/fal-ai/ffmpeg-api/requests/b226523e-7084-480b-baa9-5512e5c7b166/cancel",
+          "logs": null,
+          "metrics": {},
+          "queue_position": 0
+        }
+      }
+    ],
+    "Wait1": [
+      {
+        "json": {
+          "status": "IN_QUEUE",
+          "request_id": "b226523e-7084-480b-baa9-5512e5c7b166",
+          "response_url": "https://queue.fal.run/fal-ai/ffmpeg-api/requests/b226523e-7084-480b-baa9-5512e5c7b166",
+          "status_url": "https://queue.fal.run/fal-ai/ffmpeg-api/requests/b226523e-7084-480b-baa9-5512e5c7b166/status",
+          "cancel_url": "https://queue.fal.run/fal-ai/ffmpeg-api/requests/b226523e-7084-480b-baa9-5512e5c7b166/cancel",
+          "logs": null,
+          "metrics": {},
+          "queue_position": 0
+        }
+      }
+    ],
+    "Wait2": [
+      {
+        "json": {
+          "status": "IN_QUEUE",
+          "request_id": "d115f27e-f4f9-45d0-857f-7b4f91430c64",
+          "response_url": "https://queue.fal.run/fal-ai/topaz/requests/d115f27e-f4f9-45d0-857f-7b4f91430c64",
+          "status_url": "https://queue.fal.run/fal-ai/topaz/requests/d115f27e-f4f9-45d0-857f-7b4f91430c64/status",
+          "cancel_url": "https://queue.fal.run/fal-ai/topaz/requests/d115f27e-f4f9-45d0-857f-7b4f91430c64/cancel",
+          "logs": null,
+          "metrics": {},
+          "queue_position": 0
+        }
+      }
+    ],
+    "4K Upscale": [
+      {
+        "json": {
+          "status": "IN_QUEUE",
+          "request_id": "d115f27e-f4f9-45d0-857f-7b4f91430c64",
+          "response_url": "https://queue.fal.run/fal-ai/topaz/requests/d115f27e-f4f9-45d0-857f-7b4f91430c64",
+          "status_url": "https://queue.fal.run/fal-ai/topaz/requests/d115f27e-f4f9-45d0-857f-7b4f91430c64/status",
+          "cancel_url": "https://queue.fal.run/fal-ai/topaz/requests/d115f27e-f4f9-45d0-857f-7b4f91430c64/cancel",
+          "logs": null,
+          "metrics": {},
+          "queue_position": 0
+        }
+      }
+    ],
+    "HTTP Request": [
+      {
+        "json": {
+          "error": {
+            "message": "400 - \"{\\\"detail\\\": \\\"Request is still in progress\\\", \\\"request_id\\\": \\\"d115f27e-f4f9-45d0-857f-7b4f91430c64\\\", \\\"response_url\\\": \\\"https://queue.fal.run/fal-ai/topaz/requests/d115f27e-f4f9-45d0-857f-7b4f91430c64\\\", \\\"status_url\\\": \\\"https://queue.fal.run/fal-ai/topaz/requests/d115f27e-f4f9-45d0-857f-7b4f91430c64/status\\\", \\\"cancel_url\\\": \\\"https://queue.fal.run/fal-ai/topaz/requests/d115f27e-f4f9-45d0-857f-7b4f91430c64/cancel\\\"}\"",
+            "name": "AxiosError",
+            "stack": "AxiosError: Request failed with status code 400\n    at settle (/usr/local/lib/node_modules/n8n/node_modules/.pnpm/axios@1.8.3/node_modules/axios/lib/core/settle.js:19:12)\n    at RedirectableRequest.handleResponse (/usr/local/lib/node_modules/n8n/node_modules/.pnpm/axios@1.8.3/node_modules/axios/lib/adapters/http.js:547:9)\n    at RedirectableRequest.emit (node:events:530:35)\n    at RedirectableRequest._processResponse (/usr/local/lib/node_modules/n8n/node_modules/.pnpm/follow-redirects@1.15.11/node_modules/follow-redirects/index.js:409:10)\n    at ClientRequest.RedirectableRequest._onNativeResponse (/usr/local/lib/node_modules/n8n/node_modules/.pnpm/follow-redirects@1.15.11/node_modules/follow-redirects/index.js:102:12)\n    at Object.onceWrapper (node:events:633:26)\n    at ClientRequest.emit (node:events:518:28)\n    at HTTPParser.parserOnIncomingClient (node:_http_client:716:27)\n    at HTTPParser.parserOnHeadersComplete (node:_http_common:117:17)\n    at TLSSocket.socketOnData (node:_http_client:558:22)\n    at Axios.request (/usr/local/lib/node_modules/n8n/node_modules/.pnpm/axios@1.8.3/node_modules/axios/lib/core/Axios.js:45:41)\n    at processTicksAndRejections (node:internal/process/task_queues:105:5)\n    at invokeAxios (/usr/local/lib/node_modules/n8n/node_modules/.pnpm/n8n-core@file+packages+core_@opentelemetry+api@1.9.0_@opentelemetry+sdk-trace-base@1.30_5aee33ef851c7de341eb325c6a25e0ff/node_modules/n8n-core/src/execution-engine/node-execution-context/utils/request-helper-functions.ts:313:10)\n    at proxyRequestToAxios (/usr/local/lib/node_modules/n8n/node_modules/.pnpm/n8n-core@file+packages+core_@opentelemetry+api@1.9.0_@opentelemetry+sdk-trace-base@1.30_5aee33ef851c7de341eb325c6a25e0ff/node_modules/n8n-core/src/execution-engine/node-execution-context/utils/request-helper-functions.ts:695:20)\n    at Object.request (/usr/local/lib/node_modules/n8n/node_modules/.pnpm/n8n-core@file+packages+core_@opentelemetry+api@1.9.0_@opentelemetry+sdk-trace-base@1.30_5aee33ef851c7de341eb325c6a25e0ff/node_modules/n8n-core/src/execution-engine/node-execution-context/utils/request-helper-functions.ts:1749:4)",
+            "code": "ERR_BAD_REQUEST",
+            "status": 400
+          }
+        }
+      }
+    ],
+    "Update record1": [
+      {
+        "json": {
+          "id": "recHKWL1dHYXR6gH1",
+          "createdTime": "2025-09-17T22:51:31.000Z",
+          "fields": {
+            "Title": "phone",
+            "First Frame": [
+              {
+                "id": "attwyINLSHX2oDJuL",
+                "width": 1456,
+                "height": 816,
+                "url": "https://v5.airtableusercontent.com/v3/u/45/45/1758168000000/uG-3HW830sz1L-R8PxjRVw/5eIPm5O2DB8c6FXGSkymjOreukM8Je1w6YT33nu57JTs0wR9iXPzaW8dUbSO1-kQLj6-YA0h4NuyAz6PYIBxaBL_-gQWco5YqZHmkFtD4AaKdAurA2yHIPYaKzXe5SH-4q3PomFHucNb-SKuUh4xucqi4G6sE1-2nYIfEhRiHVo/23S7vkXn6m3Wd6cQbSUMpC58R7XFaFxnWx9OHkNIloM",
+                "filename": "image (10).png",
+                "size": 1489189,
+                "type": "image/png",
+                "thumbnails": {
+                  "small": {
+                    "url": "https://v5.airtableusercontent.com/v3/u/45/45/1758168000000/q-UoyhIrNngXGb5eIJhHBQ/fNe7CP3lZGFNriE1XnZ1LmadaZwL0cBfwjp35_0Kduo_3PPofQftBwma-FQs-ZjgOapqc6p6Q0ZntIJoPeMHZ7Rjug-geBlxzuU1VaLGyfNKIVR428TJSrdHUfuad-jElvhcNwzw8UJU7_I6hdBIdw/5jPBcXzH_vBa-3KjyaJLuvUkkKdl4QPSrUFBU8FPwm4",
+                    "width": 64,
+                    "height": 36
+                  },
+                  "large": {
+                    "url": "https://v5.airtableusercontent.com/v3/u/45/45/1758168000000/wmIeIZkl1Qo52FYBgkn29w/3v5_xHEio8lUeqpMvYAjawfNQG1eMKCFuwLOhmqQCxbbQ_PwaRoV0NlvU2BPOWYuLzQICURRgsx1L9EutqPH0XaSVVjeFkXpHXSWAmoOAzRbbgVoZgtHcp2B8CeezVnZETIN6RHEtsHV1Ni9di_LzA/JAuAIbWllW0F3eLjt_8BtjUHvitLd-wuDTDR7EL5G6Y",
+                    "width": 914,
+                    "height": 512
+                  },
+                  "full": {
+                    "url": "https://v5.airtableusercontent.com/v3/u/45/45/1758168000000/i0VqtBytcOFd0AIZchZxYQ/YY5crkA3fcyY_RBKKf4ILizUZd9ieICusds8sDiLdJ0g4cfPBQslJ9CXefXgCJpK1gbXCeqWg3RqwOKk1AD852fji2msrXGVHmuXvscqDKanVKXdyje-ZNPOKa3poe-gSlODCU-OP1DcQzagQb5kKA/WYASce9_9NijPL3PJrxJrBVrfY4oL0slKmbUnIXV-KQ",
+                    "width": 1456,
+                    "height": 816
+                  }
+                }
+              }
+            ],
+            "Last Frame": [
+              {
+                "id": "attvrXgQapkLfgJVz",
+                "width": 1344,
+                "height": 768,
+                "url": "https://v5.airtableusercontent.com/v3/u/45/45/1758168000000/081KpOFGj0pmPXEhR9z6mw/CXFDEhPaj_ep90NkaIiFQ9dWt5j2qAxo_YSJg4PHzs-ox8U5HljaB9YnjUC-dRBa4Izk4TdCc5POZ9APxTJ8pCQlk2WBffiRrZF_9nnVm5kCiKdy_WDR4-Cnmpu5Mdi5_XGq9aHNYmtNKNRmKY41tkuhM--k6iuPPN9h1KF1wgTsOBygFDxHCAwHeh7isJg6/3yLILJtcabjyUkT2KjfWhuxLnvpIGhQrYvOiEysXzOc",
+                "filename": "Generated Image September 17, 2025 - 5_45PM.png",
+                "size": 1527432,
+                "type": "image/png",
+                "thumbnails": {
+                  "small": {
+                    "url": "https://v5.airtableusercontent.com/v3/u/45/45/1758168000000/1WUfY-_sX1qLzmsF1rh82Q/wZoOKIr60GhX3tscP-7Bl7DDjewJMdIfxxCPcv9O9Tavrs5hjodT3-_RzEWndmPZgORN5xpOeVhdMYWpLu3vx_aWhXnNwGsX3QF6xJ5wt2Zzb14p52Cow8A3BQFvF9_yrYxsVPxQVVFYmbmLIlRsYg/crLICd7meTWv8QgdtyqV6zMsN2q3DeMA5HCSOibYLsk",
+                    "width": 63,
+                    "height": 36
+                  },
+                  "large": {
+                    "url": "https://v5.airtableusercontent.com/v3/u/45/45/1758168000000/VO_wITUqUW0OreQSo0yyEA/4pBIbY4ehj3hfXhyMrrgHCCkmJwXHogzYxb8kIYMZEWw9iR9X1Du6Sdk94CHrZufNvn1h1vZG_pmv7ZGX6ye-fbv2FKjcYR8jvR_SJlrNFf4sR8zHZWlIJubDeXj7m_ASGak9sX30BkgaZbmgzjH-w/xsNx6cWGjlyOMEww8MaiSulrOo2Dk-JGyZD9jpCPzsI",
+                    "width": 896,
+                    "height": 512
+                  },
+                  "full": {
+                    "url": "https://v5.airtableusercontent.com/v3/u/45/45/1758168000000/SCoI0SCXqhC_gqk54WufRA/nydKG31On5f7PEPOhKPUFgGYjjxFUvcAGi9LcER4JXQhFvO5D0KfX_rK1ae5kO_yZYlxZ3LsuqkxQvUzbjrd9f1_aqF1thX6VB3l5vtBznXPKusf61Fu-8k8mjcn70EEDdpG_tD9FWyxSCxfTRhHsA/ZcwpZq4F45TksFfyX_Pnk7_h3kAeASgZMsUOa_JrrOI",
+                    "width": 1344,
+                    "height": 768
+                  }
+                }
+              }
+            ],
+            "Video Prompt": "Cinematic assembly sequence starting with iPhone components scattered and disassembled on white background. Camera holds wide shot showing all parts laid out precisely. Begin reverse-engineering animation where individual components smoothly float and rotate into position - screws threading themselves, circuit boards sliding into place, camera modules clicking in, frame pieces connecting seamlessly. Parts move with fluid mechanical precision, guided by invisible magnetic forces. As the final exterior shell closes and the Apple logo appears, the phone gently settles onto the white surface. Screen illuminates with startup sequence, then transitions to show Google Maps with navigation interface displaying street map, location pins, and 'Turn left onto Elm Street, 15 min' direction. Camera slowly pushes in on the completed device. Professional product photography lighting throughout",
+            "Status": "Completed",
+            "Scene": "1",
+            "Create 1080p Video": {
+              "label": "Create",
+              "url": "https://n8n.srv910413.hstgr.cloud/webhook/641e668d-7918-4b8c-aff3-cfca34ba813e?recordId=recHKWL1dHYXR6gH1"
+            },
+            "1080p Video": "https://v3b.fal.media/files/b/monkey/6936mvJTVMF4lcTvkOwoA_output.mp4",
+            "4k Video": "https://v3.fal.media/files/elephant/l1r5TnVxfCGbQMFEBjPXe_video.mp4",
+            "Create 4K Video": {
+              "label": "Create",
+              "url": "https://n8n.srv910413.hstgr.cloud/webhook/989a27bf-87f0-48cf-9156-d4931b96be1d?recordId=recHKWL1dHYXR6gH1"
+            }
+          }
+        }
+      },
+      {
+        "json": {
+          "id": "recvuEOpNJ8t7vN9s",
+          "createdTime": "2025-09-17T23:29:14.000Z",
+          "fields": {
+            "Title": "phone",
+            "First Frame": [
+              {
+                "id": "attMVQqI6PsdWQOH3",
+                "width": 1344,
+                "height": 768,
+                "url": "https://v5.airtableusercontent.com/v3/u/45/45/1758168000000/XSg1GUFQf3YaD3M8pQA3uw/PF5_GuhDO_POw4PEI0RD1EUC412YGfM_J19cKYjskJW6Eb5lSmcAP3dot656iaNvEHb9CnpEVoAAltGBU3-my2leqiX0v7P28A_fluxsm0HjnLWS4QAsqw7Qhz3Xj1tS2JeBF2ASfKHtIN-I0mqbHPvcdvjQ93KJa-w94BAXLKTQ9D_knnNaptK8I8c6Otkp/4Z_WixdDKFrBPmL0QfzQ0OHrux7nSpPLJYSXspgqQMU",
+                "filename": "Generated Image September 17, 2025 - 5_45PM.png",
+                "size": 1527432,
+                "type": "image/png",
+                "thumbnails": {
+                  "small": {
+                    "url": "https://v5.airtableusercontent.com/v3/u/45/45/1758168000000/HMJMUIq3jgHwwnDjRgmXNA/9HC8kJaM3j4jmmEBdEolv8Bl0bIIsNWWwC9IQ9989hA8i2Ap_dI9Wos945M5L27kcRNRyXOodcybYLugQAQyrjOvOYeiXrdnQZ5mk0CoZI9zvJGlEkJsCmXTpQtSX8fMXK-I_aMKkCViIIbvTVxN0w/N1FQNDlZD9Iiswv7Pb0a7nEQ8mChq3Xkj2JfKJu2irM",
+                    "width": 63,
+                    "height": 36
+                  },
+                  "large": {
+                    "url": "https://v5.airtableusercontent.com/v3/u/45/45/1758168000000/wqp6k9fYToEuhGIN_gDtOw/LXDXfkJSGPv9PEoZrKikInGBp6YfrPKqQM6pG4Dr5cn2rLPjk4TqvvIwnB9fgWeC6XOOXVl36Srt5ko_2PipTC0CcMVWT2mrs5AHk-5GqvVy1o7nF7nqFzjrfVhfCtb1B9VWohv45ZKKiwe83jre4Q/upgHmrYyJkYl-or4as4ZJ4qgBYoQ3xQpdpg5JIq4SoQ",
+                    "width": 896,
+                    "height": 512
+                  },
+                  "full": {
+                    "url": "https://v5.airtableusercontent.com/v3/u/45/45/1758168000000/_rY_xi8Eq-OIAUuqbvtj4w/Msr6ALkQ_DhONwYCnEIzBBI75DUvn7GbOiGf1UJSuRfC02Tipjkm8hUFLNAV7hUdYRIzQR7WNBohQWDxVU7m0qh2EHtIYaI1WuFgs18AEO5MDQw3RDVHI6FDP6cIFPc_tcg12F1PFhWcJaZ5xTdZLA/ohzHdX95WOsjeURV-WX8hXf_Hb5StaGi5G2IO2hpYys",
+                    "width": 1344,
+                    "height": 768
+                  }
+                }
+              }
+            ],
+            "Last Frame": [
+              {
+                "id": "attDudbUfzQw8Irxp",
+                "width": 1344,
+                "height": 768,
+                "url": "https://v5.airtableusercontent.com/v3/u/45/45/1758168000000/qu-sJlmL6oRXEziUe0C6PQ/o5mZ0xJnKxppOM6EtjezvHNqVw3GeWJDNpftMEvZI0M2Y0tONqF-AlxariJsKfwuoV2Td0XtYSrT624i5ALleRjMqAU6CVvBkmpHNs3fIUFNim5DH6zbV88CfdQOUgEMDSAf3BOUzSTFCKUzU558A0wvA8U9b5ZTvEeVpmaCIZNnaza8oUGc14M7ntkWzT21/21vGh4fFFaJrDfGzFUbiAsCgnzJIcJpu1HMsmk8jYk8",
+                "filename": "Generated Image September 17, 2025 - 5_51PM.png",
+                "size": 1643774,
+                "type": "image/png",
+                "thumbnails": {
+                  "small": {
+                    "url": "https://v5.airtableusercontent.com/v3/u/45/45/1758168000000/SuqebwOPvME04Y_GkNuFZQ/61on6RRva5Je6W1Z9VT3CkLQMbn-nxVyx8310_NkFUbrCZrFz-AnCHyJ1f3NCleQ0faOe17npWK9nBYtdFtBlz2x29Q3CdCfNNalLpFq_UEKYOrmYFapI2R-UKghDS3jKLNvVb2s30TYAo7kVTSm3A/-nEfFyoJ7fhT6yVzKb5yqcsFBFgm_EmjLXmtPfXVQgw",
+                    "width": 63,
+                    "height": 36
+                  },
+                  "large": {
+                    "url": "https://v5.airtableusercontent.com/v3/u/45/45/1758168000000/w5b4VyL72FWljp6mAzAhyA/aUriIZnt2YRaw4z1Pk0tWJYzbS4e-wiU-VXcy-i0hSpKWeiMM01io9qvdUBQM5dV11wj7GgbnBnFrNQgDydEiK9O1OiJ8CgG9OLZMrXA1CMdjf5GndBUFqaenyj0uIVB0z3zbSW97bKThDvr4ZNyRA/nDnjU-Fi0grsuZzmW_xWeYiKslmPmXHBVrYQxPjIyec",
+                    "width": 896,
+                    "height": 512
+                  },
+                  "full": {
+                    "url": "https://v5.airtableusercontent.com/v3/u/45/45/1758168000000/GavDXj7ZKEN7wZzK8wmC2w/QIk0BIDLqVntrykTaRHRAwxKfxpqOZ0sOjqhkBlpAYRC9-pWA92kIM6lSJV-CqzWLtQ1QD4IipmRoEDFIGUIJkQWxbrOVC0Yb0OWyaKCSHSGgQbmyts8I0r9PTfbTzCF8kGwtMm1b0oQDTNWbddX2Q/QFnBrJXt8n-PnSNa2waSZvlhfT3Tsckb_L34ROOA3l0",
+                    "width": 1344,
+                    "height": 768
+                  }
+                }
+              }
+            ],
+            "Video Prompt": "Dynamic transformation starting with iPhone displaying flat 2D Google Maps interface in portrait orientation on white background. Camera holds steady as the map content begins to come alive - street lines start to glow and pulse with subtle animation. Buildings and city blocks begin to extrude upward from the flat screen surface, rising into white 3D geometric forms that break the plane of the display. The phone simultaneously rotates to a dynamic angled perspective as the map transforms from flat to dimensional. 3D buildings continue growing taller, creating depth and realistic urban topology. Streets maintain their blue and yellow color routing while gaining elevation changes. The transformation emphasizes the 'immersive 3D' experience as text 'Google Maps. Now in immersive 3D, right on your screen.' appears elegantly beside the device.",
+            "Status": "Completed",
+            "Scene": "2",
+            "Create 1080p Video": {
+              "label": "Create",
+              "url": "https://n8n.srv910413.hstgr.cloud/webhook/641e668d-7918-4b8c-aff3-cfca34ba813e?recordId=recvuEOpNJ8t7vN9s"
+            },
+            "1080p Video": "https://v3b.fal.media/files/b/lion/8Q5HtMolF_p4KNFdpAo1A_output.mp4",
+            "4k Video": "https://v3.fal.media/files/elephant/l1r5TnVxfCGbQMFEBjPXe_video.mp4",
+            "Create 4K Video": {
+              "label": "Create",
+              "url": "https://n8n.srv910413.hstgr.cloud/webhook/989a27bf-87f0-48cf-9156-d4931b96be1d?recordId=recvuEOpNJ8t7vN9s"
+            }
+          }
+        }
+      }
+    ],
+    "Search records": [
+      {
+        "json": {
+          "id": "recHKWL1dHYXR6gH1",
+          "createdTime": "2025-09-17T22:51:31.000Z",
+          "Title": "phone",
+          "First Frame": [
+            {
+              "id": "attwyINLSHX2oDJuL",
+              "width": 1456,
+              "height": 816,
+              "url": "https://v5.airtableusercontent.com/v3/u/45/45/1758168000000/uG-3HW830sz1L-R8PxjRVw/5eIPm5O2DB8c6FXGSkymjOreukM8Je1w6YT33nu57JTs0wR9iXPzaW8dUbSO1-kQLj6-YA0h4NuyAz6PYIBxaBL_-gQWco5YqZHmkFtD4AaKdAurA2yHIPYaKzXe5SH-4q3PomFHucNb-SKuUh4xucqi4G6sE1-2nYIfEhRiHVo/23S7vkXn6m3Wd6cQbSUMpC58R7XFaFxnWx9OHkNIloM",
+              "filename": "image (10).png",
+              "size": 1489189,
+              "type": "image/png",
+              "thumbnails": {
+                "small": {
+                  "url": "https://v5.airtableusercontent.com/v3/u/45/45/1758168000000/q-UoyhIrNngXGb5eIJhHBQ/fNe7CP3lZGFNriE1XnZ1LmadaZwL0cBfwjp35_0Kduo_3PPofQftBwma-FQs-ZjgOapqc6p6Q0ZntIJoPeMHZ7Rjug-geBlxzuU1VaLGyfNKIVR428TJSrdHUfuad-jElvhcNwzw8UJU7_I6hdBIdw/5jPBcXzH_vBa-3KjyaJLuvUkkKdl4QPSrUFBU8FPwm4",
+                  "width": 64,
+                  "height": 36
+                },
+                "large": {
+                  "url": "https://v5.airtableusercontent.com/v3/u/45/45/1758168000000/wmIeIZkl1Qo52FYBgkn29w/3v5_xHEio8lUeqpMvYAjawfNQG1eMKCFuwLOhmqQCxbbQ_PwaRoV0NlvU2BPOWYuLzQICURRgsx1L9EutqPH0XaSVVjeFkXpHXSWAmoOAzRbbgVoZgtHcp2B8CeezVnZETIN6RHEtsHV1Ni9di_LzA/JAuAIbWllW0F3eLjt_8BtjUHvitLd-wuDTDR7EL5G6Y",
+                  "width": 914,
+                  "height": 512
+                },
+                "full": {
+                  "url": "https://v5.airtableusercontent.com/v3/u/45/45/1758168000000/i0VqtBytcOFd0AIZchZxYQ/YY5crkA3fcyY_RBKKf4ILizUZd9ieICusds8sDiLdJ0g4cfPBQslJ9CXefXgCJpK1gbXCeqWg3RqwOKk1AD852fji2msrXGVHmuXvscqDKanVKXdyje-ZNPOKa3poe-gSlODCU-OP1DcQzagQb5kKA/WYASce9_9NijPL3PJrxJrBVrfY4oL0slKmbUnIXV-KQ",
+                  "width": 1456,
+                  "height": 816
+                }
+              }
+            }
+          ],
+          "Last Frame": [
+            {
+              "id": "attvrXgQapkLfgJVz",
+              "width": 1344,
+              "height": 768,
+              "url": "https://v5.airtableusercontent.com/v3/u/45/45/1758168000000/081KpOFGj0pmPXEhR9z6mw/CXFDEhPaj_ep90NkaIiFQ9dWt5j2qAxo_YSJg4PHzs-ox8U5HljaB9YnjUC-dRBa4Izk4TdCc5POZ9APxTJ8pCQlk2WBffiRrZF_9nnVm5kCiKdy_WDR4-Cnmpu5Mdi5_XGq9aHNYmtNKNRmKY41tkuhM--k6iuPPN9h1KF1wgTsOBygFDxHCAwHeh7isJg6/3yLILJtcabjyUkT2KjfWhuxLnvpIGhQrYvOiEysXzOc",
+              "filename": "Generated Image September 17, 2025 - 5_45PM.png",
+              "size": 1527432,
+              "type": "image/png",
+              "thumbnails": {
+                "small": {
+                  "url": "https://v5.airtableusercontent.com/v3/u/45/45/1758168000000/1WUfY-_sX1qLzmsF1rh82Q/wZoOKIr60GhX3tscP-7Bl7DDjewJMdIfxxCPcv9O9Tavrs5hjodT3-_RzEWndmPZgORN5xpOeVhdMYWpLu3vx_aWhXnNwGsX3QF6xJ5wt2Zzb14p52Cow8A3BQFvF9_yrYxsVPxQVVFYmbmLIlRsYg/crLICd7meTWv8QgdtyqV6zMsN2q3DeMA5HCSOibYLsk",
+                  "width": 63,
+                  "height": 36
+                },
+                "large": {
+                  "url": "https://v5.airtableusercontent.com/v3/u/45/45/1758168000000/VO_wITUqUW0OreQSo0yyEA/4pBIbY4ehj3hfXhyMrrgHCCkmJwXHogzYxb8kIYMZEWw9iR9X1Du6Sdk94CHrZufNvn1h1vZG_pmv7ZGX6ye-fbv2FKjcYR8jvR_SJlrNFf4sR8zHZWlIJubDeXj7m_ASGak9sX30BkgaZbmgzjH-w/xsNx6cWGjlyOMEww8MaiSulrOo2Dk-JGyZD9jpCPzsI",
+                  "width": 896,
+                  "height": 512
+                },
+                "full": {
+                  "url": "https://v5.airtableusercontent.com/v3/u/45/45/1758168000000/SCoI0SCXqhC_gqk54WufRA/nydKG31On5f7PEPOhKPUFgGYjjxFUvcAGi9LcER4JXQhFvO5D0KfX_rK1ae5kO_yZYlxZ3LsuqkxQvUzbjrd9f1_aqF1thX6VB3l5vtBznXPKusf61Fu-8k8mjcn70EEDdpG_tD9FWyxSCxfTRhHsA/ZcwpZq4F45TksFfyX_Pnk7_h3kAeASgZMsUOa_JrrOI",
+                  "width": 1344,
+                  "height": 768
+                }
+              }
+            }
+          ],
+          "Video Prompt": "Cinematic assembly sequence starting with iPhone components scattered and disassembled on white background. Camera holds wide shot showing all parts laid out precisely. Begin reverse-engineering animation where individual components smoothly float and rotate into position - screws threading themselves, circuit boards sliding into place, camera modules clicking in, frame pieces connecting seamlessly. Parts move with fluid mechanical precision, guided by invisible magnetic forces. As the final exterior shell closes and the Apple logo appears, the phone gently settles onto the white surface. Screen illuminates with startup sequence, then transitions to show Google Maps with navigation interface displaying street map, location pins, and 'Turn left onto Elm Street, 15 min' direction. Camera slowly pushes in on the completed device. Professional product photography lighting throughout",
+          "Status": "4k Standby",
+          "Scene": "1",
+          "Create 1080p Video": {
+            "label": "Create",
+            "url": "https://n8n.srv910413.hstgr.cloud/webhook/641e668d-7918-4b8c-aff3-cfca34ba813e?recordId=recHKWL1dHYXR6gH1"
+          },
+          "1080p Video": "https://v3b.fal.media/files/b/monkey/6936mvJTVMF4lcTvkOwoA_output.mp4",
+          "Create 4K Video": {
+            "label": "Create",
+            "url": "https://n8n.srv910413.hstgr.cloud/webhook/989a27bf-87f0-48cf-9156-d4931b96be1d?recordId=recHKWL1dHYXR6gH1"
+          }
+        }
+      },
+      {
+        "json": {
+          "id": "recvuEOpNJ8t7vN9s",
+          "createdTime": "2025-09-17T23:29:14.000Z",
+          "Title": "phone",
+          "First Frame": [
+            {
+              "id": "attMVQqI6PsdWQOH3",
+              "width": 1344,
+              "height": 768,
+              "url": "https://v5.airtableusercontent.com/v3/u/45/45/1758168000000/XSg1GUFQf3YaD3M8pQA3uw/PF5_GuhDO_POw4PEI0RD1EUC412YGfM_J19cKYjskJW6Eb5lSmcAP3dot656iaNvEHb9CnpEVoAAltGBU3-my2leqiX0v7P28A_fluxsm0HjnLWS4QAsqw7Qhz3Xj1tS2JeBF2ASfKHtIN-I0mqbHPvcdvjQ93KJa-w94BAXLKTQ9D_knnNaptK8I8c6Otkp/4Z_WixdDKFrBPmL0QfzQ0OHrux7nSpPLJYSXspgqQMU",
+              "filename": "Generated Image September 17, 2025 - 5_45PM.png",
+              "size": 1527432,
+              "type": "image/png",
+              "thumbnails": {
+                "small": {
+                  "url": "https://v5.airtableusercontent.com/v3/u/45/45/1758168000000/HMJMUIq3jgHwwnDjRgmXNA/9HC8kJaM3j4jmmEBdEolv8Bl0bIIsNWWwC9IQ9989hA8i2Ap_dI9Wos945M5L27kcRNRyXOodcybYLugQAQyrjOvOYeiXrdnQZ5mk0CoZI9zvJGlEkJsCmXTpQtSX8fMXK-I_aMKkCViIIbvTVxN0w/N1FQNDlZD9Iiswv7Pb0a7nEQ8mChq3Xkj2JfKJu2irM",
+                  "width": 63,
+                  "height": 36
+                },
+                "large": {
+                  "url": "https://v5.airtableusercontent.com/v3/u/45/45/1758168000000/wqp6k9fYToEuhGIN_gDtOw/LXDXfkJSGPv9PEoZrKikInGBp6YfrPKqQM6pG4Dr5cn2rLPjk4TqvvIwnB9fgWeC6XOOXVl36Srt5ko_2PipTC0CcMVWT2mrs5AHk-5GqvVy1o7nF7nqFzjrfVhfCtb1B9VWohv45ZKKiwe83jre4Q/upgHmrYyJkYl-or4as4ZJ4qgBYoQ3xQpdpg5JIq4SoQ",
+                  "width": 896,
+                  "height": 512
+                },
+                "full": {
+                  "url": "https://v5.airtableusercontent.com/v3/u/45/45/1758168000000/_rY_xi8Eq-OIAUuqbvtj4w/Msr6ALkQ_DhONwYCnEIzBBI75DUvn7GbOiGf1UJSuRfC02Tipjkm8hUFLNAV7hUdYRIzQR7WNBohQWDxVU7m0qh2EHtIYaI1WuFgs18AEO5MDQw3RDVHI6FDP6cIFPc_tcg12F1PFhWcJaZ5xTdZLA/ohzHdX95WOsjeURV-WX8hXf_Hb5StaGi5G2IO2hpYys",
+                  "width": 1344,
+                  "height": 768
+                }
+              }
+            }
+          ],
+          "Last Frame": [
+            {
+              "id": "attDudbUfzQw8Irxp",
+              "width": 1344,
+              "height": 768,
+              "url": "https://v5.airtableusercontent.com/v3/u/45/45/1758168000000/qu-sJlmL6oRXEziUe0C6PQ/o5mZ0xJnKxppOM6EtjezvHNqVw3GeWJDNpftMEvZI0M2Y0tONqF-AlxariJsKfwuoV2Td0XtYSrT624i5ALleRjMqAU6CVvBkmpHNs3fIUFNim5DH6zbV88CfdQOUgEMDSAf3BOUzSTFCKUzU558A0wvA8U9b5ZTvEeVpmaCIZNnaza8oUGc14M7ntkWzT21/21vGh4fFFaJrDfGzFUbiAsCgnzJIcJpu1HMsmk8jYk8",
+              "filename": "Generated Image September 17, 2025 - 5_51PM.png",
+              "size": 1643774,
+              "type": "image/png",
+              "thumbnails": {
+                "small": {
+                  "url": "https://v5.airtableusercontent.com/v3/u/45/45/1758168000000/SuqebwOPvME04Y_GkNuFZQ/61on6RRva5Je6W1Z9VT3CkLQMbn-nxVyx8310_NkFUbrCZrFz-AnCHyJ1f3NCleQ0faOe17npWK9nBYtdFtBlz2x29Q3CdCfNNalLpFq_UEKYOrmYFapI2R-UKghDS3jKLNvVb2s30TYAo7kVTSm3A/-nEfFyoJ7fhT6yVzKb5yqcsFBFgm_EmjLXmtPfXVQgw",
+                  "width": 63,
+                  "height": 36
+                },
+                "large": {
+                  "url": "https://v5.airtableusercontent.com/v3/u/45/45/1758168000000/w5b4VyL72FWljp6mAzAhyA/aUriIZnt2YRaw4z1Pk0tWJYzbS4e-wiU-VXcy-i0hSpKWeiMM01io9qvdUBQM5dV11wj7GgbnBnFrNQgDydEiK9O1OiJ8CgG9OLZMrXA1CMdjf5GndBUFqaenyj0uIVB0z3zbSW97bKThDvr4ZNyRA/nDnjU-Fi0grsuZzmW_xWeYiKslmPmXHBVrYQxPjIyec",
+                  "width": 896,
+                  "height": 512
+                },
+                "full": {
+                  "url": "https://v5.airtableusercontent.com/v3/u/45/45/1758168000000/GavDXj7ZKEN7wZzK8wmC2w/QIk0BIDLqVntrykTaRHRAwxKfxpqOZ0sOjqhkBlpAYRC9-pWA92kIM6lSJV-CqzWLtQ1QD4IipmRoEDFIGUIJkQWxbrOVC0Yb0OWyaKCSHSGgQbmyts8I0r9PTfbTzCF8kGwtMm1b0oQDTNWbddX2Q/QFnBrJXt8n-PnSNa2waSZvlhfT3Tsckb_L34ROOA3l0",
+                  "width": 1344,
+                  "height": 768
+                }
+              }
+            }
+          ],
+          "Video Prompt": "Dynamic transformation starting with iPhone displaying flat 2D Google Maps interface in portrait orientation on white background. Camera holds steady as the map content begins to come alive - street lines start to glow and pulse with subtle animation. Buildings and city blocks begin to extrude upward from the flat screen surface, rising into white 3D geometric forms that break the plane of the display. The phone simultaneously rotates to a dynamic angled perspective as the map transforms from flat to dimensional. 3D buildings continue growing taller, creating depth and realistic urban topology. Streets maintain their blue and yellow color routing while gaining elevation changes. The transformation emphasizes the 'immersive 3D' experience as text 'Google Maps. Now in immersive 3D, right on your screen.' appears elegantly beside the device.",
+          "Status": "4k Standby",
+          "Scene": "2",
+          "Create 1080p Video": {
+            "label": "Create",
+            "url": "https://n8n.srv910413.hstgr.cloud/webhook/641e668d-7918-4b8c-aff3-cfca34ba813e?recordId=recvuEOpNJ8t7vN9s"
+          },
+          "1080p Video": "https://v3b.fal.media/files/b/lion/8Q5HtMolF_p4KNFdpAo1A_output.mp4",
+          "Create 4K Video": {
+            "label": "Create",
+            "url": "https://n8n.srv910413.hstgr.cloud/webhook/989a27bf-87f0-48cf-9156-d4931b96be1d?recordId=recvuEOpNJ8t7vN9s"
+          }
+        }
+      }
+    ],
+    "Get Stitch": [
+      {
+        "json": {
+          "video": {
+            "url": "https://v3.fal.media/files/monkey/Vpdp-FwUoSa1EHGopeZy0_merged_video.mp4",
+            "content_type": "video/mp4",
+            "file_name": "merged_video.mp4",
+            "file_size": 3763426
+          },
+          "metadata": {
+            "final_fps": 24,
+            "final_width": 1890,
+            "final_height": 1080,
+            "total_duration": 11.834,
+            "has_audio": false,
+            "input_videos": [
+              {
+                "index": 1,
+                "fps": 24,
+                "width": 1926,
+                "height": 1080,
+                "duration": 5.917,
+                "has_audio": false,
+                "url": "https://v3b.fal.media/files/b/monkey/6936mvJTVMF4lcTvkOwoA_output.mp4"
+              },
+              {
+                "index": 2,
+                "fps": 24,
+                "width": 1890,
+                "height": 1080,
+                "duration": 5.917,
+                "has_audio": false,
+                "url": "https://v3b.fal.media/files/b/lion/8Q5HtMolF_p4KNFdpAo1A_output.mp4"
+              }
+            ],
+            "video_count": 2
+          }
+        }
+      }
+    ]
+  },
+  "connections": {
+    "Wait": {
+      "main": [
+        [
+          {
+            "node": "Get Videos",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Fal_Video": {
+      "main": [
+        [
+          {
+            "node": "Wait",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get Create Rows1": {
+      "main": [
+        [
+          {
+            "node": "Fal_Video",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get Videos": {
+      "main": [
+        [
+          {
+            "node": "Update record",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Update record": {
+      "main": [
+        []
+      ]
+    },
+    "1080p Webhook": {
+      "main": [
+        [
+          {
+            "node": "Get Create Rows1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "4k Webhook": {
+      "main": [
+        [
+          {
+            "node": "Get Create Rows2",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get Create Rows2": {
+      "main": [
+        [
+          {
+            "node": "Aggregate",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Aggregate": {
+      "main": [
+        [
+          {
+            "node": "Merge Videos",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Merge Videos": {
+      "main": [
+        [
+          {
+            "node": "Wait1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Wait1": {
+      "main": [
+        [
+          {
+            "node": "Get Stitch",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "4K Upscale": {
+      "main": [
+        [
+          {
+            "node": "Wait2",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Wait2": {
+      "main": [
+        [
+          {
+            "node": "HTTP Request",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "HTTP Request": {
+      "main": [
+        [
+          {
+            "node": "Switch",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        []
+      ]
+    },
+    "Search records": {
+      "main": [
+        [
+          {
+            "node": "Update record1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get Stitch": {
+      "main": [
+        [
+          {
+            "node": "4K Upscale",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Switch": {
+      "main": [
+        [
+          {
+            "node": "Search records",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Wait2",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "versionId": "f3680faa-df71-4f8d-8262-ba5a2e51d250",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "858b0696cb7e4c2d54a791ff0d9e4a3cddc7a852434a593789da95c43379b467"
+  },
+  "id": "UYvbMPuJieYfqqZX",
+  "tags": []
+}
