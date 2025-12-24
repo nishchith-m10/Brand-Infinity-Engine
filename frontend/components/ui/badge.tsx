@@ -1,43 +1,39 @@
-'use client';
+import * as React from "react"
+import { cva, type VariantProps } from "class-variance-authority"
 
-import { cn, getStatusColor, getPlatformColor } from '@/lib/utils';
+import { cn } from "@/lib/utils"
 
-interface BadgeProps {
-  children: React.ReactNode;
-  variant?: 'default' | 'primary' | 'secondary' | 'status' | 'platform';
-  status?: string;
-  platform?: string;
-  className?: string;
-}
-
-export function Badge({
-  children,
-  variant = 'default',
-  status,
-  platform,
-  className,
-}: BadgeProps) {
-  let colorClass = 'bg-gray-100 text-gray-800';
-
-  if (variant === 'primary') {
-    colorClass = 'bg-blue-600 text-white';
-  } else if (variant === 'secondary') {
-    colorClass = 'bg-gray-200 text-gray-700';
-  } else if (variant === 'status' && status) {
-    colorClass = getStatusColor(status);
-  } else if (variant === 'platform' && platform) {
-    colorClass = getPlatformColor(platform);
+const badgeVariants = cva(
+  "inline-flex items-center rounded-full border px-2.5 py-0.5 text-xs font-semibold transition-colors focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2",
+  {
+    variants: {
+      variant: {
+        default:
+          "border-transparent bg-primary text-primary-foreground shadow hover:bg-primary/80",
+        secondary:
+          "border-transparent bg-secondary text-secondary-foreground hover:bg-secondary/80",
+        destructive:
+          "border-transparent bg-destructive text-destructive-foreground shadow hover:bg-destructive/80",
+        outline: "text-foreground",
+        success: "border-emerald-200 bg-emerald-50 text-emerald-700 hover:bg-emerald-100",
+        processing: "border-amber-200 bg-amber-50 text-amber-700 hover:bg-amber-100",
+        warning: "border-amber-200 bg-amber-50 text-amber-700 hover:bg-amber-100",
+      },
+    },
+    defaultVariants: {
+      variant: "default",
+    },
   }
+)
 
+export interface BadgeProps
+  extends React.HTMLAttributes<HTMLDivElement>,
+    VariantProps<typeof badgeVariants> {}
+
+function Badge({ className, variant, ...props }: BadgeProps) {
   return (
-    <span
-      className={cn(
-        'inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium',
-        colorClass,
-        className
-      )}
-    >
-      {children}
-    </span>
-  );
+    <div className={cn(badgeVariants({ variant }), className)} {...props} />
+  )
 }
+
+export { Badge, badgeVariants }

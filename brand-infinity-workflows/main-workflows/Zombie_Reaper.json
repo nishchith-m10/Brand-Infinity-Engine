@@ -1,0 +1,149 @@
+{
+  "name": "Monitor: Zombie Reaper",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": { "interval": [{ "field": "hours", "hoursInterval": 1 }] }
+      },
+      "id": "cron",
+      "name": "Every Hour",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.1,
+      "position": [100, 300]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT * FROM campaigns WHERE status IN ('processing', 'rendering', 'distributing', 'strategizing', 'scripting') AND locked_at < NOW() - INTERVAL '30 minutes' ORDER BY locked_at LIMIT 20",
+        "options": {}
+      },
+      "id": "find-zombies",
+      "name": "Find Zombie Campaigns",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.4,
+      "position": [300, 300],
+      "credentials": { "postgres": { "id": "postgres-creds", "name": "Supabase Postgres" } }
+    },
+    {
+      "parameters": {
+        "conditions": { "number": [{ "value1": "={{ ($json || []).length }}", "operation": "larger", "value2": 0 }] }
+      },
+      "id": "has-zombies",
+      "name": "Has Zombies?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [500, 300]
+    },
+    {
+      "parameters": {
+        "jsCode": "// No zombies found\nreturn [{ json: { message: 'No zombie campaigns found', checked_at: new Date().toISOString() } }];"
+      },
+      "id": "no-zombies",
+      "name": "No Zombies",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [700, 450]
+    },
+    {
+      "parameters": {
+        "batchSize": 1,
+        "options": {}
+      },
+      "id": "loop",
+      "name": "Loop Zombies",
+      "type": "n8n-nodes-base.splitInBatches",
+      "typeVersion": 3,
+      "position": [700, 200]
+    },
+    {
+      "parameters": {
+        "jsCode": "// ============================================\n// ZOMBIE CLASSIFICATION\n// Per Manifesto Section 12.1\n// ============================================\n\nconst campaign = $input.all()[0].json;\nconst lockedAt = new Date(campaign.locked_at);\nconst now = new Date();\nconst minutesStuck = (now - lockedAt) / 60000;\n\nlet action = 'unlock_and_retry';\nlet severity = 'low';\n\nif (minutesStuck > 120) {\n  action = 'mark_failed';\n  severity = 'high';\n} else if (minutesStuck > 60) {\n  action = 'unlock_and_retry';\n  severity = 'medium';\n}\n\nreturn [{\n  json: {\n    campaign_id: campaign.id,\n    status: campaign.status,\n    locked_by: campaign.locked_by,\n    locked_at: campaign.locked_at,\n    minutes_stuck: Math.round(minutesStuck),\n    action: action,\n    severity: severity\n  }\n}];"
+      },
+      "id": "classify",
+      "name": "Classify Zombie",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [900, 200]
+    },
+    {
+      "parameters": {
+        "conditions": { "string": [{ "value1": "={{ $json.action }}", "value2": "mark_failed" }] }
+      },
+      "id": "action-check",
+      "name": "Mark Failed?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [1100, 200]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "UPDATE campaigns SET status = 'failed', locked_by = NULL, locked_at = NULL, stage_metadata = jsonb_set(COALESCE(stage_metadata, '{}'), '{zombie_killed_at}', '\"{{ new Date().toISOString() }}\"') WHERE id = '{{ $json.campaign_id }}' RETURNING *",
+        "options": {}
+      },
+      "id": "mark-failed",
+      "name": "Mark as Failed",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.4,
+      "position": [1300, 100],
+      "credentials": { "postgres": { "id": "postgres-creds", "name": "Supabase Postgres" } }
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "UPDATE campaigns SET locked_by = NULL, locked_at = NULL WHERE id = '{{ $json.campaign_id }}' RETURNING *",
+        "options": {}
+      },
+      "id": "unlock-retry",
+      "name": "Unlock for Retry",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.4,
+      "position": [1300, 300],
+      "credentials": { "postgres": { "id": "postgres-creds", "name": "Supabase Postgres" } }
+    },
+    {
+      "parameters": {
+        "workflowId": "={{ $env.SEND_ALERT_WORKFLOW_ID }}",
+        "options": {},
+        "inputData": {
+          "alert_type": "zombie",
+          "message": "={{ 'Zombie campaign killed: ' + $('Classify Zombie').first().json.campaign_id + ' (stuck for ' + $('Classify Zombie').first().json.minutes_stuck + ' min)' }}",
+          "campaign_id": "={{ $('Classify Zombie').first().json.campaign_id }}",
+          "context": "={{ { action: $('Classify Zombie').first().json.action, severity: $('Classify Zombie').first().json.severity } }}"
+        }
+      },
+      "id": "alert",
+      "name": "Alert Zombie Killed",
+      "type": "n8n-nodes-base.executeWorkflow",
+      "typeVersion": 1,
+      "position": [1500, 200]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Continue loop\nreturn [{ json: { continue: true } }];"
+      },
+      "id": "continue",
+      "name": "Continue",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1700, 200]
+    }
+  ],
+  "connections": {
+    "Every Hour": { "main": [[{ "node": "Find Zombie Campaigns", "type": "main", "index": 0 }]] },
+    "Find Zombie Campaigns": { "main": [[{ "node": "Has Zombies?", "type": "main", "index": 0 }]] },
+    "Has Zombies?": { "main": [[{ "node": "Loop Zombies", "type": "main", "index": 0 }], [{ "node": "No Zombies", "type": "main", "index": 0 }]] },
+    "Loop Zombies": { "main": [[{ "node": "Classify Zombie", "type": "main", "index": 0 }], []] },
+    "Classify Zombie": { "main": [[{ "node": "Mark Failed?", "type": "main", "index": 0 }]] },
+    "Mark Failed?": { "main": [[{ "node": "Mark as Failed", "type": "main", "index": 0 }], [{ "node": "Unlock for Retry", "type": "main", "index": 0 }]] },
+    "Mark as Failed": { "main": [[{ "node": "Alert Zombie Killed", "type": "main", "index": 0 }]] },
+    "Unlock for Retry": { "main": [[{ "node": "Alert Zombie Killed", "type": "main", "index": 0 }]] },
+    "Alert Zombie Killed": { "main": [[{ "node": "Continue", "type": "main", "index": 0 }]] },
+    "Continue": { "main": [[{ "node": "Loop Zombies", "type": "main", "index": 0 }]] }
+  },
+  "settings": { "executionOrder": "v1" },
+  "staticData": null,
+  "tags": [{ "name": "monitoring" }, { "name": "cron" }],
+  "active": false,
+  "meta": { "manifestoSection": "Section 12.1", "description": "Hourly zombie campaign detection and cleanup", "nodeCount": 12 }
+}

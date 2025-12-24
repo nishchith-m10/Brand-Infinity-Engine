@@ -1,0 +1,269 @@
+{
+  "name": "Sub: Log Cost Event",
+  "nodes": [
+    {
+      "parameters": {},
+      "id": "start-node",
+      "name": "Start",
+      "type": "n8n-nodes-base.executeWorkflowTrigger",
+      "typeVersion": 1,
+      "position": [250, 300]
+    },
+    {
+      "parameters": {
+        "jsCode": "// ============================================\n// COST EVENT VALIDATION & PREPARATION\n// Sub-Workflow: Log_Cost_Event\n// Per Manifesto Section 2, Dimension 5\n// ============================================\n\nconst input = $input.all()[0].json;\n\n// Validate required fields\nconst requiredFields = ['provider', 'model', 'cost_usd', 'purpose', 'campaign_id', 'execution_id'];\nconst missing = requiredFields.filter(f => !input[f] && input[f] !== 0);\n\nif (missing.length > 0) {\n  throw new Error(`Missing required cost fields: ${missing.join(', ')}`);\n}\n\n// Generate idempotency key per Dimension 3\n// Format: cost_{execution_id}_{campaign_id}_{purpose}_{timestamp_bucket}\nconst timestampBucket = Math.floor(Date.now() / 60000); // 1-minute buckets\nconst idempotencyKey = `cost_${input.execution_id}_${input.campaign_id}_${input.purpose}_${timestampBucket}`;\n\n// Ensure 6 decimal precision per Dimension 5\nconst costUsd = Math.round(parseFloat(input.cost_usd) * 1000000) / 1000000;\n\nreturn [{\n  json: {\n    campaign_id: input.campaign_id,\n    workflow_execution_id: input.execution_id,\n    step_name: input.step_name || input.purpose,\n    provider: input.provider,\n    model: input.model,\n    tokens_in: parseInt(input.tokens_in) || 0,\n    tokens_out: parseInt(input.tokens_out) || 0,\n    units_consumed: parseFloat(input.units_consumed) || null,\n    cost_usd: costUsd,\n    idempotency_key: idempotencyKey,\n    purpose: input.purpose,\n    metadata: input.metadata || {},\n    original_input: input\n  }\n}];"
+      },
+      "id": "validate-cost-data",
+      "name": "Validate Cost Data",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [450, 300]
+    },
+    {
+      "parameters": {
+        "operation": "select",
+        "schema": "public",
+        "table": "idempotency_keys",
+        "filterType": "string",
+        "filterString": "key=eq.{{ $json.idempotency_key }}",
+        "limit": 1
+      },
+      "id": "check-idempotency",
+      "name": "Check Idempotency Key",
+      "type": "n8n-nodes-base.supabase",
+      "typeVersion": 1,
+      "position": [650, 300],
+      "credentials": {
+        "supabaseApi": {
+          "id": "supabase-creds",
+          "name": "Supabase API"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "boolean": [
+            {
+              "value1": "={{ $json.key }}",
+              "value2": ""
+            }
+          ]
+        }
+      },
+      "id": "is-new-event",
+      "name": "Is New Event?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [850, 300]
+    },
+    {
+      "parameters": {
+        "operation": "insert",
+        "schema": "public",
+        "table": "cost_ledger",
+        "columns": "campaign_id,workflow_execution_id,step_name,provider,model,tokens_in,tokens_out,units_consumed,cost_usd,idempotency_key,purpose,metadata",
+        "additionalFields": {}
+      },
+      "id": "insert-cost-record",
+      "name": "Insert Cost Record",
+      "type": "n8n-nodes-base.supabase",
+      "typeVersion": 1,
+      "position": [1100, 200],
+      "credentials": {
+        "supabaseApi": {
+          "id": "supabase-creds",
+          "name": "Supabase API"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "insert",
+        "schema": "public",
+        "table": "idempotency_keys",
+        "columns": "key,response_payload",
+        "additionalFields": {}
+      },
+      "id": "store-idempotency-key",
+      "name": "Store Idempotency Key",
+      "type": "n8n-nodes-base.supabase",
+      "typeVersion": 1,
+      "position": [1300, 200],
+      "credentials": {
+        "supabaseApi": {
+          "id": "supabase-creds",
+          "name": "Supabase API"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "// Cost already logged - return cached result\nconst existingKey = $input.all()[0].json;\nreturn [{\n  json: {\n    status: 'skipped',\n    reason: 'duplicate_idempotency_key',\n    idempotency_key: existingKey.key,\n    cached_response: existingKey.response_payload,\n    message: 'Cost event already logged (idempotent skip)'\n  }\n}];"
+      },
+      "id": "skip-duplicate",
+      "name": "Skip Duplicate",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1100, 400]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Prepare final response\nconst costRecord = $('Insert Cost Record').first().json;\nconst idempotencyKey = $('Validate Cost Data').first().json.idempotency_key;\n\nreturn [{\n  json: {\n    status: 'success',\n    cost_logged: true,\n    cost_id: costRecord.id,\n    cost_usd: costRecord.cost_usd,\n    provider: costRecord.provider,\n    model: costRecord.model,\n    idempotency_key: idempotencyKey\n  }\n}];"
+      },
+      "id": "format-success-response",
+      "name": "Format Success Response",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1500, 200]
+    },
+    {
+      "parameters": {
+        "mode": "combine",
+        "combineBy": "combineByPosition",
+        "options": {}
+      },
+      "id": "merge-responses",
+      "name": "Merge Responses",
+      "type": "n8n-nodes-base.merge",
+      "typeVersion": 2.1,
+      "position": [1700, 300]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Prepare data for idempotency key storage\nconst validated = $('Validate Cost Data').first().json;\nconst costRecord = $input.all()[0].json;\n\nreturn [{\n  json: {\n    key: validated.idempotency_key,\n    response_payload: {\n      cost_id: costRecord.id,\n      cost_usd: costRecord.cost_usd,\n      logged_at: new Date().toISOString()\n    }\n  }\n}];"
+      },
+      "id": "prep-idempotency-storage",
+      "name": "Prep Idempotency Storage",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1100, 100]
+    }
+  ],
+  "connections": {
+    "Start": {
+      "main": [
+        [
+          {
+            "node": "Validate Cost Data",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Validate Cost Data": {
+      "main": [
+        [
+          {
+            "node": "Check Idempotency Key",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Check Idempotency Key": {
+      "main": [
+        [
+          {
+            "node": "Is New Event?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Is New Event?": {
+      "main": [
+        [
+          {
+            "node": "Insert Cost Record",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Skip Duplicate",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Insert Cost Record": {
+      "main": [
+        [
+          {
+            "node": "Prep Idempotency Storage",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Format Success Response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Prep Idempotency Storage": {
+      "main": [
+        [
+          {
+            "node": "Store Idempotency Key",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Format Success Response": {
+      "main": [
+        [
+          {
+            "node": "Merge Responses",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Skip Duplicate": {
+      "main": [
+        [
+          {
+            "node": "Merge Responses",
+            "type": "main",
+            "index": 1
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "staticData": null,
+  "tags": [
+    {
+      "name": "sub-workflow"
+    },
+    {
+      "name": "cost-tracking"
+    },
+    {
+      "name": "phase-4"
+    }
+  ],
+  "triggerCount": 0,
+  "active": false,
+  "pinData": {},
+  "versionId": "1.0.0",
+  "meta": {
+    "instanceId": "brand-infinity-engine",
+    "manifestoSection": "Section 2, Dimension 5 & Dimension 3",
+    "description": "Logs cost events to cost_ledger with 6-decimal precision and idempotency protection"
+  }
+}

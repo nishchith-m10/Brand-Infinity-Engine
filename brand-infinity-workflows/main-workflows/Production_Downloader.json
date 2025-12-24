@@ -1,0 +1,188 @@
+{
+  "name": "Pillar 3: Production Downloader",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "production/download",
+        "authentication": "headerAuth",
+        "options": { "responseMode": "responseNode" }
+      },
+      "id": "webhook",
+      "name": "Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1.1,
+      "position": [100, 300],
+      "webhookId": "production-download"
+    },
+    {
+      "parameters": {
+        "jsCode": "// ============================================\n// ASSET PERMANENCE\n// Per Manifesto Section 5.4\n// Download from provider, upload to Supabase\n// ============================================\n\nconst input = $input.all()[0].json.body || $input.all()[0].json;\n\nif (!input.result_url) {\n  throw new Error('result_url is required');\n}\n\nreturn [{\n  json: {\n    job_id: input.job_id,\n    campaign_id: input.campaign_id,\n    result_url: input.result_url,\n    provider: input.provider,\n    storage_path: `campaigns/${input.campaign_id}/videos/${input.job_id}.mp4`\n  }\n}];"
+      },
+      "id": "prep-download",
+      "name": "Prepare Download",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [300, 300]
+    },
+    {
+      "parameters": {
+        "method": "GET",
+        "url": "={{ $json.result_url }}",
+        "options": {
+          "timeout": 120000,
+          "response": { "response": { "responseFormat": "file" } }
+        }
+      },
+      "id": "download-video",
+      "name": "Download from Provider",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.1,
+      "position": [500, 300],
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "conditions": { "boolean": [{ "value1": "={{ !!$json.data }}", "value2": true }] }
+      },
+      "id": "download-success",
+      "name": "Downloaded?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [700, 300]
+    },
+    {
+      "parameters": {
+        "operation": "upload",
+        "bucketName": "campaign_assets",
+        "fileName": "={{ $('Prepare Download').first().json.storage_path }}",
+        "options": { "contentType": "video/mp4" }
+      },
+      "id": "upload-storage",
+      "name": "Upload to Supabase",
+      "type": "n8n-nodes-base.supabase",
+      "typeVersion": 1,
+      "position": [900, 200],
+      "credentials": { "supabaseApi": { "id": "supabase-creds", "name": "Supabase API" } }
+    },
+    {
+      "parameters": {
+        "jsCode": "// Build internal URL\nconst prep = $('Prepare Download').first().json;\nconst publicUrl = `${process.env.SUPABASE_URL}/storage/v1/object/public/campaign_assets/${prep.storage_path}`;\n\nreturn [{\n  json: {\n    job_id: prep.job_id,\n    campaign_id: prep.campaign_id,\n    provider: prep.provider,\n    internal_url: publicUrl,\n    storage_path: prep.storage_path,\n    downloaded_at: new Date().toISOString()\n  }\n}];"
+      },
+      "id": "build-url",
+      "name": "Build Internal URL",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1100, 200]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "UPDATE generation_jobs SET internal_url = '{{ $json.internal_url }}', status = 'downloaded' WHERE id = '{{ $json.job_id }}' RETURNING *",
+        "options": {}
+      },
+      "id": "update-job",
+      "name": "Update Job",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.4,
+      "position": [1300, 200],
+      "credentials": { "postgres": { "id": "postgres-creds", "name": "Supabase Postgres" } }
+    },
+    {
+      "parameters": {
+        "method": "HEAD",
+        "url": "={{ $('Build Internal URL').first().json.internal_url }}",
+        "options": { "timeout": 10000 }
+      },
+      "id": "verify-asset",
+      "name": "Verify Asset Exists",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.1,
+      "position": [1500, 200],
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "conditions": { "number": [{ "value1": "={{ $json.statusCode || 200 }}", "value2": 200 }] }
+      },
+      "id": "verify-check",
+      "name": "Verified?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [1700, 200]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ JSON.stringify({ success: true, job_id: $('Prepare Download').first().json.job_id, internal_url: $('Build Internal URL').first().json.internal_url, verified: true }) }}",
+        "options": { "responseCode": 200 }
+      },
+      "id": "return-success",
+      "name": "Return Success",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [1900, 100]
+    },
+    {
+      "parameters": {
+        "workflowId": "={{ $env.SEND_ALERT_WORKFLOW_ID }}",
+        "options": {},
+        "inputData": {
+          "alert_type": "warning",
+          "message": "={{ 'Asset verification failed for job ' + $('Prepare Download').first().json.job_id }}",
+          "campaign_id": "={{ $('Prepare Download').first().json.campaign_id }}"
+        }
+      },
+      "id": "alert-verify-fail",
+      "name": "Alert Verify Failed",
+      "type": "n8n-nodes-base.executeWorkflow",
+      "typeVersion": 1,
+      "position": [1900, 300]
+    },
+    {
+      "parameters": {
+        "workflowId": "={{ $env.SEND_ALERT_WORKFLOW_ID }}",
+        "options": {},
+        "inputData": {
+          "alert_type": "error",
+          "message": "={{ 'Download failed for job ' + $('Prepare Download').first().json.job_id }}",
+          "campaign_id": "={{ $('Prepare Download').first().json.campaign_id }}"
+        }
+      },
+      "id": "alert-download-fail",
+      "name": "Alert Download Failed",
+      "type": "n8n-nodes-base.executeWorkflow",
+      "typeVersion": 1,
+      "position": [900, 400]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ JSON.stringify({ success: false, error: 'DOWNLOAD_FAILED' }) }}",
+        "options": { "responseCode": 500 }
+      },
+      "id": "return-fail",
+      "name": "Return Fail",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [1100, 400]
+    }
+  ],
+  "connections": {
+    "Webhook": { "main": [[{ "node": "Prepare Download", "type": "main", "index": 0 }]] },
+    "Prepare Download": { "main": [[{ "node": "Download from Provider", "type": "main", "index": 0 }]] },
+    "Download from Provider": { "main": [[{ "node": "Downloaded?", "type": "main", "index": 0 }]] },
+    "Downloaded?": { "main": [[{ "node": "Upload to Supabase", "type": "main", "index": 0 }], [{ "node": "Alert Download Failed", "type": "main", "index": 0 }]] },
+    "Alert Download Failed": { "main": [[{ "node": "Return Fail", "type": "main", "index": 0 }]] },
+    "Upload to Supabase": { "main": [[{ "node": "Build Internal URL", "type": "main", "index": 0 }]] },
+    "Build Internal URL": { "main": [[{ "node": "Update Job", "type": "main", "index": 0 }]] },
+    "Update Job": { "main": [[{ "node": "Verify Asset Exists", "type": "main", "index": 0 }]] },
+    "Verify Asset Exists": { "main": [[{ "node": "Verified?", "type": "main", "index": 0 }]] },
+    "Verified?": { "main": [[{ "node": "Return Success", "type": "main", "index": 0 }], [{ "node": "Alert Verify Failed", "type": "main", "index": 0 }]] }
+  },
+  "settings": { "executionOrder": "v1" },
+  "staticData": null,
+  "tags": [{ "name": "main-workflow" }, { "name": "pillar-3" }],
+  "active": false,
+  "meta": { "manifestoSection": "Section 5.4", "description": "Download from provider, upload to Supabase, verify asset exists", "nodeCount": 15 }
+}

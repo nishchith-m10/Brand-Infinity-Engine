@@ -1,0 +1,110 @@
+{
+  "name": "Monitor: Circuit Breaker Monitor",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": { "interval": [{ "field": "minutes", "minutesInterval": 5 }] }
+      },
+      "id": "cron",
+      "name": "Every 5 Minutes",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.1,
+      "position": [100, 300]
+    },
+    {
+      "parameters": {
+        "jsCode": "// ============================================\n// CIRCUIT BREAKER HEALTH CHECK\n// Per Manifesto Section 2, Dimension 6\n// ============================================\n\nconst providers = ['openai', 'runway', 'pika', 'kling', 'sora', 'tiktok', 'instagram', 'youtube'];\n\nreturn providers.map(p => ({ json: { provider: p } }));"
+      },
+      "id": "list-providers",
+      "name": "List Providers",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [300, 300]
+    },
+    {
+      "parameters": {
+        "batchSize": 1,
+        "options": {}
+      },
+      "id": "loop",
+      "name": "Loop Providers",
+      "type": "n8n-nodes-base.splitInBatches",
+      "typeVersion": 3,
+      "position": [500, 300]
+    },
+    {
+      "parameters": {
+        "operation": "mget",
+        "keys": "={{ ['circuit_breaker:' + $json.provider + ':status', 'circuit_breaker:' + $json.provider + ':consecutive_failures', 'circuit_breaker:' + $json.provider + ':opened_at'] }}"
+      },
+      "id": "get-state",
+      "name": "Get Circuit State",
+      "type": "n8n-nodes-base.redis",
+      "typeVersion": 1,
+      "position": [700, 300],
+      "credentials": { "redis": { "id": "redis-creds", "name": "Redis" } },
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "jsCode": "// Parse circuit state\nconst provider = $('Loop Providers').first().json.provider;\nconst result = $input.all()[0].json;\n\nlet status = 'CLOSED';\nlet failures = 0;\nlet openedAt = null;\n\nif (Array.isArray(result)) {\n  status = result[0] || 'CLOSED';\n  failures = parseInt(result[1]) || 0;\n  openedAt = result[2] || null;\n}\n\nreturn [{\n  json: {\n    provider: provider,\n    status: status,\n    consecutive_failures: failures,\n    opened_at: openedAt,\n    is_open: status === 'OPEN',\n    checked_at: new Date().toISOString()\n  }\n}];"
+      },
+      "id": "parse-state",
+      "name": "Parse State",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [900, 300]
+    },
+    {
+      "parameters": {
+        "conditions": { "boolean": [{ "value1": "={{ $json.is_open }}", "value2": true }] }
+      },
+      "id": "is-open",
+      "name": "Is Open?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [1100, 300]
+    },
+    {
+      "parameters": {
+        "workflowId": "={{ $env.SEND_ALERT_WORKFLOW_ID }}",
+        "options": {},
+        "inputData": {
+          "alert_type": "circuit_open",
+          "message": "={{ 'Circuit breaker OPEN for ' + $json.provider + ' (failures: ' + $json.consecutive_failures + ')' }}",
+          "context": "={{ { provider: $json.provider, opened_at: $json.opened_at } }}"
+        }
+      },
+      "id": "alert-open",
+      "name": "Alert Open Circuit",
+      "type": "n8n-nodes-base.executeWorkflow",
+      "typeVersion": 1,
+      "position": [1300, 200]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Continue to next provider\nreturn [{ json: { continue: true } }];"
+      },
+      "id": "continue",
+      "name": "Continue",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1500, 300]
+    }
+  ],
+  "connections": {
+    "Every 5 Minutes": { "main": [[{ "node": "List Providers", "type": "main", "index": 0 }]] },
+    "List Providers": { "main": [[{ "node": "Loop Providers", "type": "main", "index": 0 }]] },
+    "Loop Providers": { "main": [[{ "node": "Get Circuit State", "type": "main", "index": 0 }], []] },
+    "Get Circuit State": { "main": [[{ "node": "Parse State", "type": "main", "index": 0 }]] },
+    "Parse State": { "main": [[{ "node": "Is Open?", "type": "main", "index": 0 }]] },
+    "Is Open?": { "main": [[{ "node": "Alert Open Circuit", "type": "main", "index": 0 }], [{ "node": "Continue", "type": "main", "index": 0 }]] },
+    "Alert Open Circuit": { "main": [[{ "node": "Continue", "type": "main", "index": 0 }]] },
+    "Continue": { "main": [[{ "node": "Loop Providers", "type": "main", "index": 0 }]] }
+  },
+  "settings": { "executionOrder": "v1" },
+  "staticData": null,
+  "tags": [{ "name": "monitoring" }, { "name": "cron" }],
+  "active": false,
+  "meta": { "manifestoSection": "Section 2 Dimension 6", "description": "5-minute circuit breaker health check for all providers", "nodeCount": 9 }
+}
