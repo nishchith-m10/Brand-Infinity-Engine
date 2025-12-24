@@ -33,15 +33,15 @@ The **Brand Infinity Engine** is a complete end-to-end system that takes your br
 
 ### What It Does
 
-| Step | Action | Output |
-|------|--------|--------|
-| 1️⃣ | **Analyze** trending topics across social platforms | Trend insights |
-| 2️⃣ | **Generate** creative briefs aligned with your brand | Campaign strategy |
-| 3️⃣ | **Write** compelling video scripts with hooks & CTAs | Multi-variant scripts |
-| 4️⃣ | **Produce** cinematic videos using AI generation | HD video content |
-| 5️⃣ | **Optimize** with A/B test variants | Performance variants |
-| 6️⃣ | **Publish** directly to social platforms | Live campaigns |
-| 7️⃣ | **Track** engagement metrics in real-time | Analytics dashboard |
+| Step | Action                                               | Output                |
+| ---- | ---------------------------------------------------- | --------------------- |
+| 1️⃣   | **Analyze** trending topics across social platforms  | Trend insights        |
+| 2️⃣   | **Generate** creative briefs aligned with your brand | Campaign strategy     |
+| 3️⃣   | **Write** compelling video scripts with hooks & CTAs | Multi-variant scripts |
+| 4️⃣   | **Produce** cinematic videos using AI generation     | HD video content      |
+| 5️⃣   | **Optimize** with A/B test variants                  | Performance variants  |
+| 6️⃣   | **Publish** directly to social platforms             | Live campaigns        |
+| 7️⃣   | **Track** engagement metrics in real-time            | Analytics dashboard   |
 
 ### Key Features
 
@@ -74,7 +74,7 @@ flowchart TB
     subgraph Orchestration["⚙️ Workflow Orchestration"]
         direction TB
         n8n["n8n Workflow Engine<br/>Port 5678"]
-        
+
         subgraph Workflows["Workflow Templates"]
             WF1["Strategist<br/>Workflow"]
             WF2["Copywriter<br/>Workflow"]
@@ -86,24 +86,24 @@ flowchart TB
 
     subgraph AI_Layer["🤖 AI Services Layer"]
         direction TB
-        
+
         subgraph TextGen["Text Generation"]
             GPT4["OpenAI GPT-4o"]
             Claude["Anthropic Claude"]
             DeepSeek["DeepSeek R1"]
         end
-        
+
         subgraph VideoGen["Video Generation"]
             Sora["OpenAI Sora<br/>$$$"]
             Veo3["Google Veo3<br/>$$"]
             NanoB["Nano B<br/>$"]
         end
-        
+
         subgraph AudioGen["Audio Generation"]
             ElevenLabs["ElevenLabs TTS"]
             OpenAITTS["OpenAI TTS-1"]
         end
-        
+
         subgraph Embeddings["Vector Embeddings"]
             Embed["text-embedding-3-small"]
         end
@@ -111,13 +111,13 @@ flowchart TB
 
     subgraph DataLayer["💾 Data Layer"]
         direction TB
-        
+
         subgraph Supabase["Supabase Cloud"]
             PostgreSQL[("PostgreSQL 14<br/>+ pgvector")]
             Storage[("Supabase Storage<br/>campaign-assets")]
             Realtime["Realtime<br/>Subscriptions"]
         end
-        
+
         subgraph Cache["Caching"]
             Redis[("Redis<br/>Brand Guidelines")]
         end
@@ -125,14 +125,14 @@ flowchart TB
 
     subgraph External["🌍 External Services"]
         direction TB
-        
+
         subgraph Social["Social Media APIs"]
             Instagram["Instagram<br/>Graph API"]
             TikTok["TikTok<br/>API"]
             YouTube["YouTube<br/>Data API v3"]
             LinkedIn["LinkedIn<br/>Marketing API"]
         end
-        
+
         subgraph Trends["Trend Sources"]
             TrendAPI["Social Scrapers"]
             CompetitorAPI["Competitor Analysis"]
@@ -144,21 +144,21 @@ flowchart TB
     API --> Express
     Express --> RateLimit --> Auth
     Auth --> n8n
-    
+
     n8n --> WF1 & WF2 & WF3 & WF4 & WF5
-    
+
     WF1 --> GPT4 & Claude & Embed
     WF2 --> GPT4 & DeepSeek
     WF3 --> Sora & Veo3 & NanoB & ElevenLabs & OpenAITTS
     WF4 --> GPT4
     WF5 --> Instagram & TikTok & YouTube & LinkedIn
-    
+
     n8n --> PostgreSQL
     n8n --> Storage
     n8n --> Redis
-    
+
     WF1 --> TrendAPI & CompetitorAPI
-    
+
     PostgreSQL --> Realtime --> WebApp
 
     classDef primary fill:#3b82f6,stroke:#1e40af,color:#fff
@@ -166,7 +166,7 @@ flowchart TB
     classDef ai fill:#10b981,stroke:#047857,color:#fff
     classDef storage fill:#f59e0b,stroke:#b45309,color:#fff
     classDef external fill:#ec4899,stroke:#be185d,color:#fff
-    
+
     class WebApp,Express primary
     class n8n,WF1,WF2,WF3,WF4,WF5 secondary
     class GPT4,Claude,DeepSeek,Sora,Veo3,NanoB,ElevenLabs,OpenAITTS,Embed ai
@@ -188,7 +188,7 @@ sequenceDiagram
     participant AI as 🤖 AI Models
     participant DB as 💾 Supabase
     participant SM as 📱 Social Media
-    
+
     rect rgb(59, 130, 246, 0.1)
         Note over U,DB: Phase 1: Strategy Generation
         U->>FE: Create Campaign Request
@@ -202,7 +202,7 @@ sequenceDiagram
         N8N-->>API: brief_id: 42
         API-->>FE: { brief_id: 42, status: "ready" }
     end
-    
+
     rect rgb(139, 92, 246, 0.1)
         Note over N8N,AI: Phase 2: Script Generation
         N8N->>AI: Generate Script + Hooks (GPT-4o)
@@ -211,7 +211,7 @@ sequenceDiagram
         AI-->>N8N: 8 Scene Descriptions
         N8N->>DB: Store Script + Scenes
     end
-    
+
     rect rgb(16, 185, 129, 0.1)
         Note over N8N,AI: Phase 3: Video Production
         loop For Each Scene (Parallel)
@@ -224,7 +224,7 @@ sequenceDiagram
         N8N->>N8N: Compose Final Video (FFmpeg)
         N8N->>DB: Store Master Video
     end
-    
+
     rect rgb(245, 158, 11, 0.1)
         Note over N8N,SM: Phase 4: Publishing
         N8N->>DB: Create A/B Variants
@@ -233,7 +233,7 @@ sequenceDiagram
         SM-->>N8N: Post IDs
         N8N->>DB: Store Publication Records
     end
-    
+
     rect rgb(236, 72, 153, 0.1)
         Note over SM,FE: Phase 5: Analytics
         loop Every 15 minutes
@@ -257,14 +257,14 @@ graph LR
         S3[Brief Generation]
         S1 --> S2 --> S3
     end
-    
+
     subgraph P2["✍️ PILLAR 2<br/>Copywriter"]
         C1[Script Writing]
         C2[Hook Variants]
         C3[Scene Breakdown]
         C1 --> C2 --> C3
     end
-    
+
     subgraph P3["🎥 PILLAR 3<br/>Production"]
         V1[Video Generation]
         V2[Audio/TTS]
@@ -272,26 +272,26 @@ graph LR
         V1 --> V3
         V2 --> V3
     end
-    
+
     subgraph P4["📊 PILLAR 4<br/>Campaign Manager"]
         M1[A/B Variants]
         M2[Cost Tracking]
         M3[Quality Score]
         M1 --> M2 --> M3
     end
-    
+
     subgraph P5["📡 PILLAR 5<br/>Broadcaster"]
         B1[Multi-Platform]
         B2[Scheduling]
         B3[Metrics]
         B1 --> B2 --> B3
     end
-    
+
     P1 -->|brief| P2
     P2 -->|script| P3
     P3 -->|video| P4
     P4 -->|campaign| P5
-    
+
     style P1 fill:#3b82f6,stroke:#1e40af,color:#fff
     style P2 fill:#8b5cf6,stroke:#5b21b6,color:#fff
     style P3 fill:#10b981,stroke:#047857,color:#fff
@@ -301,13 +301,13 @@ graph LR
 
 ### Pillar Details
 
-| Pillar | Module | Key Functions |
-|--------|--------|---------------|
-| **1. Strategist** | `src/pillars/strategist/` | `generateCreativeBrief()`, `scrapeTrends()`, `queryBrandGuidelines()` |
-| **2. Copywriter** | `src/pillars/copywriter/` | `generateScript()`, `createHookVariants()`, `segmentScenes()` |
-| **3. Production** | `src/pillars/production/` | `generateVideo()`, `generateVoiceover()`, `composeVideo()` |
-| **4. Campaign** | `src/pillars/distribution/` | `createVariants()`, `trackCosts()`, `scoreQuality()` |
-| **5. Broadcaster** | `src/pillars/publisher/` | `publishToInstagram()`, `schedulePost()`, `collectMetrics()` |
+| Pillar             | Module                      | Key Functions                                                         |
+| ------------------ | --------------------------- | --------------------------------------------------------------------- |
+| **1. Strategist**  | `src/pillars/strategist/`   | `generateCreativeBrief()`, `scrapeTrends()`, `queryBrandGuidelines()` |
+| **2. Copywriter**  | `src/pillars/copywriter/`   | `generateScript()`, `createHookVariants()`, `segmentScenes()`         |
+| **3. Production**  | `src/pillars/production/`   | `generateVideo()`, `generateVoiceover()`, `composeVideo()`            |
+| **4. Campaign**    | `src/pillars/distribution/` | `createVariants()`, `trackCosts()`, `scoreQuality()`                  |
+| **5. Broadcaster** | `src/pillars/publisher/`    | `publishToInstagram()`, `schedulePost()`, `collectMetrics()`          |
 
 ---
 
@@ -390,18 +390,18 @@ flowchart LR
 
 ### Technology Breakdown
 
-| Layer | Technology | Purpose |
-|-------|------------|---------|
-| **Frontend** | Next.js 16 + React 19 | Modern React with Turbopack |
-| **Styling** | TailwindCSS 4 | Utility-first CSS |
-| **State** | React Query | Server state management |
-| **Backend** | Express.js | REST API server |
-| **Orchestration** | n8n | Visual workflow automation |
-| **Database** | Supabase PostgreSQL | Cloud-native PostgreSQL |
-| **Vector Search** | pgvector | Brand guideline embeddings |
-| **File Storage** | Supabase Storage | Campaign assets (images, videos) |
-| **Caching** | Redis | Brand guidelines cache |
-| **Containerization** | Docker | Development & deployment |
+| Layer                | Technology            | Purpose                          |
+| -------------------- | --------------------- | -------------------------------- |
+| **Frontend**         | Next.js 16 + React 19 | Modern React with Turbopack      |
+| **Styling**          | TailwindCSS 4         | Utility-first CSS                |
+| **State**            | React Query           | Server state management          |
+| **Backend**          | Express.js            | REST API server                  |
+| **Orchestration**    | n8n                   | Visual workflow automation       |
+| **Database**         | Supabase PostgreSQL   | Cloud-native PostgreSQL          |
+| **Vector Search**    | pgvector              | Brand guideline embeddings       |
+| **File Storage**     | Supabase Storage      | Campaign assets (images, videos) |
+| **Caching**          | Redis                 | Brand guidelines cache           |
+| **Containerization** | Docker                | Development & deployment         |
 
 ---
 
@@ -450,11 +450,33 @@ DEEPSEEK_API_KEY=sk-...
 ELEVENLABS_API_KEY=...
 ```
 
+### 2.5. Configure MCP Servers (Optional)
+
+For enhanced development experience with AI-powered tools:
+
+```bash
+cp mcp_config.json.example mcp_config.json
+```
+
+Edit `mcp_config.json` with your API tokens for:
+
+- GitHub integration
+- DigitalOcean deployment
+- n8n workflow management
+- Supabase database access
+- And more...
+
+> **⚠️ Security**: `mcp_config.json` is gitignored. Never commit credentials!
+
 ### 3. Initialize Database
 
 ```bash
-# Run migrations
+# Run all migrations (includes Phase 4)
 npm run db:migrate
+
+# Or run specific Phase 4 migrations
+psql $DATABASE_URL < database/migrations/phase_4_init.sql
+psql $DATABASE_URL < database/migrations/phase_4_fix.sql
 
 # Seed sample data (optional)
 npm run db:seed
@@ -477,14 +499,25 @@ Open **http://localhost:3000** 🎉
 Brand-Infinity-Engine/
 ├── 📂 frontend/                    # Next.js 16 Application
 │   ├── app/                        # App Router pages
-│   │   ├── campaigns/              # Campaign management
-│   │   │   └── earlybloom/         # EarlyBloom template
-│   │   ├── analytics/              # Performance dashboard
-│   │   ├── distribution/           # Multi-platform publishing
-│   │   └── ...
+│   │   ├── (dashboard)/            # Dashboard routes
+│   │   │   ├── campaigns/          # Campaign management
+│   │   │   ├── analytics/          # Performance dashboard
+│   │   │   ├── distribution/       # Multi-platform publishing
+│   │   │   ├── settings/           # User settings
+│   │   │   └── ...
+│   │   ├── login/                  # Authentication
+│   │   └── verify-passcode/        # Passcode verification
 │   ├── components/                 # React components
 │   │   └── ui/                     # Reusable UI components
+│   │       ├── confirmation-modal.tsx  # Delete confirmations
+│   │       ├── toast-container.tsx     # Notifications
+│   │       └── ...
 │   └── lib/                        # Utilities & API client
+│       ├── hooks/                  # Custom React hooks
+│       │   ├── use-campaigns.ts    # Campaign management
+│       │   ├── use-modal.ts        # Modal state
+│       │   └── use-toast.ts        # Toast notifications
+│       └── platform-icons.tsx      # Social media icons
 │
 ├── 📂 src/pillars/                 # Core Business Logic
 │   ├── strategist/                 # Pillar 1: Strategy
@@ -493,17 +526,53 @@ Brand-Infinity-Engine/
 │   ├── distribution/               # Pillar 4: Campaigns
 │   └── publisher/                  # Pillar 5: Publishing
 │
-├── 📂 database/migrations/         # SQL Migrations (23 tables)
-├── 📂 workflows/                   # n8n Workflow JSONs
+├── 📂 brand-infinity-workflows/    # Phase 4 n8n Orchestration
+│   ├── main-workflows/             # 11 Main orchestration flows
+│   │   ├── Strategist_Main.json
+│   │   ├── Copywriter_Main.json
+│   │   ├── Production_Dispatcher.json
+│   │   ├── Video_Assembly.json
+│   │   ├── Broadcaster_Main.json
+│   │   └── ...
+│   ├── sub-workflows/              # 8 Reusable sub-workflows
+│   │   ├── Get_Brand_Context.json
+│   │   ├── Validate_Schema.json
+│   │   ├── Check_Circuit_Breaker.json
+│   │   └── ...
+│   ├── deploy_to_n8n.sh            # Automated deployment
+│   └── README.md                   # Workflow documentation
+│
+├── 📂 database/migrations/         # SQL Migrations
+│   ├── 001_initial_schema.sql
+│   ├── 004_performance_indexes.sql
+│   ├── 005_embeddings.sql
+│   ├── phase_4_init.sql            # Phase 4 tables
+│   ├── phase_4_fix.sql             # Phase 4 fixes
+│   └── phase_4_fix_v2.sql
+│
 ├── 📂 utils/                       # Shared Utilities
 │   ├── db.js                       # Database connection
 │   ├── file_upload.js              # Supabase Storage
 │   ├── model_router.js             # AI Model Selection
-│   └── cost_calculator.js          # Cost Tracking
+│   ├── cost_tracker.ts             # Cost tracking
+│   ├── circuit_breaker.ts          # Circuit breaker pattern
+│   ├── rate_limiter.ts             # Rate limiting
+│   └── metrics.ts                  # Metrics collection
+│
+├── 📂 tests/                       # Test Suite
+│   ├── circuit_breaker.test.ts
+│   ├── metrics.test.ts
+│   ├── rate_limiter.test.ts
+│   └── ...
 │
 ├── 📂 docs/                        # Documentation
+│   └── plans/
+│       ├── PHASE_4_ORCHESTRATION.md
+│       └── PHASE_4_IMPLEMENTATION_MANIFESTO.md
+│
 ├── 📂 scripts/                     # Setup & Deployment Scripts
 ├── 📄 index.js                     # Express Server Entry
+├── 📄 mcp_config.json.example      # MCP server configuration template
 ├── 📄 docker-compose.yml           # Local Development Stack
 └── 📄 package.json                 # Dependencies
 ```
@@ -518,32 +587,32 @@ erDiagram
     BRAND_GUIDELINES ||--o{ CREATIVE_BRIEFS : generates
     TRENDS ||--o{ CREATIVE_BRIEFS : influences
     COMPETITOR_ADS ||--o{ CREATIVE_BRIEFS : informs
-    
+
     %% Copywriter Pillar
     CREATIVE_BRIEFS ||--o{ SCRIPTS : produces
     SCRIPTS ||--o{ HOOKS : has
     SCRIPTS ||--o{ SCENE_SEGMENTS : contains
     SCRIPTS ||--o{ SCRIPT_VERSIONS : versions
-    
+
     %% Production Pillar
     SCRIPTS ||--o{ VIDEOS : generates
     VIDEOS ||--o{ SCENES : composed_of
     VIDEOS ||--o{ AUDIO_ASSETS : uses
     VIDEOS ||--o{ GENERATION_JOBS : tracks
-    
+
     %% Campaign Manager Pillar
     VIDEOS ||--o{ CAMPAIGNS : featured_in
     CAMPAIGNS ||--o{ VARIANTS : has
     CAMPAIGNS ||--o{ CAMPAIGN_ASSETS : contains
     CAMPAIGNS ||--o{ COST_LEDGER : tracks
     CAMPAIGNS ||--o{ CAMPAIGN_AUDIT_LOG : logs
-    
+
     %% Broadcaster Pillar
     CAMPAIGNS ||--o{ PUBLICATIONS : publishes
     PUBLICATIONS ||--o{ PLATFORM_POSTS : creates
     PLATFORM_POSTS ||--o{ ENGAGEMENT_METRICS : measures
     PUBLICATIONS ||--o{ SCHEDULED_POSTS : schedules
-    
+
     %% Entity Definitions
     BRAND_GUIDELINES {
         uuid id PK
@@ -552,7 +621,7 @@ erDiagram
         vector embedding
         timestamp created_at
     }
-    
+
     CAMPAIGNS {
         uuid id PK
         string name
@@ -561,7 +630,7 @@ erDiagram
         jsonb metadata
         timestamp created_at
     }
-    
+
     VIDEOS {
         uuid id PK
         string title
@@ -570,7 +639,7 @@ erDiagram
         string status
         timestamp created_at
     }
-    
+
     ENGAGEMENT_METRICS {
         uuid id PK
         uuid platform_post_id FK
@@ -584,40 +653,42 @@ erDiagram
 
 ### Table Count by Pillar
 
-| Pillar | Tables | Key Tables |
-|--------|--------|------------|
-| **Strategist** | 4 | `brand_guidelines`, `creative_briefs`, `trends` |
-| **Copywriter** | 4 | `scripts`, `hooks`, `scene_segments` |
-| **Production** | 4 | `videos`, `scenes`, `generation_jobs` |
-| **Campaign** | 5 | `campaigns`, `variants`, `cost_ledger` |
-| **Broadcaster** | 4 | `publications`, `platform_posts`, `engagement_metrics` |
-| **Total** | **21** | |
+| Pillar                | Tables  | Key Tables                                                    |
+| --------------------- | ------- | ------------------------------------------------------------- |
+| **Strategist**        | 4       | `brand_guidelines`, `creative_briefs`, `trends`               |
+| **Copywriter**        | 4       | `scripts`, `hooks`, `scene_segments`                          |
+| **Production**        | 4       | `videos`, `scenes`, `generation_jobs`                         |
+| **Campaign**          | 5       | `campaigns`, `variants`, `cost_ledger`                        |
+| **Broadcaster**       | 4       | `publications`, `platform_posts`, `engagement_metrics`        |
+| **Phase 4 Additions** | +       | `workflow_executions`, `circuit_breaker_state`, `cost_events` |
+| **Total**             | **21+** |                                                               |
 
 ---
 
 ## 📡 API Reference
 
 ### Base URL
+
 ```
 http://localhost:3001/api/v1
 ```
 
 ### Endpoints
 
-| Method | Endpoint | Description |
-|--------|----------|-------------|
-| `GET` | `/health` | Health check |
-| `POST` | `/briefs` | Generate creative brief |
-| `GET` | `/briefs/:id` | Get brief by ID |
-| `POST` | `/scripts` | Generate script from brief |
-| `GET` | `/scripts/:id` | Get script by ID |
-| `POST` | `/videos/generate` | Generate video from script |
-| `GET` | `/videos/:id` | Get video by ID |
-| `POST` | `/campaigns` | Create campaign |
-| `POST` | `/campaigns/:id/publish` | Publish campaign |
-| `GET` | `/campaigns/:id/metrics` | Get engagement metrics |
-| `POST` | `/assets/upload` | Upload campaign asset |
-| `GET` | `/assets/:campaignId` | List campaign assets |
+| Method | Endpoint                 | Description                |
+| ------ | ------------------------ | -------------------------- |
+| `GET`  | `/health`                | Health check               |
+| `POST` | `/briefs`                | Generate creative brief    |
+| `GET`  | `/briefs/:id`            | Get brief by ID            |
+| `POST` | `/scripts`               | Generate script from brief |
+| `GET`  | `/scripts/:id`           | Get script by ID           |
+| `POST` | `/videos/generate`       | Generate video from script |
+| `GET`  | `/videos/:id`            | Get video by ID            |
+| `POST` | `/campaigns`             | Create campaign            |
+| `POST` | `/campaigns/:id/publish` | Publish campaign           |
+| `GET`  | `/campaigns/:id/metrics` | Get engagement metrics     |
+| `POST` | `/assets/upload`         | Upload campaign asset      |
+| `GET`  | `/assets/:campaignId`    | List campaign assets       |
 
 ### Example Request
 
@@ -643,13 +714,13 @@ flowchart TD
     A[Request] --> B{Budget?}
     B -->|High| C{Quality?}
     B -->|Low| D{Speed?}
-    
+
     C -->|Cinematic| E[Sora<br/>$0.50/scene]
     C -->|Standard| F[Veo3<br/>$0.40/scene]
-    
+
     D -->|Fast| G[Nano B<br/>$0.25/scene]
     D -->|Normal| H[Seedream<br/>$0.30/scene]
-    
+
     style E fill:#ef4444
     style F fill:#f97316
     style G fill:#22c55e
@@ -658,14 +729,14 @@ flowchart TD
 
 ### Estimated Costs
 
-| Component | Model | Cost per Unit |
-|-----------|-------|---------------|
-| Creative Brief | GPT-4o | $0.02 |
-| Script (3 variants) | GPT-4o-mini | $0.05 |
-| Video Scene | Sora | $0.50 |
-| Video Scene | Veo3 | $0.40 |
-| Video Scene | Nano B | $0.25 |
-| Voiceover (30s) | ElevenLabs | $0.03 |
+| Component           | Model       | Cost per Unit |
+| ------------------- | ----------- | ------------- |
+| Creative Brief      | GPT-4o      | $0.02         |
+| Script (3 variants) | GPT-4o-mini | $0.05         |
+| Video Scene         | Sora        | $0.50         |
+| Video Scene         | Veo3        | $0.40         |
+| Video Scene         | Nano B      | $0.25         |
+| Voiceover (30s)     | ElevenLabs  | $0.03         |
 
 **30-Second Video Cost Range:** `$6.00 - $12.00`
 
