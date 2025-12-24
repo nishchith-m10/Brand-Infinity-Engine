@@ -1,0 +1,711 @@
+{
+  "name": "Pillar 3: Production Dispatcher",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "production/dispatch",
+        "authentication": "headerAuth",
+        "options": {
+          "responseMode": "responseNode"
+        }
+      },
+      "id": "webhook",
+      "name": "Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1.1,
+      "position": [
+        100,
+        300
+      ],
+      "webhookId": "production-dispatch"
+    },
+    {
+      "parameters": {
+        "workflowId": "={{ $env.VALIDATE_SCHEMA_WORKFLOW_ID }}",
+        "options": {},
+        "inputData": {
+          "data": "={{ $json.body }}",
+          "schema": {
+            "type": "object",
+            "required": [
+              "campaign_id",
+              "script_id"
+            ],
+            "properties": {
+              "campaign_id": {
+                "type": "string"
+              },
+              "script_id": {
+                "type": "string"
+              },
+              "budget_tier": {
+                "type": "string",
+                "enum": [
+                  "economy",
+                  "standard",
+                  "premium"
+                ]
+              }
+            }
+          },
+          "schema_name": "ProductionDispatchRequest"
+        }
+      },
+      "id": "validate",
+      "name": "Validate Schema",
+      "type": "n8n-nodes-base.executeWorkflow",
+      "typeVersion": 1,
+      "position": [
+        300,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "boolean": [
+            {
+              "value1": "={{ $json.success }}",
+              "value2": true
+            }
+          ]
+        }
+      },
+      "id": "valid-check",
+      "name": "Valid?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [
+        500,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ JSON.stringify({ error: true, code: 'ERR_VALIDATION' }) }}",
+        "options": {
+          "responseCode": 400
+        }
+      },
+      "id": "return-400",
+      "name": "Return 400",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [
+        700,
+        450
+      ]
+    },
+    {
+      "parameters": {
+        "workflowId": "={{ $env.ACQUIRE_LOCK_WORKFLOW_ID }}",
+        "options": {},
+        "inputData": {
+          "table_name": "campaigns",
+          "record_id": "={{ $('Webhook').first().json.body.campaign_id }}",
+          "workflow_id": "={{ $execution.id }}",
+          "expected_status": "scripted",
+          "target_status": "rendering"
+        }
+      },
+      "id": "acquire-lock",
+      "name": "Acquire Lock",
+      "type": "n8n-nodes-base.executeWorkflow",
+      "typeVersion": 1,
+      "position": [
+        700,
+        200
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "boolean": [
+            {
+              "value1": "={{ $json.lock_acquired }}",
+              "value2": true
+            }
+          ]
+        }
+      },
+      "id": "lock-check",
+      "name": "Locked?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [
+        900,
+        200
+      ]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ JSON.stringify({ error: true, code: 'ERR_LOCK' }) }}",
+        "options": {
+          "responseCode": 409
+        }
+      },
+      "id": "return-409",
+      "name": "Return 409",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [
+        1100,
+        350
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "select",
+        "schema": "public",
+        "table": "scripts",
+        "filterType": "string",
+        "filterString": "id=eq.{{ $('Webhook').first().json.body.script_id }}",
+        "limit": 1
+      },
+      "id": "load-script",
+      "name": "Load Script",
+      "type": "n8n-nodes-base.supabase",
+      "typeVersion": 1,
+      "position": [
+        1100,
+        100
+      ],
+      "credentials": {
+        "supabaseApi": {
+          "id": "supabase-creds",
+          "name": "Supabase API"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "// ============================================\n// PARSE SCENES AND PREPARE JOB TICKETS\n// Per Manifesto Section 5.1 - Job Ticket Lifecycle\n// ============================================\n\nconst input = $('Webhook').first().json.body;\nconst script = $input.all()[0].json;\n\nlet scenes = [];\ntry {\n  scenes = typeof script.scenes === 'string' ? JSON.parse(script.scenes) : script.scenes || [];\n} catch (e) {\n  scenes = [];\n}\n\n// If no scenes, create one from the full script\nif (scenes.length === 0 && script.script_content) {\n  scenes = [{\n    visual_prompt: 'Generate video for: ' + (script.hook || 'Brand content'),\n    duration_seconds: script.target_duration || 30\n  }];\n}\n\n// Budget tier determines provider priority per Section 5.2\nconst budgetTier = input.budget_tier || 'standard';\nconst providerPriority = {\n  'premium': ['sora', 'runway', 'pika'],\n  'standard': ['runway', 'pika', 'kling'],\n  'economy': ['kling', 'pika']\n};\n\nconst jobTickets = scenes.map((scene, idx) => ({\n  campaign_id: input.campaign_id,\n  script_id: input.script_id,\n  scene_id: `scene_${idx + 1}`,\n  scene_index: idx,\n  visual_prompt: scene.visual_prompt || scene.description || '',\n  duration_seconds: scene.duration_seconds || 5,\n  provider_priority: providerPriority[budgetTier],\n  status: 'queued',\n  created_at: new Date().toISOString()\n}));\n\nreturn jobTickets.map(ticket => ({ json: ticket }));"
+      },
+      "id": "create-tickets",
+      "name": "Create Job Tickets",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1300,
+        100
+      ]
+    },
+    {
+      "parameters": {
+        "workflowId": "={{ $env.CHECK_CIRCUIT_BREAKER_WORKFLOW_ID }}",
+        "options": {},
+        "inputData": {
+          "provider": "={{ $json.provider_priority[0] }}"
+        }
+      },
+      "id": "check-circuit",
+      "name": "Check Circuit Breaker",
+      "type": "n8n-nodes-base.executeWorkflow",
+      "typeVersion": 1,
+      "position": [
+        1500,
+        100
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "boolean": [
+            {
+              "value1": "={{ $json.allow_request }}",
+              "value2": true
+            }
+          ]
+        }
+      },
+      "id": "circuit-open",
+      "name": "Circuit OK?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [
+        1700,
+        100
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Try next provider in priority list\nconst ticket = $('Create Job Tickets').first().json;\nconst providers = ticket.provider_priority;\n\n// Move to next provider\nconst nextProviders = providers.slice(1);\n\nif (nextProviders.length === 0) {\n  return [{ json: { ...ticket, error: 'ALL_PROVIDERS_CIRCUIT_OPEN', should_queue: true } }];\n}\n\nreturn [{ json: { ...ticket, provider_priority: nextProviders } }];"
+      },
+      "id": "try-next-provider",
+      "name": "Try Next Provider",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1900,
+        250
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "// ============================================\n// MULTI-VENDOR ROUTING WITH MOCK MODE\n// Per Manifesto Section 5.2\n// MOCK_MODE: Set env var MOCK_MODE=true to skip real API calls\n// ============================================\n\nconst ticket = $('Create Job Tickets').first().json;\nconst provider = ticket.provider_priority[0];\nconst mockMode = $env.MOCK_MODE === 'true';\n\n// MOCK MODE: Return fake response without calling API\nif (mockMode) {\n  return [{\n    json: {\n      ...ticket,\n      selected_provider: 'mock',\n      mock_mode: true,\n      api_config: null,\n      mock_response: {\n        id: 'mock_' + Date.now(),\n        status: 'completed',\n        output_url: 'https://storage.googleapis.com/gtv-videos-bucket/sample/BigBuckBunny.mp4'\n      }\n    }\n  }];\n}\n\n// REAL MODE: Build provider-specific API request\nconst providerConfigs = {\n  'sora': {\n    url: 'https://api.openai.com/v1/videos/generations',\n    method: 'POST',\n    body: {\n      prompt: ticket.visual_prompt,\n      duration: Math.min(ticket.duration_seconds, 20),\n      model: 'sora-1.0'\n    },\n    auth: 'openai'\n  },\n  'runway': {\n    url: 'https://api.runwayml.com/v1/generations',\n    method: 'POST',\n    body: {\n      prompt: ticket.visual_prompt,\n      duration: ticket.duration_seconds,\n      mode: 'gen3'\n    },\n    auth: 'runway'\n  },\n  'pika': {\n    url: 'https://api.pika.art/v1/generate',\n    method: 'POST',\n    body: {\n      prompt: ticket.visual_prompt,\n      duration: ticket.duration_seconds\n    },\n    auth: 'pika'\n  },\n  'kling': {\n    url: 'https://api.kling.ai/v1/videos',\n    method: 'POST',\n    body: {\n      prompt: ticket.visual_prompt,\n      duration: ticket.duration_seconds\n    },\n    auth: 'kling'\n  }\n};\n\nconst config = providerConfigs[provider] || providerConfigs['runway'];\n\nreturn [{\n  json: {\n    ...ticket,\n    selected_provider: provider,\n    mock_mode: false,\n    api_config: config\n  }\n}];"
+      },
+      "id": "route-to-provider",
+      "name": "Route to Provider",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1900,
+        50
+      ]
+    },
+    {
+      "parameters": {
+        "method": "={{ $json.api_config.method }}",
+        "url": "={{ $json.api_config.url }}",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify($json.api_config.body) }}",
+        "options": {
+          "timeout": 60000
+        }
+      },
+      "id": "submit-job",
+      "name": "Submit to Provider",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.1,
+      "position": [
+        2150,
+        50
+      ],
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "video-api-creds",
+          "name": "Video API"
+        }
+      },
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "jsCode": "// Handle mock mode response\nconst routeData = $('Route to Provider').first().json;\nif (routeData.mock_mode) {\n  return [{\n    json: {\n      success: true,\n      campaign_id: routeData.campaign_id,\n      script_id: routeData.script_id,\n      scene_id: routeData.scene_id,\n      provider: 'mock',\n      provider_job_id: routeData.mock_response.id,\n      status: 'completed',\n      result_url: routeData.mock_response.output_url,\n      prompt: routeData.visual_prompt,\n      submitted_at: new Date().toISOString(),\n      mock_mode: true\n    }\n  }];\n}\n\n// Parse provider response and create job record\nconst ticket = $('Route to Provider').first().json;\nconst response = $input.all()[0].json;\n\nif (response.error) {\n  return [{\n    json: {\n      success: false,\n      error: 'PROVIDER_ERROR',\n      provider: ticket.selected_provider,\n      error_details: response.error,\n      ticket: ticket\n    }\n  }];\n}\n\n// Extract job ID (format varies by provider)\nconst jobId = response.id || response.job_id || response.generation_id || response.task_id;\n\nreturn [{\n  json: {\n    success: true,\n    campaign_id: ticket.campaign_id,\n    script_id: ticket.script_id,\n    scene_id: ticket.scene_id,\n    provider: ticket.selected_provider,\n    provider_job_id: jobId,\n    status: 'submitted',\n    prompt: ticket.visual_prompt,\n    submitted_at: new Date().toISOString(),\n    expected_completion: new Date(Date.now() + 5 * 60 * 1000).toISOString() // 5 min estimate\n  }\n}];"
+      },
+      "id": "parse-response",
+      "name": "Parse Response",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        2350,
+        50
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "boolean": [
+            {
+              "value1": "={{ $json.success }}",
+              "value2": true
+            }
+          ]
+        }
+      },
+      "id": "submit-success",
+      "name": "Submitted?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [
+        2550,
+        50
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "insert",
+        "schema": "public",
+        "table": "generation_jobs",
+        "columns": "campaign_id,script_id,scene_id,provider,provider_job_id,status,prompt,submitted_at,expected_completion",
+        "additionalFields": {}
+      },
+      "id": "store-job",
+      "name": "Store Job Record",
+      "type": "n8n-nodes-base.supabase",
+      "typeVersion": 1,
+      "position": [
+        2750,
+        -50
+      ],
+      "credentials": {
+        "supabaseApi": {
+          "id": "supabase-creds",
+          "name": "Supabase API"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "workflowId": "={{ $env.LOG_COST_EVENT_WORKFLOW_ID }}",
+        "options": {},
+        "inputData": {
+          "provider": "={{ $json.provider }}",
+          "model": "video_generation",
+          "cost_usd": 0.5,
+          "purpose": "video_generation_submit",
+          "campaign_id": "={{ $json.campaign_id }}",
+          "execution_id": "={{ $execution.id }}"
+        }
+      },
+      "id": "log-cost",
+      "name": "Log Submission Cost",
+      "type": "n8n-nodes-base.executeWorkflow",
+      "typeVersion": 1,
+      "position": [
+        2750,
+        50
+      ]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ JSON.stringify({ success: true, campaign_id: $('Webhook').first().json.body.campaign_id, jobs_submitted: 1, job_id: $('Store Job Record').first().json.id }) }}",
+        "options": {
+          "responseCode": 202
+        }
+      },
+      "id": "return-success",
+      "name": "Return 202",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [
+        3000,
+        50
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Handle provider submission failure\nconst data = $input.all()[0].json;\n\n// Log for retry later\nconsole.error(`Provider ${data.provider} failed: ${JSON.stringify(data.error_details)}`);\n\nreturn [{\n  json: {\n    campaign_id: data.ticket.campaign_id,\n    script_id: data.ticket.script_id,\n    scene_id: data.ticket.scene_id,\n    provider: data.provider,\n    status: 'failed',\n    error_message: JSON.stringify(data.error_details)\n  }\n}];"
+      },
+      "id": "handle-failure",
+      "name": "Handle Failure",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        2750,
+        200
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "insert",
+        "schema": "public",
+        "table": "generation_jobs",
+        "columns": "campaign_id,script_id,scene_id,provider,status,error_message,prompt",
+        "additionalFields": {}
+      },
+      "id": "store-failed",
+      "name": "Store Failed Job",
+      "type": "n8n-nodes-base.supabase",
+      "typeVersion": 1,
+      "position": [
+        2950,
+        200
+      ],
+      "credentials": {
+        "supabaseApi": {
+          "id": "supabase-creds",
+          "name": "Supabase API"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "workflowId": "={{ $env.SEND_ALERT_WORKFLOW_ID }}",
+        "options": {},
+        "inputData": {
+          "alert_type": "error",
+          "message": "={{ 'Video generation submission failed for campaign ' + $json.campaign_id }}",
+          "campaign_id": "={{ $json.campaign_id }}",
+          "context": "={{ { provider: $json.provider, error: $json.error_message } }}"
+        }
+      },
+      "id": "alert-failure",
+      "name": "Alert Failure",
+      "type": "n8n-nodes-base.executeWorkflow",
+      "typeVersion": 1,
+      "position": [
+        3150,
+        200
+      ]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ JSON.stringify({ success: false, error: 'ERR_VIDEO_PROVIDER_500' }) }}",
+        "options": {
+          "responseCode": 500
+        }
+      },
+      "id": "return-500",
+      "name": "Return 500",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [
+        3350,
+        200
+      ]
+    }
+  ],
+  "connections": {
+    "Webhook": {
+      "main": [
+        [
+          {
+            "node": "Validate Schema",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Validate Schema": {
+      "main": [
+        [
+          {
+            "node": "Valid?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Valid?": {
+      "main": [
+        [
+          {
+            "node": "Acquire Lock",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Return 400",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Acquire Lock": {
+      "main": [
+        [
+          {
+            "node": "Locked?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Locked?": {
+      "main": [
+        [
+          {
+            "node": "Load Script",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Return 409",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Load Script": {
+      "main": [
+        [
+          {
+            "node": "Create Job Tickets",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Create Job Tickets": {
+      "main": [
+        [
+          {
+            "node": "Check Circuit Breaker",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Check Circuit Breaker": {
+      "main": [
+        [
+          {
+            "node": "Circuit OK?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Circuit OK?": {
+      "main": [
+        [
+          {
+            "node": "Route to Provider",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Try Next Provider",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Try Next Provider": {
+      "main": [
+        [
+          {
+            "node": "Check Circuit Breaker",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Route to Provider": {
+      "main": [
+        [
+          {
+            "node": "Submit to Provider",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Submit to Provider": {
+      "main": [
+        [
+          {
+            "node": "Parse Response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Parse Response": {
+      "main": [
+        [
+          {
+            "node": "Submitted?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Submitted?": {
+      "main": [
+        [
+          {
+            "node": "Store Job Record",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Log Submission Cost",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Handle Failure",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Store Job Record": {
+      "main": [
+        [
+          {
+            "node": "Return 202",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Handle Failure": {
+      "main": [
+        [
+          {
+            "node": "Store Failed Job",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Store Failed Job": {
+      "main": [
+        [
+          {
+            "node": "Alert Failure",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Alert Failure": {
+      "main": [
+        [
+          {
+            "node": "Return 500",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "staticData": null,
+  "tags": [
+    {
+      "name": "main-workflow"
+    },
+    {
+      "name": "pillar-3"
+    },
+    {
+      "name": "production"
+    }
+  ],
+  "active": false,
+  "meta": {
+    "manifestoSection": "Section 5.1-5.2",
+    "description": "Job ticket creation, multi-vendor routing, circuit breaker checks",
+    "nodeCount": 25
+  }
+}

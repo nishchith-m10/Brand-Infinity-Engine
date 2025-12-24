@@ -219,3 +219,4 @@ n8n_data/
 !.gitignore
 !docker-compose.yml
 .env.local
+mcp_config.json

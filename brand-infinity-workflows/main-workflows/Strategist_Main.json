@@ -1,0 +1,823 @@
+{
+  "name": "Pillar 1: Strategist Main",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "strategist",
+        "authentication": "headerAuth",
+        "options": {
+          "responseMode": "responseNode"
+        }
+      },
+      "id": "webhook-trigger",
+      "name": "Webhook Trigger",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1.1,
+      "position": [100, 400],
+      "webhookId": "strategist-main"
+    },
+    {
+      "parameters": {
+        "workflowId": "={{ $env.VALIDATE_SCHEMA_WORKFLOW_ID }}",
+        "options": {},
+        "inputData": {
+          "data": "={{ $json.body }}",
+          "schema": {
+            "type": "object",
+            "required": ["campaign_id", "brand_id", "user_id"],
+            "properties": {
+              "campaign_id": { "type": "string" },
+              "brand_id": { "type": "string" },
+              "user_id": { "type": "string" },
+              "industry": { "type": "string" },
+              "focus_topic": { "type": "string" },
+              "excluded_keywords": { "type": "array" }
+            }
+          },
+          "schema_name": "StrategistRequest"
+        }
+      },
+      "id": "validate-request",
+      "name": "Validate Request Schema",
+      "type": "n8n-nodes-base.executeWorkflow",
+      "typeVersion": 1,
+      "position": [300, 400]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "boolean": [
+            {
+              "value1": "={{ $json.success }}",
+              "value2": true
+            }
+          ]
+        }
+      },
+      "id": "validation-check",
+      "name": "Validation Passed?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [500, 400]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ JSON.stringify({ error: true, code: 'ERR_VALIDATION_FAILED', message: $json.message, errors: $json.errors }) }}",
+        "options": {
+          "responseCode": 400
+        }
+      },
+      "id": "return-validation-error",
+      "name": "Return 400 Error",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [700, 550]
+    },
+    {
+      "parameters": {
+        "workflowId": "={{ $env.ACQUIRE_LOCK_WORKFLOW_ID }}",
+        "options": {},
+        "inputData": {
+          "table_name": "campaigns",
+          "record_id": "={{ $('Webhook Trigger').first().json.body.campaign_id }}",
+          "workflow_id": "={{ $execution.id }}",
+          "expected_status": "idea",
+          "target_status": "strategizing"
+        }
+      },
+      "id": "acquire-campaign-lock",
+      "name": "Acquire Campaign Lock",
+      "type": "n8n-nodes-base.executeWorkflow",
+      "typeVersion": 1,
+      "position": [700, 300]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "boolean": [
+            {
+              "value1": "={{ $json.lock_acquired }}",
+              "value2": true
+            }
+          ]
+        }
+      },
+      "id": "lock-check",
+      "name": "Lock Acquired?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [900, 300]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ JSON.stringify({ error: true, code: 'ERR_LOCK_FAILED', message: 'Campaign is already being processed by another workflow' }) }}",
+        "options": {
+          "responseCode": 409
+        }
+      },
+      "id": "return-lock-error",
+      "name": "Return 409 Conflict",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [1100, 450]
+    },
+    {
+      "parameters": {
+        "jsCode": "// ============================================\n// PARALLEL MERGE GATE SETUP\n// Per Manifesto Section 3.3\n// Fire parallel requests: Trends + RAG + Competitors\n// ============================================\n\nconst input = $('Webhook Trigger').first().json.body;\nconst lockedCampaign = $('Acquire Campaign Lock').first().json.locked_record;\n\nreturn [{\n  json: {\n    campaign_id: input.campaign_id,\n    brand_id: input.brand_id,\n    user_id: input.user_id,\n    industry: input.industry || lockedCampaign.industry || 'technology',\n    focus_topic: input.focus_topic || '',\n    excluded_keywords: input.excluded_keywords || [],\n    execution_id: $execution.id,\n    parallel_start_time: Date.now()\n  }\n}];"
+      },
+      "id": "prepare-parallel",
+      "name": "Prepare Parallel Requests",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1100, 200]
+    },
+    {
+      "parameters": {
+        "workflowId": "={{ $env.GET_BRAND_CONTEXT_WORKFLOW_ID }}",
+        "options": {},
+        "inputData": {
+          "brand_id": "={{ $json.brand_id }}",
+          "query_context": "={{ $json.focus_topic || $json.industry }}",
+          "limit": 10
+        }
+      },
+      "id": "get-brand-context",
+      "name": "Get Brand Context (RAG)",
+      "type": "n8n-nodes-base.executeWorkflow",
+      "typeVersion": 1,
+      "position": [1350, 100]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "http://host.docker.internal:3000/api/v1/trends/scrape",
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "industry",
+              "value": "={{ $json.industry }}"
+            },
+            {
+              "name": "platforms",
+              "value": "={{ JSON.stringify(['tiktok', 'instagram', 'twitter']) }}"
+            }
+          ]
+        },
+        "options": {
+          "timeout": 30000
+        }
+      },
+      "id": "scrape-trends",
+      "name": "Scrape Trends (UTI)",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.1,
+      "position": [1350, 250],
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "http://host.docker.internal:3000/api/v1/competitors/analyze",
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "industry",
+              "value": "={{ $json.industry }}"
+            },
+            {
+              "name": "brand_id",
+              "value": "={{ $json.brand_id }}"
+            }
+          ]
+        },
+        "options": {
+          "timeout": 30000
+        }
+      },
+      "id": "analyze-competitors",
+      "name": "Analyze Competitors",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.1,
+      "position": [1350, 400],
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "mode": "combine",
+        "combineBy": "combineAll",
+        "options": {}
+      },
+      "id": "merge-parallel",
+      "name": "Merge Parallel Results",
+      "type": "n8n-nodes-base.merge",
+      "typeVersion": 2.1,
+      "position": [1600, 250]
+    },
+    {
+      "parameters": {
+        "jsCode": "// ============================================\n// ASSEMBLE INTELLIGENCE CONTEXT\n// Combine: Trends + Brand Guidelines + Competitor Analysis\n// Per Manifesto Section 3.3 - Parallel Merge Gate\n// ============================================\n\nconst items = $input.all();\n\n// Extract each parallel result\nlet brandContext = null;\nlet trends = [];\nlet competitors = [];\n\nfor (const item of items) {\n  const data = item.json;\n  \n  if (data.brand_context) {\n    brandContext = data.brand_context;\n  }\n  if (data.trends || (Array.isArray(data) && data[0]?.topic)) {\n    trends = data.trends || data;\n  }\n  if (data.competitor_insights || data.competitors) {\n    competitors = data.competitor_insights || data.competitors || [];\n  }\n}\n\nconst originalInput = $('Prepare Parallel Requests').first().json;\n\n// Build intelligence context\nconst intelligenceContext = {\n  campaign_id: originalInput.campaign_id,\n  brand_id: originalInput.brand_id,\n  industry: originalInput.industry,\n  focus_topic: originalInput.focus_topic,\n  excluded_keywords: originalInput.excluded_keywords,\n  \n  // Trend data\n  trends: trends.slice(0, 5), // Top 5 trends\n  trending_topics: trends.map(t => t.topic || t.name).slice(0, 5),\n  \n  // Brand context\n  brand_name: brandContext?.brand_name || 'Brand',\n  brand_tone: brandContext?.tone || 'professional',\n  brand_rules: brandContext?.brand_rules || [],\n  negative_constraints: brandContext?.negative_constraints || [],\n  positive_examples: brandContext?.positive_examples || [],\n  \n  // Competitor data\n  competitor_themes: competitors.map(c => c.theme || c.main_message).slice(0, 3),\n  competitor_count: competitors.length,\n  \n  execution_id: originalInput.execution_id\n};\n\nreturn [{ json: intelligenceContext }];"
+      },
+      "id": "assemble-context",
+      "name": "Assemble Intelligence Context",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1800, 250]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.openai.com/v1/chat/completions",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ model: 'gpt-4o', messages: [{ role: 'system', content: 'You are the Chief Strategy Officer for ' + $json.brand_name + '. Analyze trends and create a creative brief. Brand Voice: ' + $json.brand_tone + '. RULES: ' + ($json.brand_rules || []).join('; ') + '. DO NOT mention: ' + ($json.negative_constraints || []).join(', ') + '. Respond with valid JSON only containing: {\"recommended_trend\": {\"topic\": \"...\", \"relevance_score\": 0-100, \"connection_angle\": \"...\"}, \"creative_direction\": \"...\", \"hook_concept\": \"...\", \"target_emotion\": \"...\", \"call_to_action\": \"...\"}' }, { role: 'user', content: 'Analyze these trends for ' + $json.industry + ': ' + JSON.stringify($json.trending_topics) + '. Focus on: ' + ($json.focus_topic || 'general engagement') + '. Create a viral content strategy.' }], temperature: 0.7, max_tokens: 1000 }) }}",
+        "options": {
+          "timeout": 60000
+        }
+      },
+      "id": "generate-strategy",
+      "name": "Generate Strategy (LLM)",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.1,
+      "position": [2050, 250],
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "openai-creds",
+          "name": "OpenAI API"
+        }
+      },
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "jsCode": "// ============================================\n// PARSE LLM RESPONSE AND TRACK COST\n// Per Manifesto Section 2, Dimension 5\n// ============================================\n\nconst context = $('Assemble Intelligence Context').first().json;\nconst llmResponse = $input.all()[0].json;\n\n// Handle LLM errors\nif (llmResponse.error) {\n  return [{\n    json: {\n      success: false,\n      error: 'LLM_ERROR',\n      error_details: llmResponse.error,\n      campaign_id: context.campaign_id\n    }\n  }];\n}\n\n// Parse response\nlet strategy = null;\ntry {\n  const content = llmResponse.choices[0].message.content;\n  // Try to extract JSON from response\n  const jsonMatch = content.match(/\\{[\\s\\S]*\\}/);\n  if (jsonMatch) {\n    strategy = JSON.parse(jsonMatch[0]);\n  } else {\n    strategy = { creative_direction: content };\n  }\n} catch (e) {\n  strategy = { creative_direction: llmResponse.choices[0].message.content };\n}\n\n// Calculate cost per Dimension 5\nconst usage = llmResponse.usage || {};\nconst tokensIn = usage.prompt_tokens || 0;\nconst tokensOut = usage.completion_tokens || 0;\n// GPT-4o pricing: ~$2.50/1M input, ~$10/1M output\nconst costUsd = (tokensIn * 0.0000025) + (tokensOut * 0.00001);\n\nreturn [{\n  json: {\n    success: true,\n    strategy: strategy,\n    context: context,\n    cost_data: {\n      provider: 'openai',\n      model: 'gpt-4o',\n      tokens_in: tokensIn,\n      tokens_out: tokensOut,\n      cost_usd: costUsd,\n      purpose: 'strategy_generation',\n      campaign_id: context.campaign_id,\n      execution_id: context.execution_id\n    }\n  }\n}];"
+      },
+      "id": "parse-strategy",
+      "name": "Parse Strategy & Cost",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [2300, 250]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "boolean": [
+            {
+              "value1": "={{ $json.success }}",
+              "value2": true
+            }
+          ]
+        }
+      },
+      "id": "llm-success-check",
+      "name": "LLM Success?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [2500, 250]
+    },
+    {
+      "parameters": {
+        "workflowId": "={{ $env.LOG_COST_EVENT_WORKFLOW_ID }}",
+        "options": {},
+        "inputData": "={{ $json.cost_data }}"
+      },
+      "id": "log-cost",
+      "name": "Log Cost Event",
+      "type": "n8n-nodes-base.executeWorkflow",
+      "typeVersion": 1,
+      "position": [2750, 150]
+    },
+    {
+      "parameters": {
+        "jsCode": "// ============================================\n// HALLUCINATION GATE\n// Per Manifesto Section 3.4\n// Verify LLM output is grounded in sources\n// ============================================\n\nconst data = $('Parse Strategy & Cost').first().json;\nconst strategy = data.strategy;\nconst context = data.context;\n\nlet validationScore = 100;\nconst validationIssues = [];\n\n// Check 1: Recommended trend exists in our scraped trends\nif (strategy.recommended_trend?.topic) {\n  const trendExists = context.trending_topics.some(\n    t => t.toLowerCase().includes(strategy.recommended_trend.topic.toLowerCase()) ||\n         strategy.recommended_trend.topic.toLowerCase().includes(t.toLowerCase())\n  );\n  if (!trendExists) {\n    validationScore -= 30;\n    validationIssues.push('Recommended trend not found in scraped data - possible hallucination');\n  }\n}\n\n// Check 2: No excluded keywords in creative direction\nconst excludedKeywords = context.excluded_keywords || [];\nconst creativeText = JSON.stringify(strategy).toLowerCase();\nfor (const keyword of excludedKeywords) {\n  if (creativeText.includes(keyword.toLowerCase())) {\n    validationScore -= 20;\n    validationIssues.push(`Excluded keyword '${keyword}' found in strategy`);\n  }\n}\n\n// Check 3: Relevance score is reasonable\nif (strategy.recommended_trend?.relevance_score !== undefined) {\n  const score = strategy.recommended_trend.relevance_score;\n  if (score < 0 || score > 100) {\n    validationScore -= 10;\n    validationIssues.push('Relevance score out of valid range');\n  }\n}\n\n// Check 4: Required fields present\nconst requiredFields = ['creative_direction'];\nfor (const field of requiredFields) {\n  if (!strategy[field]) {\n    validationScore -= 15;\n    validationIssues.push(`Missing required field: ${field}`);\n  }\n}\n\n// Per Manifesto: Score < 70 = hallucination suspected\nconst passedGate = validationScore >= 70;\n\nreturn [{\n  json: {\n    passed_hallucination_gate: passedGate,\n    validation_score: validationScore,\n    validation_issues: validationIssues,\n    strategy: strategy,\n    context: context,\n    campaign_id: context.campaign_id\n  }\n}];"
+      },
+      "id": "hallucination-gate",
+      "name": "Hallucination Gate",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [2750, 300]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "number": [
+            {
+              "value1": "={{ $json.validation_score }}",
+              "operation": "largerEqual",
+              "value2": 70
+            }
+          ]
+        }
+      },
+      "id": "gate-check",
+      "name": "Passed Gate?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [3000, 300]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Gate failed - log and retry with different temperature\nconst data = $input.all()[0].json;\n\nconsole.warn(`Hallucination gate failed for campaign ${data.campaign_id}`);\nconsole.warn(`Score: ${data.validation_score}, Issues: ${data.validation_issues.join('; ')}`);\n\nreturn [{\n  json: {\n    success: false,\n    error: 'ERR_LLM_HALLUCINATION',\n    validation_score: data.validation_score,\n    issues: data.validation_issues,\n    campaign_id: data.campaign_id,\n    action: 'RETRY_WITH_HIGHER_TEMPERATURE'\n  }\n}];"
+      },
+      "id": "gate-failed",
+      "name": "Gate Failed Handler",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [3250, 450]
+    },
+    {
+      "parameters": {
+        "operation": "insert",
+        "schema": "public",
+        "table": "creative_briefs",
+        "columns": "campaign_id,strategy_data,trend_data,validation_score,status",
+        "additionalFields": {}
+      },
+      "id": "store-brief",
+      "name": "Store Creative Brief",
+      "type": "n8n-nodes-base.supabase",
+      "typeVersion": 1,
+      "position": [3250, 200],
+      "credentials": {
+        "supabaseApi": {
+          "id": "supabase-creds",
+          "name": "Supabase API"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "// Prepare brief for storage\nconst data = $input.all()[0].json;\n\nreturn [{\n  json: {\n    campaign_id: data.campaign_id,\n    strategy_data: JSON.stringify(data.strategy),\n    trend_data: JSON.stringify(data.context.trends || []),\n    validation_score: data.validation_score,\n    status: 'generated'\n  }\n}];"
+      },
+      "id": "prep-brief-storage",
+      "name": "Prep Brief for Storage",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [3050, 200]
+    },
+    {
+      "parameters": {
+        "workflowId": "={{ $env.RELEASE_LOCK_WORKFLOW_ID }}",
+        "options": {},
+        "inputData": {
+          "table_name": "campaigns",
+          "record_id": "={{ $('Webhook Trigger').first().json.body.campaign_id }}",
+          "workflow_id": "={{ $execution.id }}",
+          "final_status": "strategized"
+        }
+      },
+      "id": "release-lock-success",
+      "name": "Release Lock (Success)",
+      "type": "n8n-nodes-base.executeWorkflow",
+      "typeVersion": 1,
+      "position": [3500, 200]
+    },
+    {
+      "parameters": {
+        "workflowId": "={{ $env.RELEASE_LOCK_WORKFLOW_ID }}",
+        "options": {},
+        "inputData": {
+          "table_name": "campaigns",
+          "record_id": "={{ $('Webhook Trigger').first().json.body.campaign_id }}",
+          "workflow_id": "={{ $execution.id }}",
+          "final_status": "strategy_failed"
+        }
+      },
+      "id": "release-lock-failed",
+      "name": "Release Lock (Failed)",
+      "type": "n8n-nodes-base.executeWorkflow",
+      "typeVersion": 1,
+      "position": [3500, 450]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ JSON.stringify({ success: true, campaign_id: $('Webhook Trigger').first().json.body.campaign_id, brief_id: $('Store Creative Brief').first().json.id, status: 'strategized', validation_score: $('Hallucination Gate').first().json.validation_score }) }}",
+        "options": {
+          "responseCode": 200
+        }
+      },
+      "id": "return-success",
+      "name": "Return Success",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [3700, 200]
+    },
+    {
+      "parameters": {
+        "workflowId": "={{ $env.SEND_ALERT_WORKFLOW_ID }}",
+        "options": {},
+        "inputData": {
+          "alert_type": "warning",
+          "message": "={{ 'Hallucination gate failed for campaign ' + $json.campaign_id + '. Score: ' + $json.validation_score }}",
+          "campaign_id": "={{ $json.campaign_id }}",
+          "context": "={{ { validation_issues: $json.issues } }}"
+        }
+      },
+      "id": "alert-gate-failure",
+      "name": "Alert: Gate Failure",
+      "type": "n8n-nodes-base.executeWorkflow",
+      "typeVersion": 1,
+      "position": [3500, 550]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ JSON.stringify({ success: false, campaign_id: $('Webhook Trigger').first().json.body.campaign_id, error: 'ERR_LLM_HALLUCINATION', validation_score: $json.validation_score, issues: $json.issues }) }}",
+        "options": {
+          "responseCode": 422
+        }
+      },
+      "id": "return-gate-error",
+      "name": "Return 422 Gate Error",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [3700, 550]
+    },
+    {
+      "parameters": {
+        "workflowId": "={{ $env.SEND_ALERT_WORKFLOW_ID }}",
+        "options": {},
+        "inputData": {
+          "alert_type": "error",
+          "message": "={{ 'LLM call failed for campaign ' + $json.campaign_id + ': ' + ($json.error_details?.message || 'Unknown error') }}",
+          "campaign_id": "={{ $json.campaign_id }}",
+          "context": "={{ { error: $json.error_details } }}"
+        }
+      },
+      "id": "alert-llm-failure",
+      "name": "Alert: LLM Failure",
+      "type": "n8n-nodes-base.executeWorkflow",
+      "typeVersion": 1,
+      "position": [2750, 400]
+    },
+    {
+      "parameters": {
+        "workflowId": "={{ $env.RELEASE_LOCK_WORKFLOW_ID }}",
+        "options": {},
+        "inputData": {
+          "table_name": "campaigns",
+          "record_id": "={{ $('Webhook Trigger').first().json.body.campaign_id }}",
+          "workflow_id": "={{ $execution.id }}",
+          "final_status": "failed"
+        }
+      },
+      "id": "release-lock-llm-error",
+      "name": "Release Lock (LLM Error)",
+      "type": "n8n-nodes-base.executeWorkflow",
+      "typeVersion": 1,
+      "position": [2950, 400]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ JSON.stringify({ success: false, error: 'ERR_LLM_FAILURE', message: 'Strategy generation failed', details: $json.error_details }) }}",
+        "options": {
+          "responseCode": 500
+        }
+      },
+      "id": "return-llm-error",
+      "name": "Return 500 LLM Error",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [3150, 400]
+    }
+  ],
+  "connections": {
+    "Webhook Trigger": {
+      "main": [
+        [
+          {
+            "node": "Validate Request Schema",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Validate Request Schema": {
+      "main": [
+        [
+          {
+            "node": "Validation Passed?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Validation Passed?": {
+      "main": [
+        [
+          {
+            "node": "Acquire Campaign Lock",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Return 400 Error",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Acquire Campaign Lock": {
+      "main": [
+        [
+          {
+            "node": "Lock Acquired?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Lock Acquired?": {
+      "main": [
+        [
+          {
+            "node": "Prepare Parallel Requests",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Return 409 Conflict",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Prepare Parallel Requests": {
+      "main": [
+        [
+          {
+            "node": "Get Brand Context (RAG)",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Scrape Trends (UTI)",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Analyze Competitors",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get Brand Context (RAG)": {
+      "main": [
+        [
+          {
+            "node": "Merge Parallel Results",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Scrape Trends (UTI)": {
+      "main": [
+        [
+          {
+            "node": "Merge Parallel Results",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Analyze Competitors": {
+      "main": [
+        [
+          {
+            "node": "Merge Parallel Results",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Merge Parallel Results": {
+      "main": [
+        [
+          {
+            "node": "Assemble Intelligence Context",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Assemble Intelligence Context": {
+      "main": [
+        [
+          {
+            "node": "Generate Strategy (LLM)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Generate Strategy (LLM)": {
+      "main": [
+        [
+          {
+            "node": "Parse Strategy & Cost",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Parse Strategy & Cost": {
+      "main": [
+        [
+          {
+            "node": "LLM Success?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "LLM Success?": {
+      "main": [
+        [
+          {
+            "node": "Log Cost Event",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Hallucination Gate",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Alert: LLM Failure",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Alert: LLM Failure": {
+      "main": [
+        [
+          {
+            "node": "Release Lock (LLM Error)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Release Lock (LLM Error)": {
+      "main": [
+        [
+          {
+            "node": "Return 500 LLM Error",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Hallucination Gate": {
+      "main": [
+        [
+          {
+            "node": "Passed Gate?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Passed Gate?": {
+      "main": [
+        [
+          {
+            "node": "Prep Brief for Storage",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Gate Failed Handler",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Prep Brief for Storage": {
+      "main": [
+        [
+          {
+            "node": "Store Creative Brief",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Store Creative Brief": {
+      "main": [
+        [
+          {
+            "node": "Release Lock (Success)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Release Lock (Success)": {
+      "main": [
+        [
+          {
+            "node": "Return Success",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Gate Failed Handler": {
+      "main": [
+        [
+          {
+            "node": "Release Lock (Failed)",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Alert: Gate Failure",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Release Lock (Failed)": {
+      "main": [
+        [
+          {
+            "node": "Return 422 Gate Error",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "staticData": null,
+  "tags": [
+    {
+      "name": "main-workflow"
+    },
+    {
+      "name": "pillar-1"
+    },
+    {
+      "name": "strategist"
+    },
+    {
+      "name": "phase-4"
+    }
+  ],
+  "triggerCount": 1,
+  "active": false,
+  "pinData": {},
+  "versionId": "1.0.0",
+  "meta": {
+    "instanceId": "brand-infinity-engine",
+    "manifestoSection": "Section 3 - Pillar 1",
+    "description": "Main Strategist workflow: trend scraping, RAG retrieval, LLM strategy generation, hallucination gate, and brief storage",
+    "nodeCount": 35
+  }
+}

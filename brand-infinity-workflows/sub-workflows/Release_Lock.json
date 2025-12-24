@@ -1,0 +1,177 @@
+{
+  "name": "Sub: Release Lock",
+  "nodes": [
+    {
+      "parameters": {},
+      "id": "start-node",
+      "name": "Start",
+      "type": "n8n-nodes-base.executeWorkflowTrigger",
+      "typeVersion": 1,
+      "position": [250, 300]
+    },
+    {
+      "parameters": {
+        "jsCode": "// ============================================\n// LOCK RELEASE\n// Sub-Workflow: Release_Lock\n// Per Manifesto Section 2, Dimension 2\n// ============================================\n\nconst input = $input.all()[0].json;\n\n// Validate required fields\nif (!input.table_name) throw new Error('table_name is required');\nif (!input.record_id) throw new Error('record_id is required');\nif (!input.workflow_id) throw new Error('workflow_id is required');\nif (!input.final_status) throw new Error('final_status is required');\n\nreturn [{\n  json: {\n    table_name: input.table_name,\n    record_id: input.record_id,\n    id_column: input.id_column || 'id',\n    workflow_id: input.workflow_id,\n    final_status: input.final_status,\n    additional_updates: input.additional_updates || {}\n  }\n}];"
+      },
+      "id": "validate-input",
+      "name": "Validate Input",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [450, 300]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Build release query - only release if we own the lock\nconst input = $input.all()[0].json;\n\n// Build SET clause with additional updates\nlet setClause = `status = '${input.final_status}', locked_by = NULL, locked_at = NULL, updated_at = NOW()`;\n\nfor (const [key, value] of Object.entries(input.additional_updates)) {\n  if (typeof value === 'string') {\n    setClause += `, ${key} = '${value}'`;\n  } else if (typeof value === 'object') {\n    setClause += `, ${key} = '${JSON.stringify(value)}'::jsonb`;\n  } else {\n    setClause += `, ${key} = ${value}`;\n  }\n}\n\n// Only release if we own the lock (safety check)\nconst whereClause = `${input.id_column} = '${input.record_id}' AND locked_by = '${input.workflow_id}'`;\n\nconst releaseQuery = {\n  query: `UPDATE ${input.table_name} SET ${setClause} WHERE ${whereClause} RETURNING *`,\n  set_clause: setClause,\n  where_clause: whereClause\n};\n\nreturn [{\n  json: {\n    ...input,\n    release_query: releaseQuery\n  }\n}];"
+      },
+      "id": "build-release-query",
+      "name": "Build Release Query",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [650, 300]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "={{ $json.release_query.query }}",
+        "options": {}
+      },
+      "id": "execute-release",
+      "name": "Execute Lock Release",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.4,
+      "position": [850, 300],
+      "credentials": {
+        "postgres": {
+          "id": "postgres-creds",
+          "name": "Supabase Postgres"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "number": [
+            {
+              "value1": "={{ $json.length }}",
+              "operation": "largerEqual",
+              "value2": 1
+            }
+          ]
+        }
+      },
+      "id": "release-success-check",
+      "name": "Release Success?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [1050, 300]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Lock successfully released\nconst releasedRecord = $input.all()[0].json[0];\nconst originalInput = $('Validate Input').first().json;\n\nreturn [{\n  json: {\n    success: true,\n    lock_released: true,\n    released_record: releasedRecord,\n    final_status: originalInput.final_status,\n    table_name: originalInput.table_name,\n    record_id: originalInput.record_id,\n    message: 'Lock released successfully'\n  }\n}];"
+      },
+      "id": "release-success",
+      "name": "Release Success",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1300, 200]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Lock release failed - we didn't own the lock\nconst originalInput = $('Validate Input').first().json;\n\nconsole.warn(`Lock release failed: workflow ${originalInput.workflow_id} did not own lock on ${originalInput.table_name}:${originalInput.record_id}`);\n\nreturn [{\n  json: {\n    success: false,\n    lock_released: false,\n    table_name: originalInput.table_name,\n    record_id: originalInput.record_id,\n    workflow_id: originalInput.workflow_id,\n    reason: 'Lock not owned by this workflow or already released',\n    message: 'Lock release failed - lock not owned'\n  }\n}];"
+      },
+      "id": "release-failed",
+      "name": "Release Failed",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1300, 400]
+    }
+  ],
+  "connections": {
+    "Start": {
+      "main": [
+        [
+          {
+            "node": "Validate Input",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Validate Input": {
+      "main": [
+        [
+          {
+            "node": "Build Release Query",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Build Release Query": {
+      "main": [
+        [
+          {
+            "node": "Execute Lock Release",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Execute Lock Release": {
+      "main": [
+        [
+          {
+            "node": "Release Success?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Release Success?": {
+      "main": [
+        [
+          {
+            "node": "Release Success",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Release Failed",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "staticData": null,
+  "tags": [
+    {
+      "name": "sub-workflow"
+    },
+    {
+      "name": "locking"
+    },
+    {
+      "name": "phase-4"
+    }
+  ],
+  "triggerCount": 0,
+  "active": false,
+  "pinData": {},
+  "versionId": "1.0.0",
+  "meta": {
+    "instanceId": "brand-infinity-engine",
+    "manifestoSection": "Section 2, Dimension 2",
+    "description": "Releases row lock with final status update, only if workflow owns the lock"
+  }
+}

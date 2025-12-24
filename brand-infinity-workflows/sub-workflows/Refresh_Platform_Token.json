@@ -1,0 +1,320 @@
+{
+  "name": "Sub: Refresh Platform Token",
+  "nodes": [
+    {
+      "parameters": {},
+      "id": "start-node",
+      "name": "Start",
+      "type": "n8n-nodes-base.executeWorkflowTrigger",
+      "typeVersion": 1,
+      "position": [250, 300]
+    },
+    {
+      "parameters": {
+        "jsCode": "// ============================================\n// OAUTH TOKEN REFRESH\n// Sub-Workflow: Refresh_Platform_Token\n// Per Manifesto Section 7.5\n// ============================================\n\nconst input = $input.all()[0].json;\n\nif (!input.platform) throw new Error('platform is required');\nif (!input.user_id) throw new Error('user_id is required');\n\nconst supportedPlatforms = ['tiktok', 'instagram', 'youtube', 'linkedin'];\nif (!supportedPlatforms.includes(input.platform)) {\n  throw new Error(`Unsupported platform: ${input.platform}. Supported: ${supportedPlatforms.join(', ')}`);\n}\n\nreturn [{\n  json: {\n    platform: input.platform,\n    user_id: input.user_id,\n    force_refresh: input.force_refresh || false\n  }\n}];"
+      },
+      "id": "validate-input",
+      "name": "Validate Input",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [450, 300]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT access_token, refresh_token, expires_at, last_refreshed_at FROM platform_tokens WHERE platform = '{{ $json.platform }}' AND user_id = '{{ $json.user_id }}'",
+        "options": {}
+      },
+      "id": "get-current-token",
+      "name": "Get Current Token",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.4,
+      "position": [650, 300],
+      "credentials": {
+        "postgres": {
+          "id": "postgres-creds",
+          "name": "Supabase Postgres"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "// Check if token exists and if refresh is needed\nconst input = $('Validate Input').first().json;\nconst tokenResult = $input.all()[0].json;\n\n// Handle no token found\nif (!tokenResult || tokenResult.length === 0) {\n  return [{\n    json: {\n      success: false,\n      needs_refresh: false,\n      error: 'TOKEN_NOT_FOUND',\n      message: `No token found for ${input.platform} / ${input.user_id}`,\n      platform: input.platform,\n      user_id: input.user_id\n    }\n  }];\n}\n\nconst token = Array.isArray(tokenResult) ? tokenResult[0] : tokenResult;\nconst expiresAt = new Date(token.expires_at);\nconst now = new Date();\n\n// Per Manifesto Section 7.5: Pre-check 5 minutes before expiry\nconst fiveMinutesFromNow = new Date(now.getTime() + 5 * 60 * 1000);\nconst needsRefresh = input.force_refresh || expiresAt <= fiveMinutesFromNow;\n\nreturn [{\n  json: {\n    ...input,\n    current_token: {\n      access_token: token.access_token,\n      refresh_token: token.refresh_token,\n      expires_at: token.expires_at\n    },\n    needs_refresh: needsRefresh,\n    is_expired: expiresAt <= now,\n    expires_in_minutes: Math.round((expiresAt - now) / 60000)\n  }\n}];"
+      },
+      "id": "check-expiry",
+      "name": "Check Token Expiry",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [850, 300]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "boolean": [
+            {
+              "value1": "={{ $json.needs_refresh }}",
+              "value2": true
+            }
+          ]
+        }
+      },
+      "id": "needs-refresh",
+      "name": "Needs Refresh?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [1050, 300]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Token is still valid - return current token\nconst tokenData = $input.all()[0].json;\n\nreturn [{\n  json: {\n    success: true,\n    refreshed: false,\n    platform: tokenData.platform,\n    user_id: tokenData.user_id,\n    access_token: tokenData.current_token.access_token,\n    expires_at: tokenData.current_token.expires_at,\n    expires_in_minutes: tokenData.expires_in_minutes,\n    message: 'Token still valid, no refresh needed'\n  }\n}];"
+      },
+      "id": "return-current",
+      "name": "Return Current Token",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1300, 400]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Build platform-specific refresh request\nconst tokenData = $input.all()[0].json;\n\n// Platform-specific OAuth refresh endpoints\nconst platformConfigs = {\n  tiktok: {\n    url: 'https://open-api.tiktok.com/oauth/refresh_token/',\n    method: 'POST',\n    body: {\n      client_key: '{{ $env.TIKTOK_CLIENT_KEY }}',\n      client_secret: '{{ $env.TIKTOK_CLIENT_SECRET }}',\n      grant_type: 'refresh_token',\n      refresh_token: tokenData.current_token.refresh_token\n    }\n  },\n  instagram: {\n    url: 'https://graph.instagram.com/refresh_access_token',\n    method: 'GET',\n    queryParams: {\n      grant_type: 'ig_refresh_token',\n      access_token: tokenData.current_token.access_token\n    }\n  },\n  youtube: {\n    url: 'https://oauth2.googleapis.com/token',\n    method: 'POST',\n    body: {\n      client_id: '{{ $env.GOOGLE_CLIENT_ID }}',\n      client_secret: '{{ $env.GOOGLE_CLIENT_SECRET }}',\n      grant_type: 'refresh_token',\n      refresh_token: tokenData.current_token.refresh_token\n    }\n  },\n  linkedin: {\n    url: 'https://www.linkedin.com/oauth/v2/accessToken',\n    method: 'POST',\n    body: {\n      grant_type: 'refresh_token',\n      refresh_token: tokenData.current_token.refresh_token,\n      client_id: '{{ $env.LINKEDIN_CLIENT_ID }}',\n      client_secret: '{{ $env.LINKEDIN_CLIENT_SECRET }}'\n    }\n  }\n};\n\nconst config = platformConfigs[tokenData.platform];\n\nreturn [{\n  json: {\n    ...tokenData,\n    refresh_config: config\n  }\n}];"
+      },
+      "id": "build-refresh-request",
+      "name": "Build Refresh Request",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1300, 200]
+    },
+    {
+      "parameters": {
+        "method": "={{ $json.refresh_config.method }}",
+        "url": "={{ $json.refresh_config.url }}",
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": []
+        },
+        "options": {}
+      },
+      "id": "call-refresh-api",
+      "name": "Call Refresh API",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.1,
+      "position": [1500, 200],
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "jsCode": "// Parse refresh response and handle errors\nconst tokenData = $('Check Token Expiry').first().json;\nconst response = $input.all()[0].json;\n\n// Handle refresh failure\nif (response.error || response.error_description) {\n  return [{\n    json: {\n      success: false,\n      refreshed: false,\n      platform: tokenData.platform,\n      user_id: tokenData.user_id,\n      error: 'REFRESH_FAILED',\n      error_details: response.error || response.error_description,\n      message: 'Token refresh failed - user may need to re-authenticate'\n    }\n  }];\n}\n\n// Extract new token (format varies by platform)\nconst newAccessToken = response.access_token || response.data?.access_token;\nconst newRefreshToken = response.refresh_token || response.data?.refresh_token || tokenData.current_token.refresh_token;\nconst expiresIn = response.expires_in || response.data?.expires_in || 3600;\n\nif (!newAccessToken) {\n  return [{\n    json: {\n      success: false,\n      refreshed: false,\n      platform: tokenData.platform,\n      user_id: tokenData.user_id,\n      error: 'NO_TOKEN_IN_RESPONSE',\n      message: 'Refresh succeeded but no access_token in response'\n    }\n  }];\n}\n\n// Calculate new expiry\nconst newExpiresAt = new Date(Date.now() + (expiresIn * 1000)).toISOString();\n\nreturn [{\n  json: {\n    success: true,\n    platform: tokenData.platform,\n    user_id: tokenData.user_id,\n    new_access_token: newAccessToken,\n    new_refresh_token: newRefreshToken,\n    new_expires_at: newExpiresAt\n  }\n}];"
+      },
+      "id": "parse-response",
+      "name": "Parse Refresh Response",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1700, 200]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "boolean": [
+            {
+              "value1": "={{ $json.success }}",
+              "value2": true
+            }
+          ]
+        }
+      },
+      "id": "refresh-success",
+      "name": "Refresh Success?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [1900, 200]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "UPDATE platform_tokens SET access_token = '{{ $json.new_access_token }}', refresh_token = '{{ $json.new_refresh_token }}', expires_at = '{{ $json.new_expires_at }}', last_refreshed_at = NOW() WHERE platform = '{{ $json.platform }}' AND user_id = '{{ $json.user_id }}' RETURNING *",
+        "options": {}
+      },
+      "id": "update-token",
+      "name": "Update Token in DB",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.4,
+      "position": [2100, 100],
+      "credentials": {
+        "postgres": {
+          "id": "postgres-creds",
+          "name": "Supabase Postgres"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "// Return refreshed token\nconst refreshData = $('Parse Refresh Response').first().json;\n\nreturn [{\n  json: {\n    success: true,\n    refreshed: true,\n    platform: refreshData.platform,\n    user_id: refreshData.user_id,\n    access_token: refreshData.new_access_token,\n    expires_at: refreshData.new_expires_at,\n    message: 'Token refreshed successfully'\n  }\n}];"
+      },
+      "id": "return-refreshed",
+      "name": "Return Refreshed Token",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [2300, 100]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Return refresh failure\nconst failData = $input.all()[0].json;\n\n// Log for alerting\nconsole.error(`Token refresh failed for ${failData.platform}/${failData.user_id}: ${failData.error}`);\n\nreturn [{\n  json: {\n    ...failData,\n    action_required: 'USER_REAUTH',\n    message: `Token refresh failed: ${failData.error_details || failData.error}. User must re-authenticate.`\n  }\n}];"
+      },
+      "id": "return-failed",
+      "name": "Return Refresh Failed",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [2100, 300]
+    }
+  ],
+  "connections": {
+    "Start": {
+      "main": [
+        [
+          {
+            "node": "Validate Input",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Validate Input": {
+      "main": [
+        [
+          {
+            "node": "Get Current Token",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get Current Token": {
+      "main": [
+        [
+          {
+            "node": "Check Token Expiry",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Check Token Expiry": {
+      "main": [
+        [
+          {
+            "node": "Needs Refresh?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Needs Refresh?": {
+      "main": [
+        [
+          {
+            "node": "Build Refresh Request",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Return Current Token",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Build Refresh Request": {
+      "main": [
+        [
+          {
+            "node": "Call Refresh API",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Call Refresh API": {
+      "main": [
+        [
+          {
+            "node": "Parse Refresh Response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Parse Refresh Response": {
+      "main": [
+        [
+          {
+            "node": "Refresh Success?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Refresh Success?": {
+      "main": [
+        [
+          {
+            "node": "Update Token in DB",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Return Refresh Failed",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Update Token in DB": {
+      "main": [
+        [
+          {
+            "node": "Return Refreshed Token",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "staticData": null,
+  "tags": [
+    {
+      "name": "sub-workflow"
+    },
+    {
+      "name": "oauth"
+    },
+    {
+      "name": "phase-4"
+    }
+  ],
+  "triggerCount": 0,
+  "active": false,
+  "pinData": {},
+  "versionId": "1.0.0",
+  "meta": {
+    "instanceId": "brand-infinity-engine",
+    "manifestoSection": "Section 7.5",
+    "description": "OAuth token refresh with 5-minute pre-expiry check and multi-platform support"
+  }
+}

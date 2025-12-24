@@ -1,6 +1,7 @@
 'use client';
 
 import { useState } from 'react';
+import Image from 'next/image';
 import { Image as ImageIcon, Video as VideoIcon, Trash2, ExternalLink } from 'lucide-react';
 import { Card, CardContent } from './card';
 import { Button } from './button';
@@ -66,14 +67,14 @@ export function AssetGallery({
         </h3>
         <div className="flex gap-2">
           <Button
-            variant={viewMode === 'grid' ? 'primary' : 'outline'}
+            variant={viewMode === 'grid' ? 'default' : 'outline'}
             size="sm"
             onClick={() => setViewMode('grid')}
           >
             Grid
           </Button>
           <Button
-            variant={viewMode === 'list' ? 'primary' : 'outline'}
+            variant={viewMode === 'list' ? 'default' : 'outline'}
             size="sm"
             onClick={() => setViewMode('list')}
           >
@@ -94,12 +95,13 @@ export function AssetGallery({
               onClick={() => selectable && onSelect?.(asset)}
             >
               <CardContent className="p-4">
-                <div className="aspect-square overflow-hidden rounded-lg bg-gray-100">
+                <div className="relative aspect-square overflow-hidden rounded-lg bg-gray-100">
                   {asset.asset_type === 'image' ? (
-                    <img
+                    <Image
                       src={asset.storage_url}
                       alt={asset.original_filename}
-                      className="h-full w-full object-cover"
+                      fill
+                      className="object-cover"
                     />
                   ) : (
                     <div className="flex h-full items-center justify-center">
@@ -167,12 +169,13 @@ export function AssetGallery({
             >
               <CardContent className="p-4">
                 <div className="flex items-center gap-4">
-                  <div className="h-16 w-16 overflow-hidden rounded-lg bg-gray-100">
+                  <div className="relative h-16 w-16 overflow-hidden rounded-lg bg-gray-100">
                     {asset.asset_type === 'image' ? (
-                      <img
+                      <Image
                         src={asset.storage_url}
                         alt={asset.original_filename}
-                        className="h-full w-full object-cover"
+                        fill
+                        className="object-cover"
                       />
                     ) : (
                       <div className="flex h-full items-center justify-center">

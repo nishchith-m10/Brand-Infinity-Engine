@@ -1,0 +1,309 @@
+{
+  "name": "Sub: Get Brand Context",
+  "nodes": [
+    {
+      "parameters": {},
+      "id": "start-node",
+      "name": "Start",
+      "type": "n8n-nodes-base.executeWorkflowTrigger",
+      "typeVersion": 1,
+      "position": [250, 300]
+    },
+    {
+      "parameters": {
+        "jsCode": "// ============================================\n// BRAND CONTEXT RETRIEVAL (RAG)\n// Sub-Workflow: Get_Brand_Context\n// Per Manifesto Section 3.2\n// ============================================\n\nconst input = $input.all()[0].json;\n\nif (!input.brand_id) throw new Error('brand_id is required');\n\nconst config = {\n  brand_id: input.brand_id,\n  query_context: input.query_context || '',\n  limit: input.limit || 5,\n  similarity_threshold: input.similarity_threshold || 0.7,\n  cache_ttl_minutes: input.cache_ttl_minutes || 60\n};\n\n// Redis cache key\nconst cacheKey = `brand_context:${config.brand_id}:${Buffer.from(config.query_context).toString('base64').substring(0, 32)}`;\n\nreturn [{\n  json: {\n    ...config,\n    cache_key: cacheKey\n  }\n}];"
+      },
+      "id": "prepare-query",
+      "name": "Prepare Query",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [450, 300]
+    },
+    {
+      "parameters": {
+        "operation": "get",
+        "key": "={{ $json.cache_key }}"
+      },
+      "id": "check-cache",
+      "name": "Check Cache",
+      "type": "n8n-nodes-base.redis",
+      "typeVersion": 1,
+      "position": [650, 300],
+      "credentials": {
+        "redis": {
+          "id": "redis-creds",
+          "name": "Redis"
+        }
+      },
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "string": [
+            {
+              "value1": "={{ $json }}",
+              "operation": "isNotEmpty"
+            }
+          ]
+        }
+      },
+      "id": "cache-hit",
+      "name": "Cache Hit?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [850, 300]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Return cached brand context\nconst cachedData = JSON.parse($input.all()[0].json);\nconst config = $('Prepare Query').first().json;\n\nreturn [{\n  json: {\n    success: true,\n    source: 'cache',\n    brand_id: config.brand_id,\n    brand_context: cachedData,\n    message: 'Brand context retrieved from cache'\n  }\n}];"
+      },
+      "id": "return-cached",
+      "name": "Return Cached",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1100, 200]
+    },
+    {
+      "parameters": {
+        "operation": "select",
+        "schema": "public",
+        "table": "brand_guidelines",
+        "filterType": "string",
+        "filterString": "brand_id=eq.{{ $('Prepare Query').first().json.brand_id }}",
+        "limit": 1
+      },
+      "id": "get-brand-profile",
+      "name": "Get Brand Profile",
+      "type": "n8n-nodes-base.supabase",
+      "typeVersion": 1,
+      "position": [1100, 400],
+      "credentials": {
+        "supabaseApi": {
+          "id": "supabase-creds",
+          "name": "Supabase API"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT content, category, similarity FROM brand_knowledge_base WHERE brand_id = '{{ $('Prepare Query').first().json.brand_id }}' ORDER BY created_at DESC LIMIT {{ $('Prepare Query').first().json.limit }}",
+        "options": {}
+      },
+      "id": "get-knowledge-base",
+      "name": "Get Knowledge Base",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.4,
+      "position": [1100, 500],
+      "credentials": {
+        "postgres": {
+          "id": "postgres-creds",
+          "name": "Supabase Postgres"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "// Assemble brand context from DB results\nconst config = $('Prepare Query').first().json;\nconst brandProfile = $('Get Brand Profile').first().json || {};\nconst knowledgeBase = $('Get Knowledge Base').all().map(i => i.json);\n\n// Categorize knowledge per Manifesto Section 3.2\nconst rules = knowledgeBase.filter(kb => kb.category === 'rule');\nconst positives = knowledgeBase.filter(kb => kb.category === 'positive');\nconst negatives = knowledgeBase.filter(kb => kb.category === 'negative');\n\n// Build context window per Manifesto priority:\n// 1. Negative Constraints (Do Nots) - Most critical\n// 2. Brand Rules (How to sound)\n// 3. Positive Examples (What works)\n\nconst brandContext = {\n  brand_id: config.brand_id,\n  brand_name: brandProfile.brand_name || 'Unknown Brand',\n  tone: brandProfile.tone_of_voice || 'professional',\n  voice_characteristics: brandProfile.voice_characteristics || [],\n  color_palette: brandProfile.color_palette || [],\n  restricted_keywords: brandProfile.restricted_keywords || [],\n  \n  // Prioritized context\n  negative_constraints: negatives.map(n => n.content),\n  brand_rules: rules.map(r => r.content),\n  positive_examples: positives.map(p => p.content),\n  \n  // Metadata\n  guideline_version_id: brandProfile.id || null,\n  retrieved_items: knowledgeBase.length,\n  retrieved_at: new Date().toISOString()\n};\n\nreturn [{\n  json: {\n    brand_context: brandContext,\n    cache_key: config.cache_key,\n    cache_ttl: config.cache_ttl_minutes * 60\n  }\n}];"
+      },
+      "id": "assemble-context",
+      "name": "Assemble Context",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1350, 450]
+    },
+    {
+      "parameters": {
+        "operation": "set",
+        "key": "={{ $json.cache_key }}",
+        "value": "={{ JSON.stringify($json.brand_context) }}",
+        "keyType": "string",
+        "expire": true,
+        "ttl": "={{ $json.cache_ttl }}"
+      },
+      "id": "store-cache",
+      "name": "Store in Cache",
+      "type": "n8n-nodes-base.redis",
+      "typeVersion": 1,
+      "position": [1550, 450],
+      "credentials": {
+        "redis": {
+          "id": "redis-creds",
+          "name": "Redis"
+        }
+      },
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "jsCode": "// Return fresh brand context\nconst assembled = $('Assemble Context').first().json;\n\nreturn [{\n  json: {\n    success: true,\n    source: 'database',\n    brand_id: assembled.brand_context.brand_id,\n    brand_context: assembled.brand_context,\n    cached: true,\n    message: 'Brand context retrieved from database and cached'\n  }\n}];"
+      },
+      "id": "return-fresh",
+      "name": "Return Fresh Context",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1750, 450]
+    },
+    {
+      "parameters": {
+        "mode": "combine",
+        "combineBy": "combineByPosition",
+        "options": {}
+      },
+      "id": "merge-outputs",
+      "name": "Merge Outputs",
+      "type": "n8n-nodes-base.merge",
+      "typeVersion": 2.1,
+      "position": [1950, 300]
+    }
+  ],
+  "connections": {
+    "Start": {
+      "main": [
+        [
+          {
+            "node": "Prepare Query",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Prepare Query": {
+      "main": [
+        [
+          {
+            "node": "Check Cache",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Check Cache": {
+      "main": [
+        [
+          {
+            "node": "Cache Hit?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Cache Hit?": {
+      "main": [
+        [
+          {
+            "node": "Return Cached",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Get Brand Profile",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Get Knowledge Base",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get Brand Profile": {
+      "main": [
+        [
+          {
+            "node": "Assemble Context",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get Knowledge Base": {
+      "main": [
+        [
+          {
+            "node": "Assemble Context",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Assemble Context": {
+      "main": [
+        [
+          {
+            "node": "Store in Cache",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Store in Cache": {
+      "main": [
+        [
+          {
+            "node": "Return Fresh Context",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Return Cached": {
+      "main": [
+        [
+          {
+            "node": "Merge Outputs",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Return Fresh Context": {
+      "main": [
+        [
+          {
+            "node": "Merge Outputs",
+            "type": "main",
+            "index": 1
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "staticData": null,
+  "tags": [
+    {
+      "name": "sub-workflow"
+    },
+    {
+      "name": "rag"
+    },
+    {
+      "name": "phase-4"
+    }
+  ],
+  "triggerCount": 0,
+  "active": false,
+  "pinData": {},
+  "versionId": "1.0.0",
+  "meta": {
+    "instanceId": "brand-infinity-engine",
+    "manifestoSection": "Section 3.2",
+    "description": "RAG retrieval for brand guidelines with Redis caching and prioritized context assembly"
+  }
+}

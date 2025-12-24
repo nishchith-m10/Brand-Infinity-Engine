@@ -1,0 +1,189 @@
+{
+  "name": "Pillar 3: Video Assembly",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "production/assemble",
+        "authentication": "headerAuth",
+        "options": { "responseMode": "responseNode" }
+      },
+      "id": "webhook",
+      "name": "Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1.1,
+      "position": [100, 300],
+      "webhookId": "video-assembly"
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT * FROM generation_jobs WHERE campaign_id = '{{ $json.body.campaign_id }}' AND status = 'downloaded' ORDER BY scene_id",
+        "options": {}
+      },
+      "id": "fetch-scenes",
+      "name": "Fetch Scene Videos",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.4,
+      "position": [300, 300],
+      "credentials": { "postgres": { "id": "postgres-creds", "name": "Supabase Postgres" } }
+    },
+    {
+      "parameters": {
+        "conditions": { "number": [{ "value1": "={{ $json.length || 0 }}", "operation": "larger", "value2": 0 }] }
+      },
+      "id": "has-scenes",
+      "name": "Has Scenes?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [500, 300]
+    },
+    {
+      "parameters": {
+        "jsCode": "// ============================================\n// VIDEO ASSEMBLY PREPARATION\n// Per Manifesto Section 5.8\n// ============================================\n\nconst input = $('Webhook').first().json.body;\nconst scenes = $input.all()[0].json;\n\nconst sceneList = Array.isArray(scenes) ? scenes : [scenes];\n\n// Build FFmpeg concat list\nconst concatList = sceneList.map(scene => ({\n  url: scene.internal_url,\n  duration: scene.duration_seconds || 5\n}));\n\nreturn [{\n  json: {\n    campaign_id: input.campaign_id,\n    scene_count: sceneList.length,\n    scenes: concatList,\n    output_path: `campaigns/${input.campaign_id}/final/assembled.mp4`,\n    total_duration: concatList.reduce((acc, s) => acc + s.duration, 0)\n  }\n}];"
+      },
+      "id": "prep-assembly",
+      "name": "Prepare Assembly",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [700, 200]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $env.VIDEO_PROCESSING_API }}/concat",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ scenes: $json.scenes, output_path: $json.output_path, campaign_id: $json.campaign_id }) }}",
+        "options": { "timeout": 300000 }
+      },
+      "id": "call-concat",
+      "name": "Call Concat API",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.1,
+      "position": [900, 200],
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "conditions": { "boolean": [{ "value1": "={{ !!$json.output_url || !!$json.success }}", "value2": true }] }
+      },
+      "id": "concat-success",
+      "name": "Concat Success?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [1100, 200]
+    },
+    {
+      "parameters": {
+        "operation": "insert",
+        "schema": "public",
+        "table": "videos",
+        "columns": "campaign_id,video_url,duration_seconds,scene_count,status",
+        "additionalFields": {}
+      },
+      "id": "store-video",
+      "name": "Store Final Video",
+      "type": "n8n-nodes-base.supabase",
+      "typeVersion": 1,
+      "position": [1300, 100],
+      "credentials": { "supabaseApi": { "id": "supabase-creds", "name": "Supabase API" } }
+    },
+    {
+      "parameters": {
+        "jsCode": "// Prepare video record\nconst prep = $('Prepare Assembly').first().json;\nconst concat = $('Call Concat API').first().json;\n\nreturn [{\n  json: {\n    campaign_id: prep.campaign_id,\n    video_url: concat.output_url || concat.url,\n    duration_seconds: prep.total_duration,\n    scene_count: prep.scene_count,\n    status: 'assembled'\n  }\n}];"
+      },
+      "id": "prep-store",
+      "name": "Prep Video Record",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1100, 100]
+    },
+    {
+      "parameters": {
+        "workflowId": "={{ $env.RELEASE_LOCK_WORKFLOW_ID }}",
+        "options": {},
+        "inputData": {
+          "table_name": "campaigns",
+          "record_id": "={{ $('Webhook').first().json.body.campaign_id }}",
+          "workflow_id": "={{ $execution.id }}",
+          "final_status": "rendered"
+        }
+      },
+      "id": "release-lock",
+      "name": "Release Lock",
+      "type": "n8n-nodes-base.executeWorkflow",
+      "typeVersion": 1,
+      "position": [1500, 100]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ JSON.stringify({ success: true, campaign_id: $('Webhook').first().json.body.campaign_id, video_id: $('Store Final Video').first().json.id }) }}",
+        "options": { "responseCode": 200 }
+      },
+      "id": "return-success",
+      "name": "Return Success",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [1700, 100]
+    },
+    {
+      "parameters": {
+        "workflowId": "={{ $env.SEND_ALERT_WORKFLOW_ID }}",
+        "options": {},
+        "inputData": {
+          "alert_type": "error",
+          "message": "={{ 'Video assembly failed for campaign ' + $('Webhook').first().json.body.campaign_id }}",
+          "campaign_id": "={{ $('Webhook').first().json.body.campaign_id }}"
+        }
+      },
+      "id": "alert-fail",
+      "name": "Alert Failure",
+      "type": "n8n-nodes-base.executeWorkflow",
+      "typeVersion": 1,
+      "position": [1300, 300]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ JSON.stringify({ success: false, error: 'ASSEMBLY_FAILED' }) }}",
+        "options": { "responseCode": 500 }
+      },
+      "id": "return-fail",
+      "name": "Return Fail",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [1500, 300]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ JSON.stringify({ success: false, error: 'NO_SCENES' }) }}",
+        "options": { "responseCode": 400 }
+      },
+      "id": "return-no-scenes",
+      "name": "Return No Scenes",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [700, 400]
+    }
+  ],
+  "connections": {
+    "Webhook": { "main": [[{ "node": "Fetch Scene Videos", "type": "main", "index": 0 }]] },
+    "Fetch Scene Videos": { "main": [[{ "node": "Has Scenes?", "type": "main", "index": 0 }]] },
+    "Has Scenes?": { "main": [[{ "node": "Prepare Assembly", "type": "main", "index": 0 }], [{ "node": "Return No Scenes", "type": "main", "index": 0 }]] },
+    "Prepare Assembly": { "main": [[{ "node": "Call Concat API", "type": "main", "index": 0 }]] },
+    "Call Concat API": { "main": [[{ "node": "Concat Success?", "type": "main", "index": 0 }]] },
+    "Concat Success?": { "main": [[{ "node": "Prep Video Record", "type": "main", "index": 0 }], [{ "node": "Alert Failure", "type": "main", "index": 0 }]] },
+    "Prep Video Record": { "main": [[{ "node": "Store Final Video", "type": "main", "index": 0 }]] },
+    "Store Final Video": { "main": [[{ "node": "Release Lock", "type": "main", "index": 0 }]] },
+    "Release Lock": { "main": [[{ "node": "Return Success", "type": "main", "index": 0 }]] },
+    "Alert Failure": { "main": [[{ "node": "Return Fail", "type": "main", "index": 0 }]] }
+  },
+  "settings": { "executionOrder": "v1" },
+  "staticData": null,
+  "tags": [{ "name": "main-workflow" }, { "name": "pillar-3" }],
+  "active": false,
+  "meta": { "manifestoSection": "Section 5.8", "description": "Scene concatenation and final video assembly", "nodeCount": 15 }
+}

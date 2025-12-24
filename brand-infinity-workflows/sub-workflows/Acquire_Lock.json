@@ -1,0 +1,177 @@
+{
+  "name": "Sub: Acquire Lock",
+  "nodes": [
+    {
+      "parameters": {},
+      "id": "start-node",
+      "name": "Start",
+      "type": "n8n-nodes-base.executeWorkflowTrigger",
+      "typeVersion": 1,
+      "position": [250, 300]
+    },
+    {
+      "parameters": {
+        "jsCode": "// ============================================\n// ATOMIC LOCK ACQUISITION\n// Sub-Workflow: Acquire_Lock\n// Per Manifesto Section 2, Dimension 2\n// ============================================\n\nconst input = $input.all()[0].json;\n\n// Validate required fields\nif (!input.table_name) throw new Error('table_name is required');\nif (!input.record_id) throw new Error('record_id is required');\nif (!input.workflow_id) throw new Error('workflow_id is required');\n\n// Default lock timeout: 10 minutes (per Manifesto)\nconst lockTimeoutMinutes = input.lock_timeout_minutes || 10;\n\nreturn [{\n  json: {\n    table_name: input.table_name,\n    record_id: input.record_id,\n    id_column: input.id_column || 'id',\n    workflow_id: input.workflow_id,\n    expected_status: input.expected_status || null,\n    target_status: input.target_status || 'processing',\n    lock_timeout_minutes: lockTimeoutMinutes\n  }\n}];"
+      },
+      "id": "validate-input",
+      "name": "Validate Input",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [450, 300]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Build atomic lock query with UPDATE...RETURNING\n// Per Manifesto Section 2, Dimension 2\nconst input = $input.all()[0].json;\n\n// The canonical locking pattern from the Manifesto:\n// UPDATE campaigns \n// SET status = 'processing', \n//     locked_by = $workflow_id, \n//     locked_at = NOW() \n// WHERE id = $campaign_id \n//   AND status = 'pending' \n//   AND (locked_by IS NULL OR locked_at < NOW() - INTERVAL '10 minutes')\n// RETURNING *;\n\nlet whereClause = `${input.id_column} = '${input.record_id}'`;\n\n// Add status check if expected_status is provided\nif (input.expected_status) {\n  whereClause += ` AND status = '${input.expected_status}'`;\n}\n\n// Add stale lock check (zombie protection)\nwhereClause += ` AND (locked_by IS NULL OR locked_at < NOW() - INTERVAL '${input.lock_timeout_minutes} minutes')`;\n\nconst lockQuery = {\n  query: `UPDATE ${input.table_name} SET status = $1, locked_by = $2, locked_at = NOW(), updated_at = NOW() WHERE ${whereClause} RETURNING *`,\n  params: [input.target_status, input.workflow_id]\n};\n\nreturn [{\n  json: {\n    ...input,\n    lock_query: lockQuery\n  }\n}];"
+      },
+      "id": "build-lock-query",
+      "name": "Build Lock Query",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [650, 300]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "={{ $json.lock_query.query }}",
+        "options": {}
+      },
+      "id": "execute-lock",
+      "name": "Execute Atomic Lock",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.4,
+      "position": [850, 300],
+      "credentials": {
+        "postgres": {
+          "id": "postgres-creds",
+          "name": "Supabase Postgres"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "number": [
+            {
+              "value1": "={{ $json.length }}",
+              "operation": "largerEqual",
+              "value2": 1
+            }
+          ]
+        }
+      },
+      "id": "lock-acquired-check",
+      "name": "Lock Acquired?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [1050, 300]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Lock successfully acquired\nconst lockedRecord = $input.all()[0].json[0];\nconst originalInput = $('Validate Input').first().json;\n\nreturn [{\n  json: {\n    success: true,\n    lock_acquired: true,\n    locked_record: lockedRecord,\n    locked_by: originalInput.workflow_id,\n    locked_at: new Date().toISOString(),\n    table_name: originalInput.table_name,\n    record_id: originalInput.record_id,\n    message: 'Lock acquired successfully'\n  }\n}];"
+      },
+      "id": "lock-success",
+      "name": "Lock Success",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1300, 200]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Lock failed - another workflow has the lock or status mismatch\nconst originalInput = $('Validate Input').first().json;\n\nreturn [{\n  json: {\n    success: false,\n    lock_acquired: false,\n    locked_record: null,\n    table_name: originalInput.table_name,\n    record_id: originalInput.record_id,\n    reason: 'Record already locked by another workflow or status mismatch',\n    message: 'Lock not acquired - exit gracefully per Manifesto'\n  }\n}];"
+      },
+      "id": "lock-failed",
+      "name": "Lock Failed",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1300, 400]
+    }
+  ],
+  "connections": {
+    "Start": {
+      "main": [
+        [
+          {
+            "node": "Validate Input",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Validate Input": {
+      "main": [
+        [
+          {
+            "node": "Build Lock Query",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Build Lock Query": {
+      "main": [
+        [
+          {
+            "node": "Execute Atomic Lock",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Execute Atomic Lock": {
+      "main": [
+        [
+          {
+            "node": "Lock Acquired?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Lock Acquired?": {
+      "main": [
+        [
+          {
+            "node": "Lock Success",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Lock Failed",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "staticData": null,
+  "tags": [
+    {
+      "name": "sub-workflow"
+    },
+    {
+      "name": "locking"
+    },
+    {
+      "name": "phase-4"
+    }
+  ],
+  "triggerCount": 0,
+  "active": false,
+  "pinData": {},
+  "versionId": "1.0.0",
+  "meta": {
+    "instanceId": "brand-infinity-engine",
+    "manifestoSection": "Section 2, Dimension 2",
+    "description": "Atomic row locking using UPDATE...RETURNING pattern with zombie protection"
+  }
+}

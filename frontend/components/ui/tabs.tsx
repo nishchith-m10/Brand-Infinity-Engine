@@ -1,60 +1,102 @@
-'use client';
+"use client"
 
-import { useState } from 'react';
-import { cn } from '@/lib/utils';
+import * as React from "react"
+import { motion } from "framer-motion"
+import { cn } from "@/lib/utils"
 
-interface Tab {
-  id: string;
-  label: string;
-  content: React.ReactNode;
-  icon?: React.ReactNode;
-  disabled?: boolean;
-}
+const TabsContext = React.createContext<{
+  value: string
+  onValueChange: (value: string) => void
+} | null>(null)
 
-interface TabsProps {
-  tabs: Tab[];
-  defaultTab?: string;
-  onChange?: (tabId: string) => void;
-  className?: string;
-}
-
-export function Tabs({ tabs, defaultTab, onChange, className }: TabsProps) {
-  const [activeTab, setActiveTab] = useState(defaultTab || tabs[0]?.id);
-
-  const handleTabChange = (tabId: string) => {
-    setActiveTab(tabId);
-    onChange?.(tabId);
-  };
+const Tabs = React.forwardRef<
+  HTMLDivElement,
+  React.HTMLAttributes<HTMLDivElement> & { defaultValue: string; value?: string; onValueChange?: (value: string) => void }
+>(({ className, defaultValue, value, onValueChange, ...props }, ref) => {
+  const [activeTab, setActiveTab] = React.useState(defaultValue)
+  const currentValue = value ?? activeTab
+  const handleValueChange = onValueChange ?? setActiveTab
 
   return (
-    <div className={cn('w-full', className)}>
-      {/* Tab Headers */}
-      <div className="border-b border-gray-200">
-        <nav className="-mb-px flex space-x-8">
-          {tabs.map((tab) => (
-            <button
-              key={tab.id}
-              onClick={() => !tab.disabled && handleTabChange(tab.id)}
-              disabled={tab.disabled}
-              className={cn(
-                'flex items-center gap-2 border-b-2 px-1 py-4 text-sm font-medium transition-colors',
-                activeTab === tab.id
-                  ? 'border-blue-500 text-blue-600'
-                  : 'border-transparent text-gray-500 hover:border-gray-300 hover:text-gray-700',
-                tab.disabled && 'cursor-not-allowed opacity-50'
-              )}
-            >
-              {tab.icon}
-              {tab.label}
-            </button>
-          ))}
-        </nav>
-      </div>
+    <TabsContext.Provider value={{ value: currentValue, onValueChange: handleValueChange }}>
+      <div ref={ref} className={cn("w-full", className)} {...props} />
+    </TabsContext.Provider>
+  )
+})
+Tabs.displayName = "Tabs"
 
-      {/* Tab Content */}
-      <div className="mt-4">
-        {tabs.find((tab) => tab.id === activeTab)?.content}
-      </div>
-    </div>
-  );
-}
+const TabsList = React.forwardRef<
+  HTMLDivElement,
+  React.HTMLAttributes<HTMLDivElement>
+>(({ className, ...props }, ref) => (
+  <div
+    ref={ref}
+    className={cn(
+      "inline-flex h-10 items-center justify-center rounded-lg bg-slate-100 p-1 text-slate-500",
+      className
+    )}
+    {...props}
+  />
+))
+TabsList.displayName = "TabsList"
+
+const TabsTrigger = React.forwardRef<
+  HTMLButtonElement,
+  React.ButtonHTMLAttributes<HTMLButtonElement> & { value: string }
+>(({ className, value, children, ...props }, ref) => {
+  const context = React.useContext(TabsContext)
+  if (!context) throw new Error("TabsTrigger must be used within Tabs")
+  
+  const isActive = context.value === value
+
+  return (
+    <button
+      ref={ref}
+      className={cn(
+        "relative inline-flex items-center justify-center whitespace-nowrap rounded-md px-3 py-1.5 text-sm font-medium ring-offset-background transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50",
+        isActive ? "text-slate-900" : "hover:text-slate-700",
+        className
+      )}
+      onClick={() => context.onValueChange(value)}
+      {...props}
+    >
+        {isActive && (
+            <motion.div
+                layoutId="active-tab-bg"
+                className="absolute inset-0 bg-white rounded-md shadow-sm z-0"
+                transition={{ type: "spring", bounce: 0.2, duration: 0.6 }}
+            />
+        )}
+        <span className="relative z-10">{children}</span>
+    </button>
+  )
+})
+TabsTrigger.displayName = "TabsTrigger"
+
+const TabsContent = React.forwardRef<
+  HTMLDivElement,
+  import("framer-motion").HTMLMotionProps<"div"> & { value: string }
+>(({ className, value, ...props }, ref) => {
+  const context = React.useContext(TabsContext)
+  if (!context) throw new Error("TabsContent must be used within Tabs")
+
+  if (context.value !== value) return null
+
+  return (
+    <motion.div
+        initial={{ opacity: 0, y: 10 }}
+        animate={{ opacity: 1, y: 0 }}
+        exit={{ opacity: 0, y: 10 }}
+        transition={{ duration: 0.3, ease: "easeOut" }}
+        ref={ref}
+        className={cn(
+            "mt-2 ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2",
+            className
+        )}
+        {...props}
+    />
+  )
+})
+TabsContent.displayName = "TabsContent"
+
+export { Tabs, TabsList, TabsTrigger, TabsContent }

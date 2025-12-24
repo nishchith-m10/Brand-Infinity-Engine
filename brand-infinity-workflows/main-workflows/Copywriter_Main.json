@@ -1,0 +1,573 @@
+{
+  "name": "Pillar 2: Copywriter Main",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "copywriter",
+        "authentication": "headerAuth",
+        "options": {
+          "responseMode": "responseNode"
+        }
+      },
+      "id": "webhook-trigger",
+      "name": "Webhook Trigger",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1.1,
+      "position": [100, 400],
+      "webhookId": "copywriter-main"
+    },
+    {
+      "parameters": {
+        "workflowId": "={{ $env.VALIDATE_SCHEMA_WORKFLOW_ID }}",
+        "options": {},
+        "inputData": {
+          "data": "={{ $json.body }}",
+          "schema": {
+            "type": "object",
+            "required": ["campaign_id", "brief_id", "brand_id"],
+            "properties": {
+              "campaign_id": { "type": "string" },
+              "brief_id": { "type": "string" },
+              "brand_id": { "type": "string" },
+              "target_duration": { "type": "number", "minimum": 15, "maximum": 180 },
+              "platform": { "type": "string", "enum": ["tiktok", "instagram", "youtube_shorts", "youtube"] }
+            }
+          },
+          "schema_name": "CopywriterRequest"
+        }
+      },
+      "id": "validate-request",
+      "name": "Validate Request Schema",
+      "type": "n8n-nodes-base.executeWorkflow",
+      "typeVersion": 1,
+      "position": [300, 400]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "boolean": [
+            {
+              "value1": "={{ $json.success }}",
+              "value2": true
+            }
+          ]
+        }
+      },
+      "id": "validation-check",
+      "name": "Validation Passed?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [500, 400]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ JSON.stringify({ error: true, code: 'ERR_VALIDATION_FAILED', message: $json.message }) }}",
+        "options": { "responseCode": 400 }
+      },
+      "id": "return-validation-error",
+      "name": "Return 400 Error",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [700, 550]
+    },
+    {
+      "parameters": {
+        "workflowId": "={{ $env.ACQUIRE_LOCK_WORKFLOW_ID }}",
+        "options": {},
+        "inputData": {
+          "table_name": "campaigns",
+          "record_id": "={{ $('Webhook Trigger').first().json.body.campaign_id }}",
+          "workflow_id": "={{ $execution.id }}",
+          "expected_status": "strategized",
+          "target_status": "scripting"
+        }
+      },
+      "id": "acquire-lock",
+      "name": "Acquire Campaign Lock",
+      "type": "n8n-nodes-base.executeWorkflow",
+      "typeVersion": 1,
+      "position": [700, 300]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "boolean": [{ "value1": "={{ $json.lock_acquired }}", "value2": true }]
+        }
+      },
+      "id": "lock-check",
+      "name": "Lock Acquired?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [900, 300]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ JSON.stringify({ error: true, code: 'ERR_LOCK_FAILED' }) }}",
+        "options": { "responseCode": 409 }
+      },
+      "id": "return-lock-error",
+      "name": "Return 409 Conflict",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [1100, 450]
+    },
+    {
+      "parameters": {
+        "operation": "select",
+        "schema": "public",
+        "table": "creative_briefs",
+        "filterType": "string",
+        "filterString": "id=eq.{{ $('Webhook Trigger').first().json.body.brief_id }}",
+        "limit": 1
+      },
+      "id": "load-brief",
+      "name": "Load Creative Brief",
+      "type": "n8n-nodes-base.supabase",
+      "typeVersion": 1,
+      "position": [1100, 200],
+      "credentials": { "supabaseApi": { "id": "supabase-creds", "name": "Supabase API" } }
+    },
+    {
+      "parameters": {
+        "workflowId": "={{ $env.GET_BRAND_CONTEXT_WORKFLOW_ID }}",
+        "options": {},
+        "inputData": {
+          "brand_id": "={{ $('Webhook Trigger').first().json.body.brand_id }}",
+          "query_context": "script writing",
+          "limit": 8
+        }
+      },
+      "id": "get-brand-context",
+      "name": "Get Brand Context",
+      "type": "n8n-nodes-base.executeWorkflow",
+      "typeVersion": 1,
+      "position": [1100, 100]
+    },
+    {
+      "parameters": {
+        "jsCode": "// ============================================\n// ASSEMBLE SCRIPT GENERATION CONTEXT\n// Per Manifesto Section 4.1\n// ============================================\n\nconst input = $('Webhook Trigger').first().json.body;\nconst brief = $('Load Creative Brief').first().json;\nconst brandContext = $('Get Brand Context').first().json.brand_context;\n\n// Parse strategy from brief\nlet strategy = {};\ntry {\n  strategy = typeof brief.strategy_data === 'string' ? JSON.parse(brief.strategy_data) : brief.strategy_data || {};\n} catch (e) {\n  strategy = { creative_direction: brief.strategy_data };\n}\n\nreturn [{\n  json: {\n    campaign_id: input.campaign_id,\n    brief_id: input.brief_id,\n    brand_id: input.brand_id,\n    target_duration: input.target_duration || 30,\n    platform: input.platform || 'tiktok',\n    execution_id: $execution.id,\n    \n    // Strategy from brief\n    creative_direction: strategy.creative_direction || '',\n    hook_concept: strategy.hook_concept || '',\n    target_emotion: strategy.target_emotion || '',\n    call_to_action: strategy.call_to_action || '',\n    recommended_trend: strategy.recommended_trend || {},\n    \n    // Brand context for ToV injection\n    brand_name: brandContext?.brand_name || 'Brand',\n    brand_tone: brandContext?.tone || 'energetic',\n    brand_rules: brandContext?.brand_rules || [],\n    negative_constraints: brandContext?.negative_constraints || [],\n    positive_examples: brandContext?.positive_examples || [],\n    \n    // Critic loop config\n    iteration: 0,\n    max_iterations: 3,\n    target_score: 85\n  }\n}];"
+      },
+      "id": "assemble-context",
+      "name": "Assemble Script Context",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1350, 150]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.openai.com/v1/chat/completions",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ model: 'gpt-4o', messages: [{ role: 'system', content: 'You are a Viral Scriptwriter for ' + $json.platform.toUpperCase() + ' with 10M+ views track record. Brand: ' + $json.brand_name + '. Voice: ' + $json.brand_tone + '. NEVER mention: ' + ($json.negative_constraints || []).join(', ') + '. Write a ' + $json.target_duration + '-second script. Structure: Hook (0-3s stop the scroll), Value (deliver insight), CTA (urgent action). Output JSON: {\"hook\": \"...\", \"scenes\": [{\"visual_prompt\": \"...\", \"voiceover\": \"...\", \"duration_seconds\": N}], \"total_duration\": N, \"cta\": \"...\"}' }, { role: 'user', content: 'Creative Direction: ' + $json.creative_direction + '. Hook Concept: ' + ($json.hook_concept || 'curiosity gap') + '. Target Emotion: ' + ($json.target_emotion || 'excitement') + '. CTA: ' + ($json.call_to_action || 'Follow for more') }], temperature: 0.8, max_tokens: 1500 }) }}",
+        "options": { "timeout": 90000 }
+      },
+      "id": "generate-script",
+      "name": "Generate Script (LLM)",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.1,
+      "position": [1600, 150],
+      "credentials": { "httpHeaderAuth": { "id": "openai-creds", "name": "OpenAI API" } },
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "jsCode": "// Parse script and calculate cost\nconst context = $('Assemble Script Context').first().json;\nconst response = $input.all()[0].json;\n\nif (response.error) {\n  return [{ json: { success: false, error: 'LLM_ERROR', error_details: response.error, campaign_id: context.campaign_id } }];\n}\n\nlet script = null;\ntry {\n  const content = response.choices[0].message.content;\n  const jsonMatch = content.match(/\\{[\\s\\S]*\\}/);\n  script = jsonMatch ? JSON.parse(jsonMatch[0]) : { hook: content };\n} catch (e) {\n  script = { hook: response.choices[0].message.content, scenes: [], raw: true };\n}\n\nconst usage = response.usage || {};\nconst costUsd = (usage.prompt_tokens * 0.0000025) + (usage.completion_tokens * 0.00001);\n\nreturn [{\n  json: {\n    success: true,\n    script: script,\n    context: context,\n    cost_data: {\n      provider: 'openai',\n      model: 'gpt-4o',\n      tokens_in: usage.prompt_tokens || 0,\n      tokens_out: usage.completion_tokens || 0,\n      cost_usd: costUsd,\n      purpose: 'script_generation',\n      campaign_id: context.campaign_id,\n      execution_id: context.execution_id\n    }\n  }\n}];"
+      },
+      "id": "parse-script",
+      "name": "Parse Script & Cost",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1850, 150]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "boolean": [{ "value1": "={{ $json.success }}", "value2": true }]
+        }
+      },
+      "id": "script-success",
+      "name": "Script Generated?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [2050, 150]
+    },
+    {
+      "parameters": {
+        "workflowId": "={{ $env.LOG_COST_EVENT_WORKFLOW_ID }}",
+        "options": {},
+        "inputData": "={{ $json.cost_data }}"
+      },
+      "id": "log-gen-cost",
+      "name": "Log Generation Cost",
+      "type": "n8n-nodes-base.executeWorkflow",
+      "typeVersion": 1,
+      "position": [2300, 50]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.openai.com/v1/chat/completions",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ model: 'gpt-4o', messages: [{ role: 'system', content: 'You are a harsh Senior Editor at a viral content agency. Grade scripts 0-100. Rubric: Hook (30%): stops scroll in 0-3s? Value (25%): clear insight? CTA (20%): obvious action? Brand Voice (15%): matches tone? Conciseness (10%): no wasted words? Output JSON: {\"score\": N, \"breakdown\": {\"hook\": N, \"value\": N, \"cta\": N, \"brand_voice\": N, \"conciseness\": N}, \"critique\": \"...\", \"improved_hook\": \"...if score<85\"}' }, { role: 'user', content: 'Script to grade: ' + JSON.stringify($json.script) + '. Brand tone: ' + $json.context.brand_tone + '. Target duration: ' + $json.context.target_duration + 's' }], temperature: 0.3, max_tokens: 800 }) }}",
+        "options": { "timeout": 60000 }
+      },
+      "id": "critic-evaluation",
+      "name": "Critic Evaluation (LLM)",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.1,
+      "position": [2300, 150],
+      "credentials": { "httpHeaderAuth": { "id": "openai-creds", "name": "OpenAI API" } },
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "jsCode": "// Parse critic response per Manifesto Section 4.1 - Recursive Critic Loop\nconst scriptData = $('Parse Script & Cost').first().json;\nconst response = $input.all()[0].json;\n\nlet critique = { score: 50 };\ntry {\n  const content = response.choices[0].message.content;\n  const jsonMatch = content.match(/\\{[\\s\\S]*\\}/);\n  critique = jsonMatch ? JSON.parse(jsonMatch[0]) : { score: 50, critique: content };\n} catch (e) {\n  critique = { score: 50, critique: 'Failed to parse critic response' };\n}\n\nconst usage = response.usage || {};\nconst criticCost = (usage.prompt_tokens * 0.0000025) + (usage.completion_tokens * 0.00001);\n\nconst context = scriptData.context;\nconst iteration = context.iteration + 1;\nconst score = critique.score || 50;\nconst passedThreshold = score >= context.target_score;\nconst canRetry = iteration < context.max_iterations;\n\nreturn [{\n  json: {\n    script: scriptData.script,\n    critique: critique,\n    score: score,\n    passed: passedThreshold,\n    iteration: iteration,\n    max_iterations: context.max_iterations,\n    should_retry: !passedThreshold && canRetry,\n    context: context,\n    improved_hook: critique.improved_hook || null,\n    critic_cost: {\n      provider: 'openai',\n      model: 'gpt-4o',\n      tokens_in: usage.prompt_tokens || 0,\n      tokens_out: usage.completion_tokens || 0,\n      cost_usd: criticCost,\n      purpose: 'script_critique',\n      campaign_id: context.campaign_id,\n      execution_id: context.execution_id\n    }\n  }\n}];"
+      },
+      "id": "parse-critique",
+      "name": "Parse Critique",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [2550, 150]
+    },
+    {
+      "parameters": {
+        "workflowId": "={{ $env.LOG_COST_EVENT_WORKFLOW_ID }}",
+        "options": {},
+        "inputData": "={{ $json.critic_cost }}"
+      },
+      "id": "log-critic-cost",
+      "name": "Log Critic Cost",
+      "type": "n8n-nodes-base.executeWorkflow",
+      "typeVersion": 1,
+      "position": [2750, 50]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "boolean": [{ "value1": "={{ $json.passed }}", "value2": true }]
+        }
+      },
+      "id": "score-check",
+      "name": "Score >= 85?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [2800, 150]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "boolean": [{ "value1": "={{ $json.should_retry }}", "value2": true }]
+        }
+      },
+      "id": "retry-check",
+      "name": "Should Retry?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [3000, 300]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Prepare for retry with critic feedback\nconst data = $input.all()[0].json;\n\n// Per Manifesto: Use improved_hook if provided\nconst updatedContext = {\n  ...data.context,\n  iteration: data.iteration,\n  hook_concept: data.improved_hook || data.context.hook_concept,\n  previous_critique: data.critique.critique\n};\n\nreturn [{ json: updatedContext }];"
+      },
+      "id": "prep-retry",
+      "name": "Prepare Retry",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [3200, 200]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Brand Safety Filter per Manifesto Section 4.4\nconst data = $input.all()[0].json;\nconst script = data.script;\nconst scriptText = JSON.stringify(script).toLowerCase();\nconst context = data.context;\n\n// Check for brand safety violations\nconst violations = [];\n\n// Check negative constraints\nfor (const keyword of (context.negative_constraints || [])) {\n  if (scriptText.includes(keyword.toLowerCase())) {\n    violations.push(`Contains restricted keyword: ${keyword}`);\n  }\n}\n\n// Check for profanity/offensive content (basic check)\nconst profanityList = ['damn', 'hell', 'crap', 'stupid', 'idiot'];\nfor (const word of profanityList) {\n  if (scriptText.includes(word)) {\n    violations.push(`Contains potentially offensive word: ${word}`);\n  }\n}\n\nconst isSafe = violations.length === 0;\n\nreturn [{\n  json: {\n    is_safe: isSafe,\n    violations: violations,\n    script: script,\n    critique: data.critique,\n    score: data.score,\n    context: context,\n    campaign_id: context.campaign_id\n  }\n}];"
+      },
+      "id": "brand-safety-filter",
+      "name": "Brand Safety Filter",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [3050, 50]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "boolean": [{ "value1": "={{ $json.is_safe }}", "value2": true }]
+        }
+      },
+      "id": "safety-check",
+      "name": "Passed Safety?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [3250, 50]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Prepare script for storage\nconst data = $input.all()[0].json;\n\nreturn [{\n  json: {\n    campaign_id: data.campaign_id,\n    brief_id: data.context.brief_id,\n    script_content: JSON.stringify(data.script),\n    hook: data.script.hook || '',\n    scenes: JSON.stringify(data.script.scenes || []),\n    critic_score: data.score,\n    target_duration: data.context.target_duration,\n    platform: data.context.platform,\n    status: 'approved'\n  }\n}];"
+      },
+      "id": "prep-storage",
+      "name": "Prep Script Storage",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [3450, -50]
+    },
+    {
+      "parameters": {
+        "operation": "insert",
+        "schema": "public",
+        "table": "scripts",
+        "columns": "campaign_id,brief_id,script_content,hook,scenes,critic_score,target_duration,platform,status",
+        "additionalFields": {}
+      },
+      "id": "store-script",
+      "name": "Store Script",
+      "type": "n8n-nodes-base.supabase",
+      "typeVersion": 1,
+      "position": [3650, -50],
+      "credentials": { "supabaseApi": { "id": "supabase-creds", "name": "Supabase API" } }
+    },
+    {
+      "parameters": {
+        "workflowId": "={{ $env.RELEASE_LOCK_WORKFLOW_ID }}",
+        "options": {},
+        "inputData": {
+          "table_name": "campaigns",
+          "record_id": "={{ $('Webhook Trigger').first().json.body.campaign_id }}",
+          "workflow_id": "={{ $execution.id }}",
+          "final_status": "scripted"
+        }
+      },
+      "id": "release-lock-success",
+      "name": "Release Lock (Success)",
+      "type": "n8n-nodes-base.executeWorkflow",
+      "typeVersion": 1,
+      "position": [3850, -50]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ JSON.stringify({ success: true, campaign_id: $('Webhook Trigger').first().json.body.campaign_id, script_id: $('Store Script').first().json.id, critic_score: $('Parse Critique').first().json.score }) }}",
+        "options": { "responseCode": 200 }
+      },
+      "id": "return-success",
+      "name": "Return Success",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [4050, -50]
+    },
+    {
+      "parameters": {
+        "workflowId": "={{ $env.SEND_ALERT_WORKFLOW_ID }}",
+        "options": {},
+        "inputData": {
+          "alert_type": "error",
+          "message": "={{ 'Brand safety violation in campaign ' + $json.campaign_id + ': ' + $json.violations.join('; ') }}",
+          "campaign_id": "={{ $json.campaign_id }}",
+          "context": "={{ { violations: $json.violations } }}"
+        }
+      },
+      "id": "alert-safety",
+      "name": "Alert: Safety Violation",
+      "type": "n8n-nodes-base.executeWorkflow",
+      "typeVersion": 1,
+      "position": [3450, 150]
+    },
+    {
+      "parameters": {
+        "workflowId": "={{ $env.RELEASE_LOCK_WORKFLOW_ID }}",
+        "options": {},
+        "inputData": {
+          "table_name": "campaigns",
+          "record_id": "={{ $('Webhook Trigger').first().json.body.campaign_id }}",
+          "workflow_id": "={{ $execution.id }}",
+          "final_status": "safety_failed"
+        }
+      },
+      "id": "release-lock-safety",
+      "name": "Release Lock (Safety)",
+      "type": "n8n-nodes-base.executeWorkflow",
+      "typeVersion": 1,
+      "position": [3650, 150]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ JSON.stringify({ success: false, error: 'ERR_LLM_REFUSAL', violations: $json.violations, campaign_id: $json.campaign_id }) }}",
+        "options": { "responseCode": 422 }
+      },
+      "id": "return-safety-error",
+      "name": "Return Safety Error",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [3850, 150]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Max retries reached but score still low\nconst data = $input.all()[0].json;\n\nreturn [{\n  json: {\n    campaign_id: data.context.campaign_id,\n    final_score: data.score,\n    iterations: data.iteration,\n    script: data.script,\n    context: data.context,\n    message: 'Script accepted with low score after max retries'\n  }\n}];"
+      },
+      "id": "accept-low-score",
+      "name": "Accept Low Score",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [3200, 400]
+    },
+    {
+      "parameters": {
+        "workflowId": "={{ $env.RELEASE_LOCK_WORKFLOW_ID }}",
+        "options": {},
+        "inputData": {
+          "table_name": "campaigns",
+          "record_id": "={{ $('Webhook Trigger').first().json.body.campaign_id }}",
+          "workflow_id": "={{ $execution.id }}",
+          "final_status": "script_failed"
+        }
+      },
+      "id": "release-lock-failed",
+      "name": "Release Lock (Failed)",
+      "type": "n8n-nodes-base.executeWorkflow",
+      "typeVersion": 1,
+      "position": [2250, 350]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ JSON.stringify({ success: false, error: 'ERR_LLM_FAILURE' }) }}",
+        "options": { "responseCode": 500 }
+      },
+      "id": "return-llm-error",
+      "name": "Return LLM Error",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [2450, 350]
+    }
+  ],
+  "connections": {
+    "Webhook Trigger": {
+      "main": [[{ "node": "Validate Request Schema", "type": "main", "index": 0 }]]
+    },
+    "Validate Request Schema": {
+      "main": [[{ "node": "Validation Passed?", "type": "main", "index": 0 }]]
+    },
+    "Validation Passed?": {
+      "main": [
+        [{ "node": "Acquire Campaign Lock", "type": "main", "index": 0 }],
+        [{ "node": "Return 400 Error", "type": "main", "index": 0 }]
+      ]
+    },
+    "Acquire Campaign Lock": {
+      "main": [[{ "node": "Lock Acquired?", "type": "main", "index": 0 }]]
+    },
+    "Lock Acquired?": {
+      "main": [
+        [
+          { "node": "Load Creative Brief", "type": "main", "index": 0 },
+          { "node": "Get Brand Context", "type": "main", "index": 0 }
+        ],
+        [{ "node": "Return 409 Conflict", "type": "main", "index": 0 }]
+      ]
+    },
+    "Load Creative Brief": {
+      "main": [[{ "node": "Assemble Script Context", "type": "main", "index": 0 }]]
+    },
+    "Get Brand Context": {
+      "main": [[{ "node": "Assemble Script Context", "type": "main", "index": 0 }]]
+    },
+    "Assemble Script Context": {
+      "main": [[{ "node": "Generate Script (LLM)", "type": "main", "index": 0 }]]
+    },
+    "Generate Script (LLM)": {
+      "main": [[{ "node": "Parse Script & Cost", "type": "main", "index": 0 }]]
+    },
+    "Parse Script & Cost": {
+      "main": [[{ "node": "Script Generated?", "type": "main", "index": 0 }]]
+    },
+    "Script Generated?": {
+      "main": [
+        [
+          { "node": "Log Generation Cost", "type": "main", "index": 0 },
+          { "node": "Critic Evaluation (LLM)", "type": "main", "index": 0 }
+        ],
+        [{ "node": "Release Lock (Failed)", "type": "main", "index": 0 }]
+      ]
+    },
+    "Release Lock (Failed)": {
+      "main": [[{ "node": "Return LLM Error", "type": "main", "index": 0 }]]
+    },
+    "Critic Evaluation (LLM)": {
+      "main": [[{ "node": "Parse Critique", "type": "main", "index": 0 }]]
+    },
+    "Parse Critique": {
+      "main": [
+        [
+          { "node": "Log Critic Cost", "type": "main", "index": 0 },
+          { "node": "Score >= 85?", "type": "main", "index": 0 }
+        ]
+      ]
+    },
+    "Score >= 85?": {
+      "main": [
+        [{ "node": "Brand Safety Filter", "type": "main", "index": 0 }],
+        [{ "node": "Should Retry?", "type": "main", "index": 0 }]
+      ]
+    },
+    "Should Retry?": {
+      "main": [
+        [{ "node": "Prepare Retry", "type": "main", "index": 0 }],
+        [{ "node": "Accept Low Score", "type": "main", "index": 0 }]
+      ]
+    },
+    "Prepare Retry": {
+      "main": [[{ "node": "Generate Script (LLM)", "type": "main", "index": 0 }]]
+    },
+    "Accept Low Score": {
+      "main": [[{ "node": "Brand Safety Filter", "type": "main", "index": 0 }]]
+    },
+    "Brand Safety Filter": {
+      "main": [[{ "node": "Passed Safety?", "type": "main", "index": 0 }]]
+    },
+    "Passed Safety?": {
+      "main": [
+        [{ "node": "Prep Script Storage", "type": "main", "index": 0 }],
+        [{ "node": "Alert: Safety Violation", "type": "main", "index": 0 }]
+      ]
+    },
+    "Alert: Safety Violation": {
+      "main": [[{ "node": "Release Lock (Safety)", "type": "main", "index": 0 }]]
+    },
+    "Release Lock (Safety)": {
+      "main": [[{ "node": "Return Safety Error", "type": "main", "index": 0 }]]
+    },
+    "Prep Script Storage": {
+      "main": [[{ "node": "Store Script", "type": "main", "index": 0 }]]
+    },
+    "Store Script": {
+      "main": [[{ "node": "Release Lock (Success)", "type": "main", "index": 0 }]]
+    },
+    "Release Lock (Success)": {
+      "main": [[{ "node": "Return Success", "type": "main", "index": 0 }]]
+    }
+  },
+  "settings": { "executionOrder": "v1" },
+  "staticData": null,
+  "tags": [
+    { "name": "main-workflow" },
+    { "name": "pillar-2" },
+    { "name": "copywriter" },
+    { "name": "phase-4" }
+  ],
+  "triggerCount": 1,
+  "active": false,
+  "pinData": {},
+  "versionId": "1.0.0",
+  "meta": {
+    "instanceId": "brand-infinity-engine",
+    "manifestoSection": "Section 4 - Pillar 2",
+    "description": "Copywriter workflow with recursive critic loop, brand safety filter, and ToV injection",
+    "nodeCount": 35
+  }
+}

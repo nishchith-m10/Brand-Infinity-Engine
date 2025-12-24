@@ -1,16 +1,15 @@
-'use client';
+import * as React from "react"
+import { cn } from "@/lib/utils"
 
-import { forwardRef, InputHTMLAttributes } from 'react';
-import { cn } from '@/lib/utils';
-
-export interface InputProps extends InputHTMLAttributes<HTMLInputElement> {
+export interface InputProps
+  extends React.InputHTMLAttributes<HTMLInputElement> {
   label?: string;
   error?: string;
   helperText?: string;
 }
 
-const Input = forwardRef<HTMLInputElement, InputProps>(
-  ({ className, label, error, helperText, type = 'text', ...props }, ref) => {
+const Input = React.forwardRef<HTMLInputElement, InputProps>(
+  ({ className, type, label, error, helperText, ...props }, ref) => {
     return (
       <div className="w-full">
         {label && (
@@ -21,10 +20,8 @@ const Input = forwardRef<HTMLInputElement, InputProps>(
         <input
           type={type}
           className={cn(
-            'flex h-10 w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm placeholder:text-gray-400',
-            'focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500/20',
-            'disabled:cursor-not-allowed disabled:opacity-50',
-            error && 'border-red-500 focus:border-red-500 focus:ring-red-500/20',
+            "flex h-10 w-full rounded-md border border-slate-200 bg-background px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/20 focus-visible:border-ring disabled:cursor-not-allowed disabled:opacity-50 transition-all duration-200",
+            error && "border-red-500 focus-visible:ring-red-500/20",
             className
           )}
           ref={ref}
@@ -35,10 +32,9 @@ const Input = forwardRef<HTMLInputElement, InputProps>(
           <p className="mt-1.5 text-sm text-gray-500">{helperText}</p>
         )}
       </div>
-    );
+    )
   }
-);
+)
+Input.displayName = "Input"
 
-Input.displayName = 'Input';
-
-export { Input };
+export { Input }

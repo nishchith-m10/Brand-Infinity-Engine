@@ -1,73 +1,86 @@
-'use client';
+import * as React from "react"
+import { Slot } from "@radix-ui/react-slot"
+import { cva, type VariantProps } from "class-variance-authority"
+import { motion } from "framer-motion"
 
-import { forwardRef, ButtonHTMLAttributes } from 'react';
-import { Loader2 } from 'lucide-react';
-import { cn } from '@/lib/utils';
+import { cn } from "@/lib/utils"
 
-export interface ButtonProps extends ButtonHTMLAttributes<HTMLButtonElement> {
-  variant?: 'primary' | 'secondary' | 'outline' | 'ghost' | 'danger';
-  size?: 'sm' | 'md' | 'lg';
-  isLoading?: boolean;
-  leftIcon?: React.ReactNode;
-  rightIcon?: React.ReactNode;
+const buttonVariants = cva(
+  "inline-flex items-center justify-center whitespace-nowrap rounded-lg text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50 active:scale-95",
+  {
+    variants: {
+      variant: {
+        default:
+          "bg-primary text-primary-foreground shadow-md hover:bg-primary/90 hover:shadow-lg transition-all",
+        destructive:
+          "bg-red-500 text-white shadow-sm hover:bg-red-500/90",
+        outline:
+          "border border-slate-300 bg-white text-slate-700 shadow-sm hover:bg-slate-50 hover:text-slate-900",
+        secondary:
+          "bg-slate-100 text-slate-900 shadow-sm hover:bg-slate-200/80",
+        ghost: "hover:bg-slate-100 hover:text-slate-900",
+        link: "text-primary underline-offset-4 hover:underline",
+      },
+      size: {
+        default: "h-9 px-4 py-2",
+        sm: "h-8 rounded-md px-3 text-xs",
+        lg: "h-10 rounded-md px-8",
+        icon: "h-9 w-9",
+      },
+    },
+    defaultVariants: {
+      variant: "default",
+      size: "default",
+    },
+  }
+)
+
+import { Loader2 } from "lucide-react"
+
+export interface ButtonProps
+  extends React.ButtonHTMLAttributes<HTMLButtonElement>,
+    VariantProps<typeof buttonVariants> {
+  asChild?: boolean
+  isLoading?: boolean
 }
 
-const Button = forwardRef<HTMLButtonElement, ButtonProps>(
-  (
-    {
-      className,
-      variant = 'primary',
-      size = 'md',
-      isLoading = false,
-      leftIcon,
-      rightIcon,
-      children,
-      disabled,
-      ...props
-    },
-    ref
-  ) => {
-    const baseStyles =
-      'inline-flex items-center justify-center font-medium transition-colors focus:outline-none focus:ring-2 focus:ring-offset-2 disabled:opacity-50 disabled:pointer-events-none rounded-lg';
-
-    const variants = {
-      primary:
-        'bg-blue-600 text-white hover:bg-blue-700 focus:ring-blue-500',
-      secondary:
-        'bg-gray-100 text-gray-900 hover:bg-gray-200 focus:ring-gray-500',
-      outline:
-        'border border-gray-300 bg-transparent text-gray-700 hover:bg-gray-50 focus:ring-gray-500',
-      ghost:
-        'bg-transparent text-gray-700 hover:bg-gray-100 focus:ring-gray-500',
-      danger:
-        'bg-red-600 text-white hover:bg-red-700 focus:ring-red-500',
-    };
-
-    const sizes = {
-      sm: 'h-8 px-3 text-sm gap-1.5',
-      md: 'h-10 px-4 text-sm gap-2',
-      lg: 'h-12 px-6 text-base gap-2',
-    };
+// Wrap with motion
+const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(
+  ({ className, variant, size, asChild = false, isLoading = false, children, disabled, ...props }, ref) => {
+    const Comp = asChild ? Slot : "button"
+    
+    // We can't easily animate Slot if the child isn't motion aware, 
+    // so we apply classes mostly. For motion effects, we use motion.button if not asChild
+    if (!asChild) {
+        const MotionComp = motion.button as React.ElementType;
+        return (
+            <MotionComp
+                ref={ref}
+                whileHover={{ scale: 1.02 }}
+                whileTap={{ scale: 0.98 }}
+                disabled={isLoading || disabled}
+                className={cn(buttonVariants({ variant, size, className }))}
+                {...props}
+            >
+                {isLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                {children}
+            </MotionComp>
+        )
+    }
 
     return (
-      <button
+      <Comp
+        className={cn(buttonVariants({ variant, size, className }))}
         ref={ref}
-        className={cn(baseStyles, variants[variant], sizes[size], className)}
-        disabled={disabled || isLoading}
+        disabled={isLoading || disabled}
         {...props}
       >
-        {isLoading ? (
-          <Loader2 className="h-4 w-4 animate-spin" />
-        ) : (
-          leftIcon
-        )}
+        {isLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
         {children}
-        {!isLoading && rightIcon}
-      </button>
-    );
+      </Comp>
+    )
   }
-);
+)
+Button.displayName = "Button"
 
-Button.displayName = 'Button';
-
-export { Button };
+export { Button, buttonVariants }

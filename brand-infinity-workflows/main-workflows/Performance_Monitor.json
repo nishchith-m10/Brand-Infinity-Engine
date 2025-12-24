@@ -1,0 +1,143 @@
+{
+  "name": "Monitor: Performance Monitor",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": { "interval": [{ "field": "hours", "hoursInterval": 24 }] }
+      },
+      "id": "cron",
+      "name": "Daily",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.1,
+      "position": [100, 300]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT pillar, provider, COUNT(*) as calls, SUM(cost_usd) as total_cost, AVG(cost_usd) as avg_cost FROM cost_ledger WHERE created_at > NOW() - INTERVAL '24 hours' GROUP BY pillar, provider ORDER BY total_cost DESC",
+        "options": {}
+      },
+      "id": "get-costs",
+      "name": "Get Cost Summary",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.4,
+      "position": [300, 200],
+      "credentials": { "postgres": { "id": "postgres-creds", "name": "Supabase Postgres" } }
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT status, COUNT(*) as count FROM campaigns WHERE created_at > NOW() - INTERVAL '24 hours' GROUP BY status",
+        "options": {}
+      },
+      "id": "get-campaigns",
+      "name": "Get Campaign Stats",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.4,
+      "position": [300, 350],
+      "credentials": { "postgres": { "id": "postgres-creds", "name": "Supabase Postgres" } }
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT provider, status, COUNT(*) as count, AVG(EXTRACT(EPOCH FROM (completed_at - submitted_at))) as avg_seconds FROM generation_jobs WHERE submitted_at > NOW() - INTERVAL '24 hours' GROUP BY provider, status",
+        "options": {}
+      },
+      "id": "get-jobs",
+      "name": "Get Job Stats",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.4,
+      "position": [300, 500],
+      "credentials": { "postgres": { "id": "postgres-creds", "name": "Supabase Postgres" } }
+    },
+    {
+      "parameters": {
+        "mode": "combine",
+        "combineBy": "combineAll",
+        "options": {}
+      },
+      "id": "merge",
+      "name": "Merge Stats",
+      "type": "n8n-nodes-base.merge",
+      "typeVersion": 2.1,
+      "position": [550, 350]
+    },
+    {
+      "parameters": {
+        "jsCode": "// ============================================\n// BUILD PERFORMANCE REPORT\n// Per Manifesto Section 12.3\n// ============================================\n\nconst items = $input.all();\n\n// Parse merged data\nlet costs = [];\nlet campaigns = [];\nlet jobs = [];\n\nfor (const item of items) {\n  const data = item.json;\n  if (Array.isArray(data)) {\n    // Try to categorize\n    if (data[0]?.pillar) costs = data;\n    else if (data[0]?.provider && data[0]?.avg_seconds) jobs = data;\n    else if (data[0]?.status && data[0]?.count) campaigns = data;\n  }\n}\n\nconst totalCost = costs.reduce((acc, c) => acc + parseFloat(c.total_cost || 0), 0);\nconst campaignSuccess = campaigns.find(c => c.status === 'published')?.count || 0;\nconst campaignFailed = campaigns.find(c => c.status === 'failed')?.count || 0;\nconst campaignTotal = campaigns.reduce((acc, c) => acc + parseInt(c.count || 0), 0);\n\nconst report = {\n  date: new Date().toISOString().split('T')[0],\n  summary: {\n    total_cost_usd: Math.round(totalCost * 100) / 100,\n    campaigns_created: campaignTotal,\n    campaigns_published: campaignSuccess,\n    campaigns_failed: campaignFailed,\n    success_rate: campaignTotal > 0 ? Math.round((campaignSuccess / campaignTotal) * 100) : 0\n  },\n  cost_breakdown: costs,\n  campaign_breakdown: campaigns,\n  job_performance: jobs\n};\n\nreturn [{ json: report }];"
+      },
+      "id": "build-report",
+      "name": "Build Report",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [750, 350]
+    },
+    {
+      "parameters": {
+        "conditions": { "number": [{ "value1": "={{ $json.summary.total_cost_usd }}", "operation": "larger", "value2": 100 }] }
+      },
+      "id": "cost-alert",
+      "name": "High Cost?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [950, 350]
+    },
+    {
+      "parameters": {
+        "workflowId": "={{ $env.SEND_ALERT_WORKFLOW_ID }}",
+        "options": {},
+        "inputData": {
+          "alert_type": "budget",
+          "message": "={{ 'High daily cost: $' + $json.summary.total_cost_usd + ' (threshold: $100)' }}",
+          "context": "={{ { summary: $json.summary } }}"
+        }
+      },
+      "id": "alert-cost",
+      "name": "Alert High Cost",
+      "type": "n8n-nodes-base.executeWorkflow",
+      "typeVersion": 1,
+      "position": [1150, 250]
+    },
+    {
+      "parameters": {
+        "operation": "insert",
+        "schema": "public",
+        "table": "performance_reports",
+        "columns": "report_date,summary,cost_breakdown,campaign_breakdown,job_performance",
+        "additionalFields": {}
+      },
+      "id": "store-report",
+      "name": "Store Report",
+      "type": "n8n-nodes-base.supabase",
+      "typeVersion": 1,
+      "position": [1350, 350],
+      "credentials": { "supabaseApi": { "id": "supabase-creds", "name": "Supabase API" } }
+    },
+    {
+      "parameters": {
+        "jsCode": "// Prep for storage\nconst report = $('Build Report').first().json;\n\nreturn [{\n  json: {\n    report_date: report.date,\n    summary: JSON.stringify(report.summary),\n    cost_breakdown: JSON.stringify(report.cost_breakdown),\n    campaign_breakdown: JSON.stringify(report.campaign_breakdown),\n    job_performance: JSON.stringify(report.job_performance)\n  }\n}];"
+      },
+      "id": "prep-store",
+      "name": "Prep Storage",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1150, 450]
+    }
+  ],
+  "connections": {
+    "Daily": { "main": [[{ "node": "Get Cost Summary", "type": "main", "index": 0 }, { "node": "Get Campaign Stats", "type": "main", "index": 0 }, { "node": "Get Job Stats", "type": "main", "index": 0 }]] },
+    "Get Cost Summary": { "main": [[{ "node": "Merge Stats", "type": "main", "index": 0 }]] },
+    "Get Campaign Stats": { "main": [[{ "node": "Merge Stats", "type": "main", "index": 0 }]] },
+    "Get Job Stats": { "main": [[{ "node": "Merge Stats", "type": "main", "index": 0 }]] },
+    "Merge Stats": { "main": [[{ "node": "Build Report", "type": "main", "index": 0 }]] },
+    "Build Report": { "main": [[{ "node": "High Cost?", "type": "main", "index": 0 }]] },
+    "High Cost?": { "main": [[{ "node": "Alert High Cost", "type": "main", "index": 0 }], [{ "node": "Prep Storage", "type": "main", "index": 0 }]] },
+    "Alert High Cost": { "main": [[{ "node": "Prep Storage", "type": "main", "index": 0 }]] },
+    "Prep Storage": { "main": [[{ "node": "Store Report", "type": "main", "index": 0 }]] }
+  },
+  "settings": { "executionOrder": "v1" },
+  "staticData": null,
+  "tags": [{ "name": "monitoring" }, { "name": "cron" }],
+  "active": false,
+  "meta": { "manifestoSection": "Section 12.3", "description": "Daily performance aggregation and cost monitoring", "nodeCount": 12 }
+}

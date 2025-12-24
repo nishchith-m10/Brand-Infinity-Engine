@@ -1,0 +1,126 @@
+{
+  "name": "Sub: Validate Schema",
+  "nodes": [
+    {
+      "parameters": {},
+      "id": "start-node",
+      "name": "Start",
+      "type": "n8n-nodes-base.executeWorkflowTrigger",
+      "typeVersion": 1,
+      "position": [250, 300]
+    },
+    {
+      "parameters": {
+        "jsCode": "// ============================================\n// JSON SCHEMA VALIDATION\n// Sub-Workflow: Validate_Schema\n// Per Manifesto Section 2, Dimension 7\n// \"Fail Fast\" - Validate at the VERY START\n// ============================================\n\nconst input = $input.all()[0].json;\n\n// Input should contain:\n// - data: the payload to validate\n// - schema: the schema definition object\n// - schema_name: name for error messages\n\nif (!input.data) throw new Error('data is required for validation');\nif (!input.schema) throw new Error('schema definition is required');\n\nconst data = input.data;\nconst schema = input.schema;\nconst schemaName = input.schema_name || 'Unknown Schema';\n\nconst errors = [];\n\n// Validate required fields\nif (schema.required && Array.isArray(schema.required)) {\n  for (const field of schema.required) {\n    if (data[field] === undefined || data[field] === null) {\n      errors.push(`Missing required field: ${field}`);\n    }\n  }\n}\n\n// Validate field types\nif (schema.properties) {\n  for (const [field, spec] of Object.entries(schema.properties)) {\n    if (data[field] !== undefined && data[field] !== null) {\n      const value = data[field];\n      const expectedType = spec.type;\n      \n      let actualType = typeof value;\n      if (Array.isArray(value)) actualType = 'array';\n      if (value === null) actualType = 'null';\n      \n      // Type checking\n      if (expectedType === 'string' && actualType !== 'string') {\n        errors.push(`Field '${field}' should be string, got ${actualType}`);\n      }\n      if (expectedType === 'number' && actualType !== 'number') {\n        errors.push(`Field '${field}' should be number, got ${actualType}`);\n      }\n      if (expectedType === 'boolean' && actualType !== 'boolean') {\n        errors.push(`Field '${field}' should be boolean, got ${actualType}`);\n      }\n      if (expectedType === 'array' && actualType !== 'array') {\n        errors.push(`Field '${field}' should be array, got ${actualType}`);\n      }\n      if (expectedType === 'object' && (actualType !== 'object' || Array.isArray(value))) {\n        errors.push(`Field '${field}' should be object, got ${actualType}`);\n      }\n      \n      // Enum validation\n      if (spec.enum && !spec.enum.includes(value)) {\n        errors.push(`Field '${field}' must be one of: ${spec.enum.join(', ')}`);\n      }\n      \n      // Min/Max for numbers\n      if (expectedType === 'number') {\n        if (spec.minimum !== undefined && value < spec.minimum) {\n          errors.push(`Field '${field}' must be >= ${spec.minimum}`);\n        }\n        if (spec.maximum !== undefined && value > spec.maximum) {\n          errors.push(`Field '${field}' must be <= ${spec.maximum}`);\n        }\n      }\n      \n      // MinLength/MaxLength for strings\n      if (expectedType === 'string') {\n        if (spec.minLength !== undefined && value.length < spec.minLength) {\n          errors.push(`Field '${field}' must have at least ${spec.minLength} characters`);\n        }\n        if (spec.maxLength !== undefined && value.length > spec.maxLength) {\n          errors.push(`Field '${field}' must have at most ${spec.maxLength} characters`);\n        }\n      }\n    }\n  }\n}\n\nreturn [{\n  json: {\n    valid: errors.length === 0,\n    errors: errors,\n    error_count: errors.length,\n    schema_name: schemaName,\n    validated_data: data\n  }\n}];"
+      },
+      "id": "validate-against-schema",
+      "name": "Validate Against Schema",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [450, 300]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "boolean": [
+            {
+              "value1": "={{ $json.valid }}",
+              "value2": true
+            }
+          ]
+        }
+      },
+      "id": "validation-passed",
+      "name": "Validation Passed?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [700, 300]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Validation passed - return cleaned data\nconst result = $input.all()[0].json;\n\nreturn [{\n  json: {\n    success: true,\n    valid: true,\n    data: result.validated_data,\n    schema_name: result.schema_name,\n    message: 'Schema validation passed'\n  }\n}];"
+      },
+      "id": "return-valid",
+      "name": "Return Valid Data",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [950, 200]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Validation failed - per Manifesto: \"Fail Fast\"\n// Return HTTP 400 style error with details\nconst result = $input.all()[0].json;\n\nreturn [{\n  json: {\n    success: false,\n    valid: false,\n    http_status: 400,\n    error: 'Schema Validation Failed',\n    schema_name: result.schema_name,\n    error_count: result.error_count,\n    errors: result.errors,\n    message: `Validation failed with ${result.error_count} errors: ${result.errors.join('; ')}`\n  }\n}];"
+      },
+      "id": "return-invalid",
+      "name": "Return Validation Error",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [950, 400]
+    }
+  ],
+  "connections": {
+    "Start": {
+      "main": [
+        [
+          {
+            "node": "Validate Against Schema",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Validate Against Schema": {
+      "main": [
+        [
+          {
+            "node": "Validation Passed?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Validation Passed?": {
+      "main": [
+        [
+          {
+            "node": "Return Valid Data",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Return Validation Error",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "staticData": null,
+  "tags": [
+    {
+      "name": "sub-workflow"
+    },
+    {
+      "name": "validation"
+    },
+    {
+      "name": "phase-4"
+    }
+  ],
+  "triggerCount": 0,
+  "active": false,
+  "pinData": {},
+  "versionId": "1.0.0",
+  "meta": {
+    "instanceId": "brand-infinity-engine",
+    "manifestoSection": "Section 2, Dimension 7",
+    "description": "JSON schema validation with 'Fail Fast' pattern - validates at entry point"
+  }
+}
