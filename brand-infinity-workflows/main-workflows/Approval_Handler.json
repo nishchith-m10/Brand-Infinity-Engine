@@ -1,0 +1,138 @@
+{
+  "name": "Pillar 4: Approval Handler",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "campaign/approve",
+        "authentication": "headerAuth",
+        "options": { "responseMode": "responseNode" }
+      },
+      "id": "webhook",
+      "name": "Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1.1,
+      "position": [100, 300],
+      "webhookId": "approval-handler"
+    },
+    {
+      "parameters": {
+        "jsCode": "// ============================================\n// APPROVAL VALIDATION\n// Per Manifesto Section 6.4\n// ============================================\n\nconst input = $input.all()[0].json.body || $input.all()[0].json;\n\nif (!input.campaign_id) throw new Error('campaign_id required');\nif (!input.decision) throw new Error('decision required (approved/rejected)');\nif (!input.approved_by) throw new Error('approved_by required');\n\nconst validDecisions = ['approved', 'rejected'];\nif (!validDecisions.includes(input.decision)) {\n  throw new Error('Invalid decision. Must be: approved or rejected');\n}\n\nreturn [{\n  json: {\n    campaign_id: input.campaign_id,\n    decision: input.decision,\n    approved_by: input.approved_by,\n    feedback: input.feedback || null,\n    timestamp: new Date().toISOString()\n  }\n}];"
+      },
+      "id": "validate",
+      "name": "Validate Input",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [300, 300]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT * FROM campaigns WHERE id = '{{ $json.campaign_id }}' AND status = 'verified' AND requires_approval = true",
+        "options": {}
+      },
+      "id": "check-pending",
+      "name": "Check Pending Approval",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.4,
+      "position": [500, 300],
+      "credentials": { "postgres": { "id": "postgres-creds", "name": "Supabase Postgres" } }
+    },
+    {
+      "parameters": {
+        "conditions": { "number": [{ "value1": "={{ ($json || []).length }}", "operation": "larger", "value2": 0 }] }
+      },
+      "id": "needs-approval",
+      "name": "Needs Approval?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [700, 300]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ JSON.stringify({ error: true, code: 'NOT_PENDING_APPROVAL' }) }}",
+        "options": { "responseCode": 400 }
+      },
+      "id": "return-400",
+      "name": "Return 400",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [900, 450]
+    },
+    {
+      "parameters": {
+        "conditions": { "string": [{ "value1": "={{ $('Validate Input').first().json.decision }}", "value2": "approved" }] }
+      },
+      "id": "is-approved",
+      "name": "Approved?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [900, 200]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "UPDATE campaigns SET status = 'approved', approved_by = '{{ $('Validate Input').first().json.approved_by }}', approved_at = NOW(), requires_approval = false WHERE id = '{{ $('Validate Input').first().json.campaign_id }}' RETURNING *",
+        "options": {}
+      },
+      "id": "approve",
+      "name": "Approve Campaign",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.4,
+      "position": [1100, 100],
+      "credentials": { "postgres": { "id": "postgres-creds", "name": "Supabase Postgres" } }
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "UPDATE campaigns SET status = 'rejected', stage_metadata = jsonb_set(COALESCE(stage_metadata, '{}'), '{rejection_feedback}', '\"{{ $('Validate Input').first().json.feedback }}\"') WHERE id = '{{ $('Validate Input').first().json.campaign_id }}' RETURNING *",
+        "options": {}
+      },
+      "id": "reject",
+      "name": "Reject Campaign",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.4,
+      "position": [1100, 300],
+      "credentials": { "postgres": { "id": "postgres-creds", "name": "Supabase Postgres" } }
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ JSON.stringify({ success: true, campaign_id: $('Validate Input').first().json.campaign_id, decision: 'approved', status: 'ready_for_broadcast' }) }}",
+        "options": { "responseCode": 200 }
+      },
+      "id": "return-approved",
+      "name": "Return Approved",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [1300, 100]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ JSON.stringify({ success: true, campaign_id: $('Validate Input').first().json.campaign_id, decision: 'rejected', feedback: $('Validate Input').first().json.feedback }) }}",
+        "options": { "responseCode": 200 }
+      },
+      "id": "return-rejected",
+      "name": "Return Rejected",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [1300, 300]
+    }
+  ],
+  "connections": {
+    "Webhook": { "main": [[{ "node": "Validate Input", "type": "main", "index": 0 }]] },
+    "Validate Input": { "main": [[{ "node": "Check Pending Approval", "type": "main", "index": 0 }]] },
+    "Check Pending Approval": { "main": [[{ "node": "Needs Approval?", "type": "main", "index": 0 }]] },
+    "Needs Approval?": { "main": [[{ "node": "Is Approved?", "type": "main", "index": 0 }], [{ "node": "Return 400", "type": "main", "index": 0 }]] },
+    "Is Approved?": { "main": [[{ "node": "Approve Campaign", "type": "main", "index": 0 }], [{ "node": "Reject Campaign", "type": "main", "index": 0 }]] },
+    "Approve Campaign": { "main": [[{ "node": "Return Approved", "type": "main", "index": 0 }]] },
+    "Reject Campaign": { "main": [[{ "node": "Return Rejected", "type": "main", "index": 0 }]] }
+  },
+  "settings": { "executionOrder": "v1" },
+  "staticData": null,
+  "tags": [{ "name": "main-workflow" }, { "name": "pillar-4" }],
+  "active": false,
+  "meta": { "manifestoSection": "Section 6.4", "description": "Approval/rejection handler with validation", "nodeCount": 12 }
+}

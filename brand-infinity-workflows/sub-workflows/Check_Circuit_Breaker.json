@@ -1,0 +1,199 @@
+{
+  "name": "Sub: Check Circuit Breaker",
+  "nodes": [
+    {
+      "parameters": {},
+      "id": "start-node",
+      "name": "Start",
+      "type": "n8n-nodes-base.executeWorkflowTrigger",
+      "typeVersion": 1,
+      "position": [250, 300]
+    },
+    {
+      "parameters": {
+        "jsCode": "// ============================================\n// CIRCUIT BREAKER CHECK\n// Sub-Workflow: Check_Circuit_Breaker\n// Per Manifesto Section 2, Dimension 6\n// State Machine: CLOSED → OPEN → HALF_OPEN → CLOSED\n// ============================================\n\nconst input = $input.all()[0].json;\n\nif (!input.provider) throw new Error('provider is required');\n\n// Default values per Manifesto\nconst config = {\n  provider: input.provider,\n  failure_threshold: input.failure_threshold || 5,\n  recovery_time_minutes: input.recovery_time_minutes || 5\n};\n\n// Redis key patterns per Manifesto\nconst keys = {\n  consecutive_failures: `circuit_breaker:${config.provider}:consecutive_failures`,\n  status: `circuit_breaker:${config.provider}:status`,\n  opened_at: `circuit_breaker:${config.provider}:opened_at`\n};\n\nreturn [{\n  json: {\n    ...config,\n    redis_keys: keys\n  }\n}];"
+      },
+      "id": "prepare-check",
+      "name": "Prepare Check",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [450, 300]
+    },
+    {
+      "parameters": {
+        "operation": "mget",
+        "keys": "={{ [$json.redis_keys.consecutive_failures, $json.redis_keys.status, $json.redis_keys.opened_at] }}"
+      },
+      "id": "get-circuit-state",
+      "name": "Get Circuit State",
+      "type": "n8n-nodes-base.redis",
+      "typeVersion": 1,
+      "position": [650, 300],
+      "credentials": {
+        "redis": {
+          "id": "redis-creds",
+          "name": "Redis"
+        }
+      },
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "jsCode": "// Parse circuit state and determine if requests should proceed\nconst config = $('Prepare Check').first().json;\nconst redisResult = $input.all()[0].json;\n\n// Handle Redis connection failure gracefully\nlet failures = 0;\nlet status = 'CLOSED';\nlet openedAt = null;\n\nif (redisResult && !redisResult.error) {\n  // Parse Redis response (array of values)\n  const values = Array.isArray(redisResult) ? redisResult : [redisResult];\n  failures = parseInt(values[0]) || 0;\n  status = values[1] || 'CLOSED';\n  openedAt = values[2] ? new Date(values[2]) : null;\n} else {\n  // Redis unavailable - fail open (allow requests)\n  console.warn('Redis unavailable for circuit breaker check - failing open');\n}\n\nconst now = new Date();\nlet shouldAllow = true;\nlet newStatus = status;\nlet reason = '';\n\n// State machine logic per Manifesto\nswitch (status) {\n  case 'OPEN':\n    // Check if recovery time has elapsed\n    if (openedAt) {\n      const millisSinceOpen = now - openedAt;\n      const recoveryMs = config.recovery_time_minutes * 60 * 1000;\n      \n      if (millisSinceOpen >= recoveryMs) {\n        // Transition to HALF_OPEN\n        newStatus = 'HALF_OPEN';\n        shouldAllow = true;\n        reason = 'Recovery time elapsed, entering HALF_OPEN (test request permitted)';\n      } else {\n        // Still in OPEN\n        shouldAllow = false;\n        const remainingMs = recoveryMs - millisSinceOpen;\n        reason = `Circuit OPEN, blocking requests. Recovery in ${Math.ceil(remainingMs / 1000)}s`;\n      }\n    } else {\n      shouldAllow = false;\n      reason = 'Circuit OPEN, blocking requests';\n    }\n    break;\n    \n  case 'HALF_OPEN':\n    // Allow single test request\n    shouldAllow = true;\n    reason = 'Circuit HALF_OPEN, single test request permitted';\n    break;\n    \n  case 'CLOSED':\n  default:\n    shouldAllow = true;\n    if (failures > 0) {\n      reason = `Circuit CLOSED with ${failures}/${config.failure_threshold} failures`;\n    } else {\n      reason = 'Circuit CLOSED, all systems normal';\n    }\n    break;\n}\n\nreturn [{\n  json: {\n    provider: config.provider,\n    allow_request: shouldAllow,\n    current_status: newStatus,\n    previous_status: status,\n    consecutive_failures: failures,\n    failure_threshold: config.failure_threshold,\n    opened_at: openedAt ? openedAt.toISOString() : null,\n    reason: reason,\n    redis_keys: config.redis_keys,\n    status_changed: newStatus !== status\n  }\n}];"
+      },
+      "id": "evaluate-circuit",
+      "name": "Evaluate Circuit State",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [850, 300]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "boolean": [
+            {
+              "value1": "={{ $json.status_changed }}",
+              "value2": true
+            }
+          ]
+        }
+      },
+      "id": "needs-status-update",
+      "name": "Status Changed?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [1100, 300]
+    },
+    {
+      "parameters": {
+        "operation": "set",
+        "key": "={{ $json.redis_keys.status }}",
+        "value": "={{ $json.current_status }}",
+        "keyType": "string",
+        "expire": true,
+        "ttl": 3600
+      },
+      "id": "update-status",
+      "name": "Update Circuit Status",
+      "type": "n8n-nodes-base.redis",
+      "typeVersion": 1,
+      "position": [1300, 200],
+      "credentials": {
+        "redis": {
+          "id": "redis-creds",
+          "name": "Redis"
+        }
+      },
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "jsCode": "// Return final result\nconst evaluation = $('Evaluate Circuit State').first().json;\n\nreturn [{\n  json: {\n    ...evaluation,\n    message: evaluation.allow_request \n      ? `Provider ${evaluation.provider}: Requests allowed (${evaluation.reason})`\n      : `Provider ${evaluation.provider}: Requests BLOCKED (${evaluation.reason})`\n  }\n}];"
+      },
+      "id": "final-result",
+      "name": "Final Result",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1500, 300]
+    }
+  ],
+  "connections": {
+    "Start": {
+      "main": [
+        [
+          {
+            "node": "Prepare Check",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Prepare Check": {
+      "main": [
+        [
+          {
+            "node": "Get Circuit State",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get Circuit State": {
+      "main": [
+        [
+          {
+            "node": "Evaluate Circuit State",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Evaluate Circuit State": {
+      "main": [
+        [
+          {
+            "node": "Status Changed?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Status Changed?": {
+      "main": [
+        [
+          {
+            "node": "Update Circuit Status",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Final Result",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Update Circuit Status": {
+      "main": [
+        [
+          {
+            "node": "Final Result",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "staticData": null,
+  "tags": [
+    {
+      "name": "sub-workflow"
+    },
+    {
+      "name": "circuit-breaker"
+    },
+    {
+      "name": "phase-4"
+    }
+  ],
+  "triggerCount": 0,
+  "active": false,
+  "pinData": {},
+  "versionId": "1.0.0",
+  "meta": {
+    "instanceId": "brand-infinity-engine",
+    "manifestoSection": "Section 2, Dimension 6",
+    "description": "Redis-backed circuit breaker with CLOSED/OPEN/HALF_OPEN state machine"
+  }
+}

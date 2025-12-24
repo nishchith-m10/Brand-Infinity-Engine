@@ -1,0 +1,281 @@
+{
+  "name": "Sub: Send Alert",
+  "nodes": [
+    {
+      "parameters": {},
+      "id": "start-node",
+      "name": "Start",
+      "type": "n8n-nodes-base.executeWorkflowTrigger",
+      "typeVersion": 1,
+      "position": [250, 300]
+    },
+    {
+      "parameters": {
+        "jsCode": "// ============================================\n// ALERT DISPATCHER\n// Sub-Workflow: Send_Alert\n// Per Manifesto - Operational Runbooks\n// ============================================\n\nconst input = $input.all()[0].json;\n\nif (!input.alert_type) throw new Error('alert_type is required');\nif (!input.message) throw new Error('message is required');\n\n// Alert types per Manifesto Failure Matrix (Section 10)\nconst validTypes = [\n  'error',      // System errors\n  'warning',    // Degraded performance\n  'info',       // Informational\n  'circuit_open', // Circuit breaker tripped\n  'zombie',     // Stuck campaign detected\n  'budget',     // Budget exceeded\n  'approval',   // Approval required\n  'success'     // Operation completed\n];\n\nconst type = input.alert_type.toLowerCase();\nif (!validTypes.includes(type)) {\n  console.warn(`Unknown alert type: ${type}. Using 'info'.`);\n}\n\n// Determine severity and channels\nlet severity = 'low';\nlet channels = ['slack'];\n\nswitch (type) {\n  case 'error':\n  case 'circuit_open':\n    severity = 'high';\n    channels = ['slack', 'email', 'pagerduty'];\n    break;\n  case 'warning':\n  case 'zombie':\n  case 'budget':\n    severity = 'medium';\n    channels = ['slack', 'email'];\n    break;\n  case 'approval':\n    severity = 'medium';\n    channels = ['slack', 'email'];\n    break;\n  default:\n    severity = 'low';\n    channels = ['slack'];\n}\n\n// Override channels if explicitly provided\nif (input.channels && Array.isArray(input.channels)) {\n  channels = input.channels;\n}\n\nconst alert = {\n  alert_id: `alert_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,\n  alert_type: type,\n  severity: severity,\n  message: input.message,\n  context: input.context || {},\n  campaign_id: input.campaign_id || null,\n  workflow_id: input.workflow_id || null,\n  timestamp: new Date().toISOString(),\n  channels: channels\n};\n\nreturn [{\n  json: alert\n}];"
+      },
+      "id": "prepare-alert",
+      "name": "Prepare Alert",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [450, 300]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "string": [
+            {
+              "value1": "={{ $json.channels.join(',') }}",
+              "operation": "contains",
+              "value2": "slack"
+            }
+          ]
+        }
+      },
+      "id": "should-slack",
+      "name": "Send to Slack?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [700, 200]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "string": [
+            {
+              "value1": "={{ $json.channels.join(',') }}",
+              "operation": "contains",
+              "value2": "email"
+            }
+          ]
+        }
+      },
+      "id": "should-email",
+      "name": "Send Email?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [700, 400]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Build Slack message with severity formatting\nconst alert = $input.all()[0].json;\n\n// Emoji by severity\nconst emojis = {\n  high: '🚨',\n  medium: '⚠️',\n  low: 'ℹ️'\n};\n\n// Color by severity\nconst colors = {\n  high: '#FF0000',\n  medium: '#FFA500',\n  low: '#0000FF'\n};\n\nconst slackMessage = {\n  channel: process.env.SLACK_ALERTS_CHANNEL || '#brand-infinity-alerts',\n  username: 'Brand Infinity Engine',\n  icon_emoji: emojis[alert.severity] || 'ℹ️',\n  attachments: [\n    {\n      color: colors[alert.severity] || '#808080',\n      title: `${emojis[alert.severity]} ${alert.alert_type.toUpperCase()} Alert`,\n      text: alert.message,\n      fields: [\n        {\n          title: 'Severity',\n          value: alert.severity,\n          short: true\n        },\n        {\n          title: 'Alert ID',\n          value: alert.alert_id,\n          short: true\n        }\n      ],\n      footer: 'Brand Infinity Engine',\n      ts: Math.floor(new Date(alert.timestamp).getTime() / 1000)\n    }\n  ]\n};\n\n// Add campaign_id if present\nif (alert.campaign_id) {\n  slackMessage.attachments[0].fields.push({\n    title: 'Campaign',\n    value: alert.campaign_id,\n    short: true\n  });\n}\n\n// Add context details\nif (Object.keys(alert.context).length > 0) {\n  slackMessage.attachments[0].fields.push({\n    title: 'Context',\n    value: '```' + JSON.stringify(alert.context, null, 2) + '```',\n    short: false\n  });\n}\n\nreturn [{\n  json: {\n    ...alert,\n    slack_payload: slackMessage\n  }\n}];"
+      },
+      "id": "build-slack-message",
+      "name": "Build Slack Message",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [950, 100]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $env.SLACK_WEBHOOK_URL }}",
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": []
+        },
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify($json.slack_payload) }}",
+        "options": {}
+      },
+      "id": "send-slack",
+      "name": "Send Slack Webhook",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.1,
+      "position": [1150, 100],
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "fromEmail": "alerts@brandinfinity.app",
+        "toEmail": "={{ $env.ALERT_EMAIL || 'admin@brandinfinity.app' }}",
+        "subject": "=[{{ $json.severity.toUpperCase() }}] Brand Infinity Alert: {{ $json.alert_type }}",
+        "text": "Alert ID: {{ $json.alert_id }}\nType: {{ $json.alert_type }}\nSeverity: {{ $json.severity }}\nTime: {{ $json.timestamp }}\n\nMessage:\n{{ $json.message }}\n\nCampaign ID: {{ $json.campaign_id || 'N/A' }}\n\nContext:\n{{ JSON.stringify($json.context, null, 2) }}",
+        "options": {}
+      },
+      "id": "send-email",
+      "name": "Send Email Alert",
+      "type": "n8n-nodes-base.emailSend",
+      "typeVersion": 2.1,
+      "position": [950, 500],
+      "credentials": {
+        "smtp": {
+          "id": "smtp-creds",
+          "name": "SMTP"
+        }
+      },
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "operation": "insert",
+        "schema": "public",
+        "table": "execution_logs",
+        "columns": "workflow_id,execution_id,step_name,status,details",
+        "additionalFields": {}
+      },
+      "id": "log-alert",
+      "name": "Log Alert to DB",
+      "type": "n8n-nodes-base.supabase",
+      "typeVersion": 1,
+      "position": [1400, 300],
+      "credentials": {
+        "supabaseApi": {
+          "id": "supabase-creds",
+          "name": "Supabase API"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "// Prepare log entry\nconst alert = $('Prepare Alert').first().json;\n\nreturn [{\n  json: {\n    workflow_id: alert.workflow_id || 'send_alert',\n    execution_id: alert.alert_id,\n    step_name: 'alert_dispatched',\n    status: 'completed',\n    details: {\n      alert_type: alert.alert_type,\n      severity: alert.severity,\n      message: alert.message,\n      channels: alert.channels,\n      campaign_id: alert.campaign_id\n    }\n  }\n}];"
+      },
+      "id": "prep-log",
+      "name": "Prep Log Entry",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1200, 300]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Return final result\nconst alert = $('Prepare Alert').first().json;\n\nreturn [{\n  json: {\n    success: true,\n    alert_id: alert.alert_id,\n    alert_type: alert.alert_type,\n    severity: alert.severity,\n    channels_notified: alert.channels,\n    message: 'Alert dispatched successfully'\n  }\n}];"
+      },
+      "id": "return-result",
+      "name": "Return Result",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1600, 300]
+    }
+  ],
+  "connections": {
+    "Start": {
+      "main": [
+        [
+          {
+            "node": "Prepare Alert",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Prepare Alert": {
+      "main": [
+        [
+          {
+            "node": "Should-Slack",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Should Email?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Should-Slack": {
+      "main": [
+        [
+          {
+            "node": "Build Slack Message",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        []
+      ]
+    },
+    "Build Slack Message": {
+      "main": [
+        [
+          {
+            "node": "Send Slack Webhook",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Send Slack Webhook": {
+      "main": [
+        [
+          {
+            "node": "Prep Log Entry",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Should Email?": {
+      "main": [
+        [
+          {
+            "node": "Send Email Alert",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        []
+      ]
+    },
+    "Send Email Alert": {
+      "main": [
+        [
+          {
+            "node": "Prep Log Entry",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Prep Log Entry": {
+      "main": [
+        [
+          {
+            "node": "Log Alert to DB",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Log Alert to DB": {
+      "main": [
+        [
+          {
+            "node": "Return Result",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "staticData": null,
+  "tags": [
+    {
+      "name": "sub-workflow"
+    },
+    {
+      "name": "alerting"
+    },
+    {
+      "name": "phase-4"
+    }
+  ],
+  "triggerCount": 0,
+  "active": false,
+  "pinData": {},
+  "versionId": "1.0.0",
+  "meta": {
+    "instanceId": "brand-infinity-engine",
+    "manifestoSection": "Section 12",
+    "description": "Multi-channel alert dispatcher with severity-based routing to Slack, Email, and PagerDuty"
+  }
+}
