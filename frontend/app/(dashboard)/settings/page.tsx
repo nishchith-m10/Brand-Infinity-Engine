@@ -105,10 +105,9 @@ export default function SettingsPage() {
       // Simulate API call (replace with actual API call when backend is ready)
       await new Promise((resolve) => setTimeout(resolve, 1000));
       
-      // Show success message (you can add a toast notification here)
-      console.log('Settings saved successfully');
-    } catch (error) {
-      console.error('Failed to save settings:', error);
+      // TODO: Add toast notification for success
+    } catch {
+      // TODO: Add toast notification for error
     } finally {
       setIsSaving(false);
     }

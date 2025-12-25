@@ -6,13 +6,16 @@
         "httpMethod": "POST",
         "path": "campaign/approve",
         "authentication": "headerAuth",
-        "options": { "responseMode": "responseNode" }
+        "options": {}
       },
       "id": "webhook",
       "name": "Webhook",
       "type": "n8n-nodes-base.webhook",
       "typeVersion": 1.1,
-      "position": [100, 300],
+      "position": [
+        112,
+        304
+      ],
       "webhookId": "approval-handler"
     },
     {
@@ -23,7 +26,10 @@
       "name": "Validate Input",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [300, 300]
+      "position": [
+        304,
+        304
+      ]
     },
     {
       "parameters": {
@@ -35,40 +41,73 @@
       "name": "Check Pending Approval",
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2.4,
-      "position": [500, 300],
-      "credentials": { "postgres": { "id": "postgres-creds", "name": "Supabase Postgres" } }
+      "position": [
+        512,
+        304
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "5kCruSryNkW0E0CB",
+          "name": "Brand Infinity"
+        }
+      }
     },
     {
       "parameters": {
-        "conditions": { "number": [{ "value1": "={{ ($json || []).length }}", "operation": "larger", "value2": 0 }] }
+        "conditions": {
+          "number": [
+            {
+              "value1": "={{ ($json || []).length }}",
+              "operation": "larger"
+            }
+          ]
+        }
       },
       "id": "needs-approval",
       "name": "Needs Approval?",
       "type": "n8n-nodes-base.if",
       "typeVersion": 1,
-      "position": [700, 300]
+      "position": [
+        704,
+        304
+      ]
     },
     {
       "parameters": {
         "respondWith": "json",
         "responseBody": "={{ JSON.stringify({ error: true, code: 'NOT_PENDING_APPROVAL' }) }}",
-        "options": { "responseCode": 400 }
+        "options": {
+          "responseCode": 400
+        }
       },
       "id": "return-400",
       "name": "Return 400",
       "type": "n8n-nodes-base.respondToWebhook",
       "typeVersion": 1,
-      "position": [900, 450]
+      "position": [
+        912,
+        464
+      ]
     },
     {
       "parameters": {
-        "conditions": { "string": [{ "value1": "={{ $('Validate Input').first().json.decision }}", "value2": "approved" }] }
+        "conditions": {
+          "string": [
+            {
+              "value1": "={{ $('Validate Input').first().json.decision }}",
+              "value2": "approved"
+            }
+          ]
+        }
       },
       "id": "is-approved",
       "name": "Approved?",
       "type": "n8n-nodes-base.if",
       "typeVersion": 1,
-      "position": [900, 200]
+      "position": [
+        912,
+        208
+      ]
     },
     {
       "parameters": {
@@ -80,8 +119,16 @@
       "name": "Approve Campaign",
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2.4,
-      "position": [1100, 100],
-      "credentials": { "postgres": { "id": "postgres-creds", "name": "Supabase Postgres" } }
+      "position": [
+        1104,
+        112
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "5kCruSryNkW0E0CB",
+          "name": "Brand Infinity"
+        }
+      }
     },
     {
       "parameters": {
@@ -93,46 +140,186 @@
       "name": "Reject Campaign",
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2.4,
-      "position": [1100, 300],
-      "credentials": { "postgres": { "id": "postgres-creds", "name": "Supabase Postgres" } }
+      "position": [
+        1104,
+        304
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "5kCruSryNkW0E0CB",
+          "name": "Brand Infinity"
+        }
+      }
     },
     {
       "parameters": {
         "respondWith": "json",
         "responseBody": "={{ JSON.stringify({ success: true, campaign_id: $('Validate Input').first().json.campaign_id, decision: 'approved', status: 'ready_for_broadcast' }) }}",
-        "options": { "responseCode": 200 }
+        "options": {
+          "responseCode": 200
+        }
       },
       "id": "return-approved",
       "name": "Return Approved",
       "type": "n8n-nodes-base.respondToWebhook",
       "typeVersion": 1,
-      "position": [1300, 100]
+      "position": [
+        1312,
+        112
+      ]
     },
     {
       "parameters": {
         "respondWith": "json",
         "responseBody": "={{ JSON.stringify({ success: true, campaign_id: $('Validate Input').first().json.campaign_id, decision: 'rejected', feedback: $('Validate Input').first().json.feedback }) }}",
-        "options": { "responseCode": 200 }
+        "options": {
+          "responseCode": 200
+        }
       },
       "id": "return-rejected",
       "name": "Return Rejected",
       "type": "n8n-nodes-base.respondToWebhook",
       "typeVersion": 1,
-      "position": [1300, 300]
+      "position": [
+        1312,
+        304
+      ]
     }
   ],
+  "pinData": {},
   "connections": {
-    "Webhook": { "main": [[{ "node": "Validate Input", "type": "main", "index": 0 }]] },
-    "Validate Input": { "main": [[{ "node": "Check Pending Approval", "type": "main", "index": 0 }]] },
-    "Check Pending Approval": { "main": [[{ "node": "Needs Approval?", "type": "main", "index": 0 }]] },
-    "Needs Approval?": { "main": [[{ "node": "Is Approved?", "type": "main", "index": 0 }], [{ "node": "Return 400", "type": "main", "index": 0 }]] },
-    "Is Approved?": { "main": [[{ "node": "Approve Campaign", "type": "main", "index": 0 }], [{ "node": "Reject Campaign", "type": "main", "index": 0 }]] },
-    "Approve Campaign": { "main": [[{ "node": "Return Approved", "type": "main", "index": 0 }]] },
-    "Reject Campaign": { "main": [[{ "node": "Return Rejected", "type": "main", "index": 0 }]] }
+    "Webhook": {
+      "main": [
+        [
+          {
+            "node": "Validate Input",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Validate Input": {
+      "main": [
+        [
+          {
+            "node": "Check Pending Approval",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Check Pending Approval": {
+      "main": [
+        [
+          {
+            "node": "Needs Approval?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Needs Approval?": {
+      "main": [
+        [
+          {
+            "node": "Is Approved?",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Approved?",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Return 400",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Is Approved?": {
+      "main": [
+        [
+          {
+            "node": "Approve Campaign",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Reject Campaign",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Approve Campaign": {
+      "main": [
+        [
+          {
+            "node": "Return Approved",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Reject Campaign": {
+      "main": [
+        [
+          {
+            "node": "Return Rejected",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Approved?": {
+      "main": [
+        [
+          {
+            "node": "Approve Campaign",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Reject Campaign",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
   },
-  "settings": { "executionOrder": "v1" },
-  "staticData": null,
-  "tags": [{ "name": "main-workflow" }, { "name": "pillar-4" }],
   "active": false,
-  "meta": { "manifestoSection": "Section 6.4", "description": "Approval/rejection handler with validation", "nodeCount": 12 }
+  "settings": {
+    "executionOrder": "v1",
+    "callerPolicy": "workflowsFromSameOwner",
+    "availableInMCP": false
+  },
+  "versionId": "667e9973-c085-49d3-88b3-792d63385958",
+  "meta": {
+    "instanceId": "fb0f3042150127121074617aaee31b106c313805cbc452132240d35f72eba898"
+  },
+  "id": "hLldWZeMnFGjyGjD",
+  "tags": [
+    {
+      "updatedAt": "2025-12-23T09:40:14.135Z",
+      "createdAt": "2025-12-23T09:40:14.135Z",
+      "id": "ak5oOECQqNIPSE0N",
+      "name": "Brand Infinity Engine"
+    }
+  ]
 }

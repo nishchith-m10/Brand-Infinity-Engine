@@ -7,7 +7,10 @@
       "name": "Start",
       "type": "n8n-nodes-base.executeWorkflowTrigger",
       "typeVersion": 1,
-      "position": [250, 300]
+      "position": [
+        256,
+        304
+      ]
     },
     {
       "parameters": {
@@ -17,22 +20,29 @@
       "name": "Prepare Query",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [450, 300]
+      "position": [
+        464,
+        304
+      ]
     },
     {
       "parameters": {
         "operation": "get",
-        "key": "={{ $json.cache_key }}"
+        "key": "={{ $json.cache_key }}",
+        "options": {}
       },
       "id": "check-cache",
       "name": "Check Cache",
       "type": "n8n-nodes-base.redis",
       "typeVersion": 1,
-      "position": [650, 300],
+      "position": [
+        656,
+        304
+      ],
       "credentials": {
         "redis": {
-          "id": "redis-creds",
-          "name": "Redis"
+          "id": "1Vc5f2QSvfPfCpxX",
+          "name": "Brand Infinity Redis"
         }
       },
       "onError": "continueRegularOutput"
@@ -52,7 +62,10 @@
       "name": "Cache Hit?",
       "type": "n8n-nodes-base.if",
       "typeVersion": 1,
-      "position": [850, 300]
+      "position": [
+        864,
+        304
+      ]
     },
     {
       "parameters": {
@@ -62,26 +75,31 @@
       "name": "Return Cached",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [1100, 200]
+      "position": [
+        1104,
+        208
+      ]
     },
     {
       "parameters": {
-        "operation": "select",
-        "schema": "public",
-        "table": "brand_guidelines",
+        "operation": "getAll",
+        "tableId": "brand_guidelines",
+        "limit": 1,
         "filterType": "string",
-        "filterString": "brand_id=eq.{{ $('Prepare Query').first().json.brand_id }}",
-        "limit": 1
+        "filterString": "={{ $('Prepare Query').first().json.brand_id }}"
       },
       "id": "get-brand-profile",
       "name": "Get Brand Profile",
       "type": "n8n-nodes-base.supabase",
       "typeVersion": 1,
-      "position": [1100, 400],
+      "position": [
+        1104,
+        368
+      ],
       "credentials": {
         "supabaseApi": {
-          "id": "supabase-creds",
-          "name": "Supabase API"
+          "id": "ChWvV6najCTQ4JEQ",
+          "name": "Brand Infinity"
         }
       }
     },
@@ -95,11 +113,14 @@
       "name": "Get Knowledge Base",
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2.4,
-      "position": [1100, 500],
+      "position": [
+        1088,
+        592
+      ],
       "credentials": {
         "postgres": {
-          "id": "postgres-creds",
-          "name": "Supabase Postgres"
+          "id": "5kCruSryNkW0E0CB",
+          "name": "Brand Infinity"
         }
       }
     },
@@ -111,7 +132,10 @@
       "name": "Assemble Context",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [1350, 450]
+      "position": [
+        1360,
+        464
+      ]
     },
     {
       "parameters": {
@@ -126,11 +150,14 @@
       "name": "Store in Cache",
       "type": "n8n-nodes-base.redis",
       "typeVersion": 1,
-      "position": [1550, 450],
+      "position": [
+        1552,
+        464
+      ],
       "credentials": {
         "redis": {
-          "id": "redis-creds",
-          "name": "Redis"
+          "id": "1Vc5f2QSvfPfCpxX",
+          "name": "Redis account"
         }
       },
       "onError": "continueRegularOutput"
@@ -143,21 +170,32 @@
       "name": "Return Fresh Context",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [1750, 450]
+      "position": [
+        1760,
+        464
+      ]
     },
     {
       "parameters": {
         "mode": "combine",
-        "combineBy": "combineByPosition",
+        "mergeByFields": {
+          "values": [
+            {}
+          ]
+        },
         "options": {}
       },
       "id": "merge-outputs",
       "name": "Merge Outputs",
       "type": "n8n-nodes-base.merge",
       "typeVersion": 2.1,
-      "position": [1950, 300]
+      "position": [
+        1952,
+        304
+      ]
     }
   ],
+  "pinData": {},
   "connections": {
     "Start": {
       "main": [
@@ -282,28 +320,23 @@
       ]
     }
   },
+  "active": false,
   "settings": {
-    "executionOrder": "v1"
+    "executionOrder": "v1",
+    "callerPolicy": "workflowsFromSameOwner",
+    "availableInMCP": false
   },
-  "staticData": null,
+  "versionId": "3365237c-d00e-43cc-97a1-45f4e4074a66",
+  "meta": {
+    "instanceId": "fb0f3042150127121074617aaee31b106c313805cbc452132240d35f72eba898"
+  },
+  "id": "W0vejFr0Sv62X70X",
   "tags": [
     {
-      "name": "sub-workflow"
-    },
-    {
-      "name": "rag"
-    },
-    {
-      "name": "phase-4"
+      "updatedAt": "2025-12-23T09:40:14.135Z",
+      "createdAt": "2025-12-23T09:40:14.135Z",
+      "id": "ak5oOECQqNIPSE0N",
+      "name": "Brand Infinity Engine"
     }
-  ],
-  "triggerCount": 0,
-  "active": false,
-  "pinData": {},
-  "versionId": "1.0.0",
-  "meta": {
-    "instanceId": "brand-infinity-engine",
-    "manifestoSection": "Section 3.2",
-    "description": "RAG retrieval for brand guidelines with Redis caching and prioritized context assembly"
-  }
+  ]
 }

@@ -7,7 +7,10 @@
       "name": "Start",
       "type": "n8n-nodes-base.executeWorkflowTrigger",
       "typeVersion": 1,
-      "position": [250, 300]
+      "position": [
+        256,
+        304
+      ]
     },
     {
       "parameters": {
@@ -17,7 +20,10 @@
       "name": "Validate Input",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [450, 300]
+      "position": [
+        464,
+        304
+      ]
     },
     {
       "parameters": {
@@ -29,11 +35,14 @@
       "name": "Get Current Token",
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2.4,
-      "position": [650, 300],
+      "position": [
+        656,
+        304
+      ],
       "credentials": {
         "postgres": {
-          "id": "postgres-creds",
-          "name": "Supabase Postgres"
+          "id": "5kCruSryNkW0E0CB",
+          "name": "Brand Infinity"
         }
       }
     },
@@ -45,7 +54,10 @@
       "name": "Check Token Expiry",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [850, 300]
+      "position": [
+        864,
+        304
+      ]
     },
     {
       "parameters": {
@@ -62,7 +74,10 @@
       "name": "Needs Refresh?",
       "type": "n8n-nodes-base.if",
       "typeVersion": 1,
-      "position": [1050, 300]
+      "position": [
+        1056,
+        304
+      ]
     },
     {
       "parameters": {
@@ -72,7 +87,10 @@
       "name": "Return Current Token",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [1300, 400]
+      "position": [
+        1312,
+        400
+      ]
     },
     {
       "parameters": {
@@ -82,7 +100,10 @@
       "name": "Build Refresh Request",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [1300, 200]
+      "position": [
+        1312,
+        208
+      ]
     },
     {
       "parameters": {
@@ -98,7 +119,10 @@
       "name": "Call Refresh API",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.1,
-      "position": [1500, 200],
+      "position": [
+        1504,
+        208
+      ],
       "onError": "continueRegularOutput"
     },
     {
@@ -109,7 +133,10 @@
       "name": "Parse Refresh Response",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [1700, 200]
+      "position": [
+        1712,
+        208
+      ]
     },
     {
       "parameters": {
@@ -126,7 +153,10 @@
       "name": "Refresh Success?",
       "type": "n8n-nodes-base.if",
       "typeVersion": 1,
-      "position": [1900, 200]
+      "position": [
+        1904,
+        208
+      ]
     },
     {
       "parameters": {
@@ -138,11 +168,14 @@
       "name": "Update Token in DB",
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2.4,
-      "position": [2100, 100],
+      "position": [
+        2112,
+        112
+      ],
       "credentials": {
         "postgres": {
-          "id": "postgres-creds",
-          "name": "Supabase Postgres"
+          "id": "5kCruSryNkW0E0CB",
+          "name": "Brand Infinity"
         }
       }
     },
@@ -154,7 +187,10 @@
       "name": "Return Refreshed Token",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [2300, 100]
+      "position": [
+        2304,
+        112
+      ]
     },
     {
       "parameters": {
@@ -164,9 +200,13 @@
       "name": "Return Refresh Failed",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [2100, 300]
+      "position": [
+        2112,
+        304
+      ]
     }
   ],
+  "pinData": {},
   "connections": {
     "Start": {
       "main": [
@@ -293,28 +333,23 @@
       ]
     }
   },
+  "active": false,
   "settings": {
-    "executionOrder": "v1"
+    "executionOrder": "v1",
+    "callerPolicy": "workflowsFromSameOwner",
+    "availableInMCP": false
   },
-  "staticData": null,
+  "versionId": "83c841da-5b9f-46d9-8334-b28387d1e370",
+  "meta": {
+    "instanceId": "fb0f3042150127121074617aaee31b106c313805cbc452132240d35f72eba898"
+  },
+  "id": "kmsyq2wbESxLvETZ",
   "tags": [
     {
-      "name": "sub-workflow"
-    },
-    {
-      "name": "oauth"
-    },
-    {
-      "name": "phase-4"
+      "updatedAt": "2025-12-23T09:40:14.135Z",
+      "createdAt": "2025-12-23T09:40:14.135Z",
+      "id": "ak5oOECQqNIPSE0N",
+      "name": "Brand Infinity Engine"
     }
-  ],
-  "triggerCount": 0,
-  "active": false,
-  "pinData": {},
-  "versionId": "1.0.0",
-  "meta": {
-    "instanceId": "brand-infinity-engine",
-    "manifestoSection": "Section 7.5",
-    "description": "OAuth token refresh with 5-minute pre-expiry check and multi-platform support"
-  }
+  ]
 }

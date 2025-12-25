@@ -6,14 +6,23 @@
         "httpMethod": "POST",
         "path": "broadcast",
         "authentication": "headerAuth",
-        "options": { "responseMode": "responseNode" }
+        "options": {}
       },
       "id": "webhook",
       "name": "Webhook",
       "type": "n8n-nodes-base.webhook",
       "typeVersion": 1.1,
-      "position": [100, 300],
-      "webhookId": "broadcaster-main"
+      "position": [
+        112,
+        432
+      ],
+      "webhookId": "broadcaster-main",
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "jWLoA0KrRtvrl5V4",
+          "name": "Video API"
+        }
+      }
     },
     {
       "parameters": {
@@ -25,58 +34,87 @@
       "name": "Check Campaign & Kill Switch",
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2.4,
-      "position": [300, 300],
-      "credentials": { "postgres": { "id": "postgres-creds", "name": "Supabase Postgres" } }
+      "position": [
+        336,
+        432
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "5kCruSryNkW0E0CB",
+          "name": "Brand Infinity"
+        }
+      }
     },
     {
       "parameters": {
-        "conditions": { "number": [{ "value1": "={{ ($json || []).length }}", "operation": "larger", "value2": 0 }] }
+        "conditions": {
+          "number": [
+            {
+              "value1": "={{ ($json || []).length }}",
+              "operation": "larger"
+            }
+          ]
+        }
       },
       "id": "can-proceed",
       "name": "Can Proceed?",
       "type": "n8n-nodes-base.if",
       "typeVersion": 1,
-      "position": [500, 300]
+      "position": [
+        560,
+        432
+      ]
     },
     {
       "parameters": {
         "respondWith": "json",
         "responseBody": "={{ JSON.stringify({ error: true, code: 'ERR_NOT_APPROVED_OR_STOPPED' }) }}",
-        "options": { "responseCode": 403 }
+        "options": {
+          "responseCode": 403
+        }
       },
       "id": "return-403",
       "name": "Return 403",
       "type": "n8n-nodes-base.respondToWebhook",
       "typeVersion": 1,
-      "position": [700, 450]
+      "position": [
+        784,
+        528
+      ]
     },
     {
       "parameters": {
-        "workflowId": "={{ $env.ACQUIRE_LOCK_WORKFLOW_ID }}",
-        "options": {},
-        "inputData": {
-          "table_name": "campaigns",
-          "record_id": "={{ $('Webhook').first().json.body.campaign_id }}",
-          "workflow_id": "={{ $execution.id }}",
-          "expected_status": "approved",
-          "target_status": "distributing"
-        }
+        "workflowId": "lwHIR7PonbgLVkmJ",
+        "options": {}
       },
       "id": "acquire-lock",
       "name": "Acquire Lock",
       "type": "n8n-nodes-base.executeWorkflow",
       "typeVersion": 1,
-      "position": [700, 200]
+      "position": [
+        784,
+        336
+      ]
     },
     {
       "parameters": {
-        "conditions": { "boolean": [{ "value1": "={{ $json.lock_acquired }}", "value2": true }] }
+        "conditions": {
+          "boolean": [
+            {
+              "value1": "={{ $json.lock_acquired }}",
+              "value2": true
+            }
+          ]
+        }
       },
       "id": "lock-check",
       "name": "Locked?",
       "type": "n8n-nodes-base.if",
       "typeVersion": 1,
-      "position": [900, 200]
+      "position": [
+        1008,
+        336
+      ]
     },
     {
       "parameters": {
@@ -86,55 +124,78 @@
       "name": "Prepare Platforms",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [1100, 200]
+      "position": [
+        1216,
+        304
+      ]
     },
     {
       "parameters": {
-        "batchSize": 1,
         "options": {}
       },
       "id": "loop",
       "name": "Loop Platforms",
       "type": "n8n-nodes-base.splitInBatches",
       "typeVersion": 3,
-      "position": [1300, 200]
+      "position": [
+        1456,
+        320
+      ]
     },
     {
       "parameters": {
-        "workflowId": "={{ $env.REFRESH_PLATFORM_TOKEN_WORKFLOW_ID }}",
-        "options": {},
-        "inputData": {
-          "platform": "={{ $json.platform }}",
-          "user_id": "={{ $json.user_id }}"
-        }
+        "workflowId": "kmsyq2wbESxLvETZ",
+        "options": {}
       },
       "id": "refresh-token",
       "name": "Refresh Token",
       "type": "n8n-nodes-base.executeWorkflow",
       "typeVersion": 1,
-      "position": [1500, 200]
+      "position": [
+        1680,
+        304
+      ]
     },
     {
       "parameters": {
-        "conditions": { "boolean": [{ "value1": "={{ $json.success }}", "value2": true }] }
+        "conditions": {
+          "boolean": [
+            {
+              "value1": "={{ $json.success }}",
+              "value2": true
+            }
+          ]
+        }
       },
       "id": "token-ok",
       "name": "Token OK?",
       "type": "n8n-nodes-base.if",
       "typeVersion": 1,
-      "position": [1700, 200]
+      "position": [
+        1904,
+        304
+      ]
     },
     {
       "parameters": {
         "operation": "get",
-        "key": "rate_limit:{{ $('Loop Platforms').first().json.platform }}:remaining"
+        "key": "=rate_limit:{{ $('Loop Platforms').first().json.platform }}:remaining",
+        "options": {}
       },
       "id": "check-rate",
       "name": "Check Rate Limit",
       "type": "n8n-nodes-base.redis",
       "typeVersion": 1,
-      "position": [1900, 150],
-      "credentials": { "redis": { "id": "redis-creds", "name": "Redis" } },
+      "position": [
+        2128,
+        240
+      ],
+      "credentials": {
+        "redis": {
+          "id": "1Vc5f2QSvfPfCpxX",
+          "name": "Brand Infinity Redis"
+        }
+      },
       "onError": "continueRegularOutput"
     },
     {
@@ -145,7 +206,10 @@
       "name": "Calculate Throttle",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [2100, 150]
+      "position": [
+        2352,
+        240
+      ]
     },
     {
       "parameters": {
@@ -156,7 +220,11 @@
       "name": "Wait for Rate",
       "type": "n8n-nodes-base.wait",
       "typeVersion": 1.1,
-      "position": [2300, 150]
+      "position": [
+        2576,
+        240
+      ],
+      "webhookId": "d41cdbf1-b1e2-4dbb-869b-9ccfd7f9bf4a"
     },
     {
       "parameters": {
@@ -166,7 +234,10 @@
       "name": "Build Upload Request",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [2500, 150]
+      "position": [
+        2800,
+        240
+      ]
     },
     {
       "parameters": {
@@ -177,13 +248,24 @@
         "sendBody": true,
         "specifyBody": "json",
         "jsonBody": "={{ JSON.stringify($json.upload_config.body) }}",
-        "options": { "timeout": 120000 }
+        "options": {
+          "timeout": 120000
+        }
       },
       "id": "upload",
       "name": "Upload to Platform",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.1,
-      "position": [2700, 150],
+      "position": [
+        3024,
+        240
+      ],
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "jWLoA0KrRtvrl5V4",
+          "name": "Video API"
+        }
+      },
       "onError": "continueRegularOutput"
     },
     {
@@ -194,42 +276,90 @@
       "name": "Parse Upload Response",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [2900, 150]
+      "position": [
+        3248,
+        240
+      ]
     },
     {
       "parameters": {
-        "conditions": { "boolean": [{ "value1": "={{ $json.success }}", "value2": true }] }
+        "conditions": {
+          "boolean": [
+            {
+              "value1": "={{ $json.success }}",
+              "value2": true
+            }
+          ]
+        }
       },
       "id": "upload-ok",
       "name": "Upload OK?",
       "type": "n8n-nodes-base.if",
       "typeVersion": 1,
-      "position": [3100, 150]
+      "position": [
+        3472,
+        240
+      ]
     },
     {
       "parameters": {
-        "operation": "insert",
-        "schema": "public",
-        "table": "platform_posts",
-        "columns": "campaign_id,platform,post_id,post_url,published_at,status",
-        "additionalFields": {}
+        "tableId": "platform_posts",
+        "fieldsUi": {
+          "fieldValues": [
+            {
+              "fieldId": "publication_id",
+              "fieldValue": "={{ $json.publication_id }}"
+            },
+            {
+              "fieldId": "platform",
+              "fieldValue": "={{ $json.platform }}"
+            },
+            {
+              "fieldId": "platform_post_id",
+              "fieldValue": "={{ $json.post_id }}"
+            },
+            {
+              "fieldId": "formatted_video_url",
+              "fieldValue": "={{ $json.video_url }}"
+            },
+            {
+              "fieldId": "publication_status",
+              "fieldValue": "published"
+            },
+            {
+              "fieldId": "published_at",
+              "fieldValue": "={{ $json.published_at }}"
+            }
+          ]
+        }
       },
       "id": "store-post",
       "name": "Store Post Record",
       "type": "n8n-nodes-base.supabase",
       "typeVersion": 1,
-      "position": [3300, 50],
-      "credentials": { "supabaseApi": { "id": "supabase-creds", "name": "Supabase API" } }
+      "position": [
+        3920,
+        48
+      ],
+      "credentials": {
+        "supabaseApi": {
+          "id": "ChWvV6najCTQ4JEQ",
+          "name": "Brand Infinity"
+        }
+      }
     },
     {
       "parameters": {
-        "jsCode": "// Prepare post record\nconst data = $input.all()[0].json;\n\nreturn [{\n  json: {\n    campaign_id: data.campaign_id,\n    platform: data.platform,\n    post_id: data.post_id,\n    post_url: data.post_url,\n    published_at: data.published_at,\n    status: 'published'\n  }\n}];"
+        "jsCode": "// Prepare post record\nconst data = $input.all()[0].json;\n\nreturn [{\n  json: {\n    publication_id: data.campaign_id, // Or get from elsewhere if you have publications table\n    platform: data.platform,\n    platform_post_id: data.post_id,\n    formatted_video_url: data.post_url,\n    published_at: data.published_at,\n    publication_status: 'published'\n  }\n}];"
       },
       "id": "prep-post",
       "name": "Prep Post Record",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [3100, 50]
+      "position": [
+        3696,
+        48
+      ]
     },
     {
       "parameters": {
@@ -239,97 +369,363 @@
       "name": "Continue",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [3500, 150]
+      "position": [
+        4192,
+        256
+      ]
     },
     {
       "parameters": {
-        "workflowId": "={{ $env.SEND_ALERT_WORKFLOW_ID }}",
-        "options": {},
-        "inputData": {
-          "alert_type": "error",
-          "message": "={{ 'Platform upload failed: ' + $json.platform + ' - ' + JSON.stringify($json.error) }}",
-          "campaign_id": "={{ $json.campaign_id }}"
-        }
+        "workflowId": "uCTePCAfvuecs7La",
+        "options": {}
       },
       "id": "alert-upload-fail",
       "name": "Alert Upload Failed",
       "type": "n8n-nodes-base.executeWorkflow",
       "typeVersion": 1,
-      "position": [3300, 250]
+      "position": [
+        3920,
+        256
+      ]
     },
     {
       "parameters": {
-        "workflowId": "={{ $env.RELEASE_LOCK_WORKFLOW_ID }}",
-        "options": {},
-        "inputData": {
-          "table_name": "campaigns",
-          "record_id": "={{ $('Webhook').first().json.body.campaign_id }}",
-          "workflow_id": "={{ $execution.id }}",
-          "final_status": "published"
-        }
+        "workflowId": "4OwwpHBjkMYBzsuI",
+        "options": {}
       },
       "id": "release-lock",
       "name": "Release Lock",
       "type": "n8n-nodes-base.executeWorkflow",
       "typeVersion": 1,
-      "position": [3700, 150]
+      "position": [
+        1680,
+        64
+      ]
     },
     {
       "parameters": {
         "respondWith": "json",
         "responseBody": "={{ JSON.stringify({ success: true, campaign_id: $('Webhook').first().json.body.campaign_id, status: 'published' }) }}",
-        "options": { "responseCode": 200 }
+        "options": {
+          "responseCode": 200
+        }
       },
       "id": "return-success",
       "name": "Return Success",
       "type": "n8n-nodes-base.respondToWebhook",
       "typeVersion": 1,
-      "position": [3900, 150]
+      "position": [
+        1904,
+        64
+      ]
     },
     {
       "parameters": {
-        "workflowId": "={{ $env.SEND_ALERT_WORKFLOW_ID }}",
-        "options": {},
-        "inputData": {
-          "alert_type": "error",
-          "message": "={{ 'Token refresh failed for platform ' + $('Loop Platforms').first().json.platform }}",
-          "campaign_id": "={{ $('Loop Platforms').first().json.campaign_id }}"
-        }
+        "workflowId": "uCTePCAfvuecs7La",
+        "options": {}
       },
       "id": "alert-token-fail",
       "name": "Alert Token Failed",
       "type": "n8n-nodes-base.executeWorkflow",
       "typeVersion": 1,
-      "position": [1900, 350]
+      "position": [
+        3680,
+        304
+      ]
     }
   ],
+  "pinData": {},
   "connections": {
-    "Webhook": { "main": [[{ "node": "Check Campaign & Kill Switch", "type": "main", "index": 0 }]] },
-    "Check Campaign & Kill Switch": { "main": [[{ "node": "Can Proceed?", "type": "main", "index": 0 }]] },
-    "Can Proceed?": { "main": [[{ "node": "Acquire Lock", "type": "main", "index": 0 }], [{ "node": "Return 403", "type": "main", "index": 0 }]] },
-    "Acquire Lock": { "main": [[{ "node": "Locked?", "type": "main", "index": 0 }]] },
-    "Locked?": { "main": [[{ "node": "Prepare Platforms", "type": "main", "index": 0 }], []] },
-    "Prepare Platforms": { "main": [[{ "node": "Loop Platforms", "type": "main", "index": 0 }]] },
-    "Loop Platforms": { "main": [[{ "node": "Refresh Token", "type": "main", "index": 0 }], [{ "node": "Release Lock", "type": "main", "index": 0 }]] },
-    "Refresh Token": { "main": [[{ "node": "Token OK?", "type": "main", "index": 0 }]] },
-    "Token OK?": { "main": [[{ "node": "Check Rate Limit", "type": "main", "index": 0 }], [{ "node": "Alert Token Failed", "type": "main", "index": 0 }]] },
-    "Alert Token Failed": { "main": [[{ "node": "Continue", "type": "main", "index": 0 }]] },
-    "Check Rate Limit": { "main": [[{ "node": "Calculate Throttle", "type": "main", "index": 0 }]] },
-    "Calculate Throttle": { "main": [[{ "node": "Wait for Rate", "type": "main", "index": 0 }]] },
-    "Wait for Rate": { "main": [[{ "node": "Build Upload Request", "type": "main", "index": 0 }]] },
-    "Build Upload Request": { "main": [[{ "node": "Upload to Platform", "type": "main", "index": 0 }]] },
-    "Upload to Platform": { "main": [[{ "node": "Parse Upload Response", "type": "main", "index": 0 }]] },
-    "Parse Upload Response": { "main": [[{ "node": "Upload OK?", "type": "main", "index": 0 }]] },
-    "Upload OK?": { "main": [[{ "node": "Prep Post Record", "type": "main", "index": 0 }], [{ "node": "Alert Upload Failed", "type": "main", "index": 0 }]] },
-    "Prep Post Record": { "main": [[{ "node": "Store Post Record", "type": "main", "index": 0 }]] },
-    "Store Post Record": { "main": [[{ "node": "Continue", "type": "main", "index": 0 }]] },
-    "Alert Upload Failed": { "main": [[{ "node": "Continue", "type": "main", "index": 0 }]] },
-    "Continue": { "main": [[{ "node": "Loop Platforms", "type": "main", "index": 0 }]] },
-    "Release Lock": { "main": [[{ "node": "Return Success", "type": "main", "index": 0 }]] }
+    "Webhook": {
+      "main": [
+        [
+          {
+            "node": "Check Campaign & Kill Switch",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Check Campaign & Kill Switch": {
+      "main": [
+        [
+          {
+            "node": "Can Proceed?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Can Proceed?": {
+      "main": [
+        [
+          {
+            "node": "Acquire Lock",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Return 403",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Acquire Lock": {
+      "main": [
+        [
+          {
+            "node": "Locked?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Locked?": {
+      "main": [
+        [
+          {
+            "node": "Prepare Platforms",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        []
+      ]
+    },
+    "Prepare Platforms": {
+      "main": [
+        [
+          {
+            "node": "Loop Platforms",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Loop Platforms": {
+      "main": [
+        [
+          {
+            "node": "Refresh Token",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Release Lock",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Refresh Token": {
+      "main": [
+        [
+          {
+            "node": "Token OK?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Token OK?": {
+      "main": [
+        [
+          {
+            "node": "Check Rate Limit",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Alert Token Failed",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Alert Token Failed": {
+      "main": [
+        [
+          {
+            "node": "Continue",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Check Rate Limit": {
+      "main": [
+        [
+          {
+            "node": "Calculate Throttle",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Calculate Throttle": {
+      "main": [
+        [
+          {
+            "node": "Wait for Rate",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Wait for Rate": {
+      "main": [
+        [
+          {
+            "node": "Build Upload Request",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Build Upload Request": {
+      "main": [
+        [
+          {
+            "node": "Upload to Platform",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Upload to Platform": {
+      "main": [
+        [
+          {
+            "node": "Parse Upload Response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Parse Upload Response": {
+      "main": [
+        [
+          {
+            "node": "Upload OK?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Upload OK?": {
+      "main": [
+        [
+          {
+            "node": "Prep Post Record",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Alert Upload Failed",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Prep Post Record": {
+      "main": [
+        [
+          {
+            "node": "Store Post Record",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Store Post Record": {
+      "main": [
+        [
+          {
+            "node": "Continue",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Alert Upload Failed": {
+      "main": [
+        [
+          {
+            "node": "Continue",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Continue": {
+      "main": [
+        [
+          {
+            "node": "Loop Platforms",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Release Lock": {
+      "main": [
+        [
+          {
+            "node": "Return Success",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
   },
-  "settings": { "executionOrder": "v1" },
-  "staticData": null,
-  "tags": [{ "name": "main-workflow" }, { "name": "pillar-5" }],
   "active": false,
-  "meta": { "manifestoSection": "Section 7", "description": "Multi-platform broadcasting with kill switch, rate limiting, token refresh", "nodeCount": 30 }
+  "settings": {
+    "executionOrder": "v1",
+    "callerPolicy": "workflowsFromSameOwner",
+    "availableInMCP": false
+  },
+  "versionId": "6ec26dbb-3889-4f24-ac2a-0a2df25a083c",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "fb0f3042150127121074617aaee31b106c313805cbc452132240d35f72eba898"
+  },
+  "id": "bEVHfVUzZleXe07w",
+  "tags": [
+    {
+      "updatedAt": "2025-12-23T09:40:14.135Z",
+      "createdAt": "2025-12-23T09:40:14.135Z",
+      "id": "ak5oOECQqNIPSE0N",
+      "name": "Brand Infinity Engine"
+    }
+  ]
 }

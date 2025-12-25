@@ -3,13 +3,23 @@
   "nodes": [
     {
       "parameters": {
-        "rule": { "interval": [{ "field": "hours", "hoursInterval": 24 }] }
+        "rule": {
+          "interval": [
+            {
+              "field": "hours",
+              "hoursInterval": 24
+            }
+          ]
+        }
       },
       "id": "cron",
       "name": "Daily",
       "type": "n8n-nodes-base.scheduleTrigger",
       "typeVersion": 1.1,
-      "position": [100, 300]
+      "position": [
+        112,
+        304
+      ]
     },
     {
       "parameters": {
@@ -21,8 +31,16 @@
       "name": "Get Cost Summary",
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2.4,
-      "position": [300, 200],
-      "credentials": { "postgres": { "id": "postgres-creds", "name": "Supabase Postgres" } }
+      "position": [
+        304,
+        208
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "5kCruSryNkW0E0CB",
+          "name": "Brand Infinity"
+        }
+      }
     },
     {
       "parameters": {
@@ -34,8 +52,16 @@
       "name": "Get Campaign Stats",
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2.4,
-      "position": [300, 350],
-      "credentials": { "postgres": { "id": "postgres-creds", "name": "Supabase Postgres" } }
+      "position": [
+        304,
+        352
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "5kCruSryNkW0E0CB",
+          "name": "Brand Infinity"
+        }
+      }
     },
     {
       "parameters": {
@@ -47,20 +73,35 @@
       "name": "Get Job Stats",
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2.4,
-      "position": [300, 500],
-      "credentials": { "postgres": { "id": "postgres-creds", "name": "Supabase Postgres" } }
+      "position": [
+        304,
+        512
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "5kCruSryNkW0E0CB",
+          "name": "Brand Infinity"
+        }
+      }
     },
     {
       "parameters": {
         "mode": "combine",
-        "combineBy": "combineAll",
+        "mergeByFields": {
+          "values": [
+            {}
+          ]
+        },
         "options": {}
       },
       "id": "merge",
       "name": "Merge Stats",
       "type": "n8n-nodes-base.merge",
       "typeVersion": 2.1,
-      "position": [550, 350]
+      "position": [
+        560,
+        352
+      ]
     },
     {
       "parameters": {
@@ -70,48 +111,88 @@
       "name": "Build Report",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [750, 350]
+      "position": [
+        752,
+        352
+      ]
     },
     {
       "parameters": {
-        "conditions": { "number": [{ "value1": "={{ $json.summary.total_cost_usd }}", "operation": "larger", "value2": 100 }] }
+        "conditions": {
+          "number": [
+            {
+              "value1": "={{ $json.summary.total_cost_usd }}",
+              "operation": "larger",
+              "value2": 100
+            }
+          ]
+        }
       },
       "id": "cost-alert",
       "name": "High Cost?",
       "type": "n8n-nodes-base.if",
       "typeVersion": 1,
-      "position": [950, 350]
+      "position": [
+        960,
+        352
+      ]
     },
     {
       "parameters": {
-        "workflowId": "={{ $env.SEND_ALERT_WORKFLOW_ID }}",
-        "options": {},
-        "inputData": {
-          "alert_type": "budget",
-          "message": "={{ 'High daily cost: $' + $json.summary.total_cost_usd + ' (threshold: $100)' }}",
-          "context": "={{ { summary: $json.summary } }}"
-        }
+        "workflowId": "uCTePCAfvuecs7La",
+        "options": {}
       },
       "id": "alert-cost",
       "name": "Alert High Cost",
       "type": "n8n-nodes-base.executeWorkflow",
       "typeVersion": 1,
-      "position": [1150, 250]
+      "position": [
+        1136,
+        256
+      ]
     },
     {
       "parameters": {
-        "operation": "insert",
-        "schema": "public",
-        "table": "performance_reports",
-        "columns": "report_date,summary,cost_breakdown,campaign_breakdown,job_performance",
-        "additionalFields": {}
+        "tableId": "performance_reports",
+        "fieldsUi": {
+          "fieldValues": [
+            {
+              "fieldId": "report_date",
+              "fieldValue": "={{ $json.report_date }}"
+            },
+            {
+              "fieldId": "summary",
+              "fieldValue": "={{ $json.summary }}"
+            },
+            {
+              "fieldId": "cost_breakdown",
+              "fieldValue": "={{ $json.cost_breakdown }}"
+            },
+            {
+              "fieldId": "campaign_breakdown",
+              "fieldValue": "={{ $json.campaign_breakdown }}"
+            },
+            {
+              "fieldId": "job_performance",
+              "fieldValue": "={{ $json.job_performance }}"
+            }
+          ]
+        }
       },
       "id": "store-report",
       "name": "Store Report",
       "type": "n8n-nodes-base.supabase",
       "typeVersion": 1,
-      "position": [1350, 350],
-      "credentials": { "supabaseApi": { "id": "supabase-creds", "name": "Supabase API" } }
+      "position": [
+        1440,
+        368
+      ],
+      "credentials": {
+        "supabaseApi": {
+          "id": "ChWvV6najCTQ4JEQ",
+          "name": "Brand Infinity"
+        }
+      }
     },
     {
       "parameters": {
@@ -121,23 +202,148 @@
       "name": "Prep Storage",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [1150, 450]
+      "position": [
+        1296,
+        368
+      ]
     }
   ],
+  "pinData": {},
   "connections": {
-    "Daily": { "main": [[{ "node": "Get Cost Summary", "type": "main", "index": 0 }, { "node": "Get Campaign Stats", "type": "main", "index": 0 }, { "node": "Get Job Stats", "type": "main", "index": 0 }]] },
-    "Get Cost Summary": { "main": [[{ "node": "Merge Stats", "type": "main", "index": 0 }]] },
-    "Get Campaign Stats": { "main": [[{ "node": "Merge Stats", "type": "main", "index": 0 }]] },
-    "Get Job Stats": { "main": [[{ "node": "Merge Stats", "type": "main", "index": 0 }]] },
-    "Merge Stats": { "main": [[{ "node": "Build Report", "type": "main", "index": 0 }]] },
-    "Build Report": { "main": [[{ "node": "High Cost?", "type": "main", "index": 0 }]] },
-    "High Cost?": { "main": [[{ "node": "Alert High Cost", "type": "main", "index": 0 }], [{ "node": "Prep Storage", "type": "main", "index": 0 }]] },
-    "Alert High Cost": { "main": [[{ "node": "Prep Storage", "type": "main", "index": 0 }]] },
-    "Prep Storage": { "main": [[{ "node": "Store Report", "type": "main", "index": 0 }]] }
+    "Daily": {
+      "main": [
+        [
+          {
+            "node": "Get Cost Summary",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Get Campaign Stats",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Get Job Stats",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get Cost Summary": {
+      "main": [
+        [
+          {
+            "node": "Merge Stats",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get Campaign Stats": {
+      "main": [
+        [
+          {
+            "node": "Merge Stats",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get Job Stats": {
+      "main": [
+        [
+          {
+            "node": "Merge Stats",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Merge Stats": {
+      "main": [
+        [
+          {
+            "node": "Build Report",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Build Report": {
+      "main": [
+        [
+          {
+            "node": "High Cost?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "High Cost?": {
+      "main": [
+        [
+          {
+            "node": "Alert High Cost",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Prep Storage",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Alert High Cost": {
+      "main": [
+        [
+          {
+            "node": "Prep Storage",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Prep Storage": {
+      "main": [
+        [
+          {
+            "node": "Store Report",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
   },
-  "settings": { "executionOrder": "v1" },
-  "staticData": null,
-  "tags": [{ "name": "monitoring" }, { "name": "cron" }],
   "active": false,
-  "meta": { "manifestoSection": "Section 12.3", "description": "Daily performance aggregation and cost monitoring", "nodeCount": 12 }
+  "settings": {
+    "executionOrder": "v1",
+    "callerPolicy": "workflowsFromSameOwner",
+    "availableInMCP": false
+  },
+  "versionId": "5517d6ba-245e-4ae3-8d88-2b1e37337d6a",
+  "meta": {
+    "instanceId": "fb0f3042150127121074617aaee31b106c313805cbc452132240d35f72eba898"
+  },
+  "id": "rBT8GoHEAPcnG3Ax",
+  "tags": [
+    {
+      "updatedAt": "2025-12-23T09:40:14.135Z",
+      "createdAt": "2025-12-23T09:40:14.135Z",
+      "id": "ak5oOECQqNIPSE0N",
+      "name": "Brand Infinity Engine"
+    }
+  ]
 }

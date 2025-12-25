@@ -3,13 +3,23 @@
   "nodes": [
     {
       "parameters": {
-        "rule": { "interval": [{ "field": "minutes", "minutesInterval": 1 }] }
+        "rule": {
+          "interval": [
+            {
+              "field": "minutes",
+              "minutesInterval": 1
+            }
+          ]
+        }
       },
-      "id": "cron",
-      "name": "Every Minute",
+      "id": "128a084c-89f3-4847-9376-d33d748ab542",
+      "name": "Every Minute1",
       "type": "n8n-nodes-base.scheduleTrigger",
       "typeVersion": 1.1,
-      "position": [100, 300]
+      "position": [
+        1136,
+        1776
+      ]
     },
     {
       "parameters": {
@@ -17,69 +27,104 @@
         "query": "SELECT * FROM generation_jobs WHERE status IN ('submitted', 'processing') AND last_polled_at < NOW() - INTERVAL '30 seconds' ORDER BY submitted_at LIMIT 10",
         "options": {}
       },
-      "id": "fetch-pending",
-      "name": "Fetch Pending Jobs",
+      "id": "f990affb-06d3-4d19-b098-fb6eb0e6493a",
+      "name": "Fetch Pending Jobs1",
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2.4,
-      "position": [300, 300],
-      "credentials": { "postgres": { "id": "postgres-creds", "name": "Supabase Postgres" } }
+      "position": [
+        1328,
+        1776
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "5kCruSryNkW0E0CB",
+          "name": "Brand Infinity"
+        }
+      }
     },
     {
       "parameters": {
-        "conditions": { "number": [{ "value1": "={{ $json.length || 0 }}", "operation": "larger", "value2": 0 }] }
+        "conditions": {
+          "number": [
+            {
+              "value1": "={{ $json.length || 0 }}",
+              "operation": "larger"
+            }
+          ]
+        }
       },
-      "id": "has-jobs",
-      "name": "Has Jobs?",
+      "id": "af36e85b-2e03-4f4f-b427-e292f7feeddb",
+      "name": "Has Jobs?1",
       "type": "n8n-nodes-base.if",
       "typeVersion": 1,
-      "position": [500, 300]
+      "position": [
+        1536,
+        1776
+      ]
     },
     {
       "parameters": {
-        "batchSize": 1,
         "options": {}
       },
-      "id": "loop",
-      "name": "Loop Jobs",
+      "id": "0002d261-a9f1-4ee4-9749-92f9d506781e",
+      "name": "Loop Jobs1",
       "type": "n8n-nodes-base.splitInBatches",
       "typeVersion": 3,
-      "position": [700, 200]
+      "position": [
+        1728,
+        1680
+      ]
     },
     {
       "parameters": {
         "jsCode": "// ============================================\n// BUILD PROVIDER-SPECIFIC STATUS CHECK\n// Per Manifesto Section 5.3 - Polling Pattern\n// ============================================\n\nconst job = $input.all()[0].json;\n\nconst statusEndpoints = {\n  'sora': `https://api.openai.com/v1/videos/generations/${job.provider_job_id}`,\n  'runway': `https://api.runwayml.com/v1/generations/${job.provider_job_id}`,\n  'pika': `https://api.pika.art/v1/status/${job.provider_job_id}`,\n  'kling': `https://api.kling.ai/v1/videos/${job.provider_job_id}`\n};\n\nconst url = statusEndpoints[job.provider] || statusEndpoints['runway'];\n\nreturn [{\n  json: {\n    ...job,\n    status_url: url\n  }\n}];"
       },
-      "id": "build-status-url",
-      "name": "Build Status URL",
+      "id": "0a358564-9198-432a-ac41-c38541919bf0",
+      "name": "Build Status URL1",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [900, 200]
+      "position": [
+        1936,
+        1664
+      ]
     },
     {
       "parameters": {
-        "method": "GET",
         "url": "={{ $json.status_url }}",
         "authentication": "genericCredentialType",
         "genericAuthType": "httpHeaderAuth",
-        "options": { "timeout": 30000 }
+        "options": {
+          "timeout": 30000
+        }
       },
-      "id": "poll-status",
-      "name": "Poll Provider Status",
+      "id": "31c075c2-92e4-4ac5-88ec-e2cedc4bdb97",
+      "name": "Poll Provider Status1",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.1,
-      "position": [1100, 200],
-      "credentials": { "httpHeaderAuth": { "id": "video-api-creds", "name": "Video API" } },
+      "position": [
+        2112,
+        1664
+      ],
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "jWLoA0KrRtvrl5V4",
+          "name": "Video API"
+        }
+      },
       "onError": "continueRegularOutput"
     },
     {
       "parameters": {
-        "jsCode": "// ============================================\n// PARSE STATUS AND NORMALIZE\n// Per Manifesto Section 5.3\n// ============================================\n\nconst job = $('Build Status URL').first().json;\nconst response = $input.all()[0].json;\n\n// Normalize status across providers\nlet normalizedStatus = 'processing';\nlet resultUrl = null;\nlet error = null;\n\nif (response.error) {\n  normalizedStatus = 'poll_error';\n  error = response.error;\n} else {\n  // Provider-specific status mapping\n  const rawStatus = response.status || response.state || response.generation_status;\n  \n  const statusMap = {\n    'completed': 'completed',\n    'succeeded': 'completed',\n    'done': 'completed',\n    'ready': 'completed',\n    'failed': 'failed',\n    'error': 'failed',\n    'cancelled': 'failed',\n    'pending': 'processing',\n    'running': 'processing',\n    'in_progress': 'processing',\n    'queued': 'submitted'\n  };\n  \n  normalizedStatus = statusMap[rawStatus?.toLowerCase()] || 'processing';\n  resultUrl = response.output_url || response.video_url || response.result?.url || response.download_url;\n}\n\nreturn [{\n  json: {\n    job_id: job.id,\n    campaign_id: job.campaign_id,\n    provider: job.provider,\n    provider_job_id: job.provider_job_id,\n    previous_status: job.status,\n    new_status: normalizedStatus,\n    result_url: resultUrl,\n    error: error,\n    status_changed: job.status !== normalizedStatus\n  }\n}];"
+        "jsCode": "// ============================================\n// PARSE STATUS AND NORMALIZE\n// Per Manifesto Section 5.3\n// ============================================\n\nconst job = $('Build Status URL1').first().json;\nconst response = $input.all()[0].json;\n\n// Normalize status across providers\nlet normalizedStatus = 'processing';\nlet resultUrl = null;\nlet error = null;\n\nif (response.error) {\n  normalizedStatus = 'poll_error';\n  error = response.error;\n} else {\n  // Provider-specific status mapping\n  const rawStatus = response.status || response.state || response.generation_status;\n  \n  const statusMap = {\n    'completed': 'completed',\n    'succeeded': 'completed',\n    'done': 'completed',\n    'ready': 'completed',\n    'failed': 'failed',\n    'error': 'failed',\n    'cancelled': 'failed',\n    'pending': 'processing',\n    'running': 'processing',\n    'in_progress': 'processing',\n    'queued': 'submitted'\n  };\n  \n  normalizedStatus = statusMap[rawStatus?.toLowerCase()] || 'processing';\n  resultUrl = response.output_url || response.video_url || response.result?.url || response.download_url;\n}\n\nreturn [{\n  json: {\n    job_id: job.id,\n    campaign_id: job.campaign_id,\n    provider: job.provider,\n    provider_job_id: job.provider_job_id,\n    previous_status: job.status,\n    new_status: normalizedStatus,\n    result_url: resultUrl,\n    error: error,\n    status_changed: job.status !== normalizedStatus\n  }\n}];"
       },
-      "id": "parse-status",
-      "name": "Parse Status",
+      "id": "384f7938-2e8c-4fe8-adad-8bf172a48040",
+      "name": "Parse Status1",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [1300, 200]
+      "position": [
+        2320,
+        1664
+      ]
     },
     {
       "parameters": {
@@ -87,120 +132,377 @@
         "query": "UPDATE generation_jobs SET status = '{{ $json.new_status }}', last_polled_at = NOW(), result_url = {{ $json.result_url ? \"'\" + $json.result_url + \"'\" : 'result_url' }}, error_message = {{ $json.error ? \"'\" + JSON.stringify($json.error) + \"'\" : 'error_message' }}, completed_at = {{ $json.new_status === 'completed' ? 'NOW()' : 'completed_at' }} WHERE id = '{{ $json.job_id }}' RETURNING *",
         "options": {}
       },
-      "id": "update-job",
-      "name": "Update Job Status",
+      "id": "7c8371a3-5c8e-433c-8cd6-b48747a4c3c6",
+      "name": "Update Job Status1",
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2.4,
-      "position": [1500, 200],
-      "credentials": { "postgres": { "id": "postgres-creds", "name": "Supabase Postgres" } }
+      "position": [
+        2512,
+        1664
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "5kCruSryNkW0E0CB",
+          "name": "Brand Infinity"
+        }
+      }
     },
     {
       "parameters": {
-        "conditions": { "string": [{ "value1": "={{ $('Parse Status').first().json.new_status }}", "value2": "completed" }] }
+        "conditions": {
+          "string": [
+            {
+              "value1": "={{ $('Parse Status1').first().json.new_status }}",
+              "value2": "completed"
+            }
+          ]
+        }
       },
-      "id": "is-complete",
-      "name": "Completed?",
+      "id": "9fea7cda-9004-4bbf-844d-dee9540658dc",
+      "name": "Completed?1",
       "type": "n8n-nodes-base.if",
       "typeVersion": 1,
-      "position": [1700, 200]
+      "position": [
+        2720,
+        1664
+      ]
     },
     {
       "parameters": {
         "method": "POST",
-        "url": "={{ $env.N8N_WEBHOOK_URL }}/production/download",
+        "url": "http://localhost:5678/webhook/production/download",
         "sendBody": true,
         "bodyParameters": {
           "parameters": [
-            { "name": "job_id", "value": "={{ $('Parse Status').first().json.job_id }}" },
-            { "name": "campaign_id", "value": "={{ $('Parse Status').first().json.campaign_id }}" },
-            { "name": "result_url", "value": "={{ $('Parse Status').first().json.result_url }}" },
-            { "name": "provider", "value": "={{ $('Parse Status').first().json.provider }}" }
+            {
+              "name": "job_id",
+              "value": "={{ $('Parse Status1').first().json.job_id }}"
+            },
+            {
+              "name": "campaign_id",
+              "value": "={{ $('Parse Status1').first().json.campaign_id }}"
+            },
+            {
+              "name": "result_url",
+              "value": "={{ $('Parse Status1').first().json.result_url }}"
+            },
+            {
+              "name": "provider",
+              "value": "={{ $('Parse Status1').first().json.provider }}"
+            }
           ]
         },
         "options": {}
       },
-      "id": "trigger-download",
-      "name": "Trigger Download Workflow",
+      "id": "2dbe489a-05d4-4d19-9236-d30f124a3fad",
+      "name": "Trigger Download Workflow1",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.1,
-      "position": [1950, 100]
+      "position": [
+        3088,
+        1568
+      ]
     },
     {
       "parameters": {
-        "conditions": { "string": [{ "value1": "={{ $('Parse Status').first().json.new_status }}", "value2": "failed" }] }
-      },
-      "id": "is-failed",
-      "name": "Failed?",
-      "type": "n8n-nodes-base.if",
-      "typeVersion": 1,
-      "position": [1950, 300]
-    },
-    {
-      "parameters": {
-        "workflowId": "={{ $env.SEND_ALERT_WORKFLOW_ID }}",
-        "options": {},
-        "inputData": {
-          "alert_type": "error",
-          "message": "={{ 'Video generation failed for job ' + $('Parse Status').first().json.job_id }}",
-          "campaign_id": "={{ $('Parse Status').first().json.campaign_id }}",
-          "context": "={{ { provider: $('Parse Status').first().json.provider, error: $('Parse Status').first().json.error } }}"
+        "conditions": {
+          "string": [
+            {
+              "value1": "={{ $('Parse Status1').first().json.new_status }}",
+              "value2": "failed"
+            }
+          ]
         }
       },
-      "id": "alert-failure",
-      "name": "Alert Failure",
+      "id": "bda5bdc3-f4f4-482b-beb5-cb53602a94c9",
+      "name": "Failed?1",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [
+        2960,
+        1744
+      ]
+    },
+    {
+      "parameters": {
+        "workflowId": "uCTePCAfvuecs7La",
+        "options": {}
+      },
+      "id": "1ddecef2-7d7c-493f-a825-27aad140710a",
+      "name": "Alert Failure1",
       "type": "n8n-nodes-base.executeWorkflow",
       "typeVersion": 1,
-      "position": [2150, 350]
+      "position": [
+        3168,
+        1728
+      ]
     },
     {
       "parameters": {
         "jsCode": "// Continue to next job in batch\nreturn [{ json: { processed: true } }];"
       },
-      "id": "continue-loop",
-      "name": "Continue",
+      "id": "00671518-4c22-4ebd-9b5e-3a26212a61d3",
+      "name": "Continue1",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [2350, 200]
+      "position": [
+        3472,
+        1760
+      ]
     },
     {
       "parameters": {
         "jsCode": "// No pending jobs\nreturn [{ json: { message: 'No jobs to poll', timestamp: new Date().toISOString() } }];"
       },
-      "id": "no-jobs",
-      "name": "No Jobs",
+      "id": "ee2e8691-4ffb-4a4d-a3d1-f3a96fc6c3ac",
+      "name": "No Jobs1",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [700, 400]
-    },
-    {
-      "parameters": {
-        "jsCode": "// Check for timeout per Manifesto Section 5.3\n// Jobs stuck for > 10 minutes should be marked timeout\nconst job = $('Build Status URL').first().json;\nconst submittedAt = new Date(job.submitted_at);\nconst now = new Date();\nconst minutesSinceSubmit = (now - submittedAt) / 60000;\n\nif (minutesSinceSubmit > 10) {\n  return [{\n    json: {\n      job_id: job.id,\n      campaign_id: job.campaign_id,\n      should_timeout: true,\n      minutes_elapsed: minutesSinceSubmit\n    }\n  }];\n}\n\nreturn [{ json: { should_timeout: false } }];"
-      },
-      "id": "check-timeout",
-      "name": "Check Timeout",
-      "type": "n8n-nodes-base.code",
-      "typeVersion": 2,
-      "position": [1500, 350]
+      "position": [
+        1728,
+        1840
+      ]
     }
   ],
+  "pinData": {},
   "connections": {
-    "Every Minute": { "main": [[{ "node": "Fetch Pending Jobs", "type": "main", "index": 0 }]] },
-    "Fetch Pending Jobs": { "main": [[{ "node": "Has Jobs?", "type": "main", "index": 0 }]] },
-    "Has Jobs?": { "main": [[{ "node": "Loop Jobs", "type": "main", "index": 0 }], [{ "node": "No Jobs", "type": "main", "index": 0 }]] },
-    "Loop Jobs": { "main": [[{ "node": "Build Status URL", "type": "main", "index": 0 }], []] },
-    "Build Status URL": { "main": [[{ "node": "Poll Provider Status", "type": "main", "index": 0 }]] },
-    "Poll Provider Status": { "main": [[{ "node": "Parse Status", "type": "main", "index": 0 }]] },
-    "Parse Status": { "main": [[{ "node": "Update Job Status", "type": "main", "index": 0 }]] },
-    "Update Job Status": { "main": [[{ "node": "Is Complete?", "type": "main", "index": 0 }, { "node": "Check Timeout", "type": "main", "index": 0 }]] },
-    "Is Complete?": { "main": [[{ "node": "Trigger Download Workflow", "type": "main", "index": 0 }], [{ "node": "Is Failed?", "type": "main", "index": 0 }]] },
-    "Trigger Download Workflow": { "main": [[{ "node": "Continue", "type": "main", "index": 0 }]] },
-    "Is Failed?": { "main": [[{ "node": "Alert Failure", "type": "main", "index": 0 }], [{ "node": "Continue", "type": "main", "index": 0 }]] },
-    "Alert Failure": { "main": [[{ "node": "Continue", "type": "main", "index": 0 }]] },
-    "Continue": { "main": [[{ "node": "Loop Jobs", "type": "main", "index": 0 }]] }
+    "Is Complete?": {
+      "main": [
+        [
+          {
+            "node": "Trigger Download Workflow",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Is Failed?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Is Failed?": {
+      "main": [
+        [
+          {
+            "node": "Alert Failure",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Continue",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Every Minute1": {
+      "main": [
+        [
+          {
+            "node": "Fetch Pending Jobs1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Fetch Pending Jobs1": {
+      "main": [
+        [
+          {
+            "node": "Has Jobs?1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Has Jobs?1": {
+      "main": [
+        [
+          {
+            "node": "Loop Jobs1",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "No Jobs1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Loop Jobs1": {
+      "main": [
+        [
+          {
+            "node": "Build Status URL1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Build Status URL1": {
+      "main": [
+        [
+          {
+            "node": "Poll Provider Status1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Poll Provider Status1": {
+      "main": [
+        [
+          {
+            "node": "Parse Status1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Parse Status1": {
+      "main": [
+        [
+          {
+            "node": "Update Job Status1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Update Job Status1": {
+      "main": [
+        [
+          {
+            "node": "Completed?1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Completed?1": {
+      "main": [
+        [
+          {
+            "node": "Trigger Download Workflow1",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Failed?1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Trigger Download Workflow1": {
+      "main": [
+        [
+          {
+            "node": "Continue1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Failed?1": {
+      "main": [
+        [
+          {
+            "node": "Alert Failure1",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Continue1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Alert Failure1": {
+      "main": [
+        [
+          {
+            "node": "Continue1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Continue1": {
+      "main": [
+        [
+          {
+            "node": "Loop Jobs1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
   },
-  "settings": { "executionOrder": "v1" },
-  "staticData": null,
-  "tags": [{ "name": "main-workflow" }, { "name": "pillar-3" }, { "name": "cron" }],
   "active": false,
-  "meta": { "manifestoSection": "Section 5.3", "description": "Cron-based polling for video generation status with timeout handling", "nodeCount": 18 }
+  "settings": {
+    "executionOrder": "v1",
+    "callerPolicy": "workflowsFromSameOwner",
+    "availableInMCP": false
+  },
+  "versionId": "cd7ae547-ccf7-44cf-bbaa-dc7899b83be0",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "fb0f3042150127121074617aaee31b106c313805cbc452132240d35f72eba898"
+  },
+  "id": "p63RW2AAsze0xmn7",
+  "tags": [
+    {
+      "updatedAt": "2025-12-23T09:40:14.135Z",
+      "createdAt": "2025-12-23T09:40:14.135Z",
+      "id": "ak5oOECQqNIPSE0N",
+      "name": "Brand Infinity Engine"
+    },
+    {
+      "name": "main-workflow",
+      "id": "z2qpWDnKDWH14AQW",
+      "updatedAt": "2025-12-25T14:40:29.529Z",
+      "createdAt": "2025-12-25T14:40:29.529Z"
+    },
+    {
+      "name": "pillar-3",
+      "id": "eIfyOcPUNmCzh6lQ",
+      "updatedAt": "2025-12-25T14:40:29.535Z",
+      "createdAt": "2025-12-25T14:40:29.535Z"
+    },
+    {
+      "name": "cron",
+      "id": "Xre47O0WAZBjIqql",
+      "updatedAt": "2025-12-25T14:40:29.550Z",
+      "createdAt": "2025-12-25T14:40:29.550Z"
+    }
+  ]
 }

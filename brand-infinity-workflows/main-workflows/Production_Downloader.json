@@ -6,14 +6,23 @@
         "httpMethod": "POST",
         "path": "production/download",
         "authentication": "headerAuth",
-        "options": { "responseMode": "responseNode" }
+        "options": {}
       },
       "id": "webhook",
       "name": "Webhook",
       "type": "n8n-nodes-base.webhook",
       "typeVersion": 1.1,
-      "position": [100, 300],
-      "webhookId": "production-download"
+      "position": [
+        112,
+        304
+      ],
+      "webhookId": "production-download",
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "jWLoA0KrRtvrl5V4",
+          "name": "Video API"
+        }
+      }
     },
     {
       "parameters": {
@@ -23,47 +32,52 @@
       "name": "Prepare Download",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [300, 300]
+      "position": [
+        304,
+        304
+      ]
     },
     {
       "parameters": {
-        "method": "GET",
         "url": "={{ $json.result_url }}",
         "options": {
-          "timeout": 120000,
-          "response": { "response": { "responseFormat": "file" } }
+          "response": {
+            "response": {
+              "responseFormat": "file"
+            }
+          },
+          "timeout": 120000
         }
       },
       "id": "download-video",
       "name": "Download from Provider",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.1,
-      "position": [500, 300],
+      "position": [
+        512,
+        304
+      ],
       "onError": "continueRegularOutput"
     },
     {
       "parameters": {
-        "conditions": { "boolean": [{ "value1": "={{ !!$json.data }}", "value2": true }] }
+        "conditions": {
+          "boolean": [
+            {
+              "value1": "={{ !!$json.data }}",
+              "value2": true
+            }
+          ]
+        }
       },
       "id": "download-success",
       "name": "Downloaded?",
       "type": "n8n-nodes-base.if",
       "typeVersion": 1,
-      "position": [700, 300]
-    },
-    {
-      "parameters": {
-        "operation": "upload",
-        "bucketName": "campaign_assets",
-        "fileName": "={{ $('Prepare Download').first().json.storage_path }}",
-        "options": { "contentType": "video/mp4" }
-      },
-      "id": "upload-storage",
-      "name": "Upload to Supabase",
-      "type": "n8n-nodes-base.supabase",
-      "typeVersion": 1,
-      "position": [900, 200],
-      "credentials": { "supabaseApi": { "id": "supabase-creds", "name": "Supabase API" } }
+      "position": [
+        704,
+        304
+      ]
     },
     {
       "parameters": {
@@ -73,7 +87,10 @@
       "name": "Build Internal URL",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [1100, 200]
+      "position": [
+        1104,
+        208
+      ]
     },
     {
       "parameters": {
@@ -85,104 +102,289 @@
       "name": "Update Job",
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2.4,
-      "position": [1300, 200],
-      "credentials": { "postgres": { "id": "postgres-creds", "name": "Supabase Postgres" } }
+      "position": [
+        1312,
+        208
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "5kCruSryNkW0E0CB",
+          "name": "Brand Infinity"
+        }
+      }
     },
     {
       "parameters": {
         "method": "HEAD",
         "url": "={{ $('Build Internal URL').first().json.internal_url }}",
-        "options": { "timeout": 10000 }
+        "options": {
+          "timeout": 10000
+        }
       },
       "id": "verify-asset",
       "name": "Verify Asset Exists",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.1,
-      "position": [1500, 200],
+      "position": [
+        1504,
+        208
+      ],
       "onError": "continueRegularOutput"
     },
     {
       "parameters": {
-        "conditions": { "number": [{ "value1": "={{ $json.statusCode || 200 }}", "value2": 200 }] }
+        "conditions": {
+          "number": [
+            {
+              "value1": "={{ $json.statusCode || 200 }}",
+              "value2": 200
+            }
+          ]
+        }
       },
       "id": "verify-check",
       "name": "Verified?",
       "type": "n8n-nodes-base.if",
       "typeVersion": 1,
-      "position": [1700, 200]
+      "position": [
+        1712,
+        208
+      ]
     },
     {
       "parameters": {
         "respondWith": "json",
         "responseBody": "={{ JSON.stringify({ success: true, job_id: $('Prepare Download').first().json.job_id, internal_url: $('Build Internal URL').first().json.internal_url, verified: true }) }}",
-        "options": { "responseCode": 200 }
+        "options": {
+          "responseCode": 200
+        }
       },
       "id": "return-success",
       "name": "Return Success",
       "type": "n8n-nodes-base.respondToWebhook",
       "typeVersion": 1,
-      "position": [1900, 100]
+      "position": [
+        1904,
+        112
+      ]
     },
     {
       "parameters": {
-        "workflowId": "={{ $env.SEND_ALERT_WORKFLOW_ID }}",
-        "options": {},
-        "inputData": {
-          "alert_type": "warning",
-          "message": "={{ 'Asset verification failed for job ' + $('Prepare Download').first().json.job_id }}",
-          "campaign_id": "={{ $('Prepare Download').first().json.campaign_id }}"
-        }
+        "workflowId": "uCTePCAfvuecs7La",
+        "options": {}
       },
       "id": "alert-verify-fail",
       "name": "Alert Verify Failed",
       "type": "n8n-nodes-base.executeWorkflow",
       "typeVersion": 1,
-      "position": [1900, 300]
+      "position": [
+        1904,
+        304
+      ]
     },
     {
       "parameters": {
-        "workflowId": "={{ $env.SEND_ALERT_WORKFLOW_ID }}",
-        "options": {},
-        "inputData": {
-          "alert_type": "error",
-          "message": "={{ 'Download failed for job ' + $('Prepare Download').first().json.job_id }}",
-          "campaign_id": "={{ $('Prepare Download').first().json.campaign_id }}"
-        }
+        "workflowId": "uCTePCAfvuecs7La",
+        "options": {}
       },
       "id": "alert-download-fail",
       "name": "Alert Download Failed",
       "type": "n8n-nodes-base.executeWorkflow",
       "typeVersion": 1,
-      "position": [900, 400]
+      "position": [
+        912,
+        400
+      ]
     },
     {
       "parameters": {
         "respondWith": "json",
         "responseBody": "={{ JSON.stringify({ success: false, error: 'DOWNLOAD_FAILED' }) }}",
-        "options": { "responseCode": 500 }
+        "options": {
+          "responseCode": 500
+        }
       },
       "id": "return-fail",
       "name": "Return Fail",
       "type": "n8n-nodes-base.respondToWebhook",
       "typeVersion": 1,
-      "position": [1100, 400]
+      "position": [
+        1104,
+        400
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "=https://vciscdagwhdpstaviakz.supabase.co/storage/v1/object/campaign_assets/{{ $('Prepare Download').first().json.storage_path }}",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendBody": true,
+        "contentType": "binaryData",
+        "inputDataFieldName": "data",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.3,
+      "position": [
+        912,
+        208
+      ],
+      "id": "612794d3-b2d1-4dae-9f2b-35b39dcf753a",
+      "name": "Upload to Supabase",
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "uKZiMoKcBwXvuLc9",
+          "name": "Brand Infinity Service Key"
+        }
+      }
     }
   ],
+  "pinData": {},
   "connections": {
-    "Webhook": { "main": [[{ "node": "Prepare Download", "type": "main", "index": 0 }]] },
-    "Prepare Download": { "main": [[{ "node": "Download from Provider", "type": "main", "index": 0 }]] },
-    "Download from Provider": { "main": [[{ "node": "Downloaded?", "type": "main", "index": 0 }]] },
-    "Downloaded?": { "main": [[{ "node": "Upload to Supabase", "type": "main", "index": 0 }], [{ "node": "Alert Download Failed", "type": "main", "index": 0 }]] },
-    "Alert Download Failed": { "main": [[{ "node": "Return Fail", "type": "main", "index": 0 }]] },
-    "Upload to Supabase": { "main": [[{ "node": "Build Internal URL", "type": "main", "index": 0 }]] },
-    "Build Internal URL": { "main": [[{ "node": "Update Job", "type": "main", "index": 0 }]] },
-    "Update Job": { "main": [[{ "node": "Verify Asset Exists", "type": "main", "index": 0 }]] },
-    "Verify Asset Exists": { "main": [[{ "node": "Verified?", "type": "main", "index": 0 }]] },
-    "Verified?": { "main": [[{ "node": "Return Success", "type": "main", "index": 0 }], [{ "node": "Alert Verify Failed", "type": "main", "index": 0 }]] }
+    "Webhook": {
+      "main": [
+        [
+          {
+            "node": "Prepare Download",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Prepare Download": {
+      "main": [
+        [
+          {
+            "node": "Download from Provider",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Download from Provider": {
+      "main": [
+        [
+          {
+            "node": "Downloaded?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Downloaded?": {
+      "main": [
+        [
+          {
+            "node": "Upload to Supabase",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Alert Download Failed",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Alert Download Failed": {
+      "main": [
+        [
+          {
+            "node": "Return Fail",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Build Internal URL": {
+      "main": [
+        [
+          {
+            "node": "Update Job",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Update Job": {
+      "main": [
+        [
+          {
+            "node": "Verify Asset Exists",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Verify Asset Exists": {
+      "main": [
+        [
+          {
+            "node": "Verified?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Verified?": {
+      "main": [
+        [
+          {
+            "node": "Return Success",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Alert Verify Failed",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Upload to Supabase": {
+      "main": [
+        [
+          {
+            "node": "Build Internal URL",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
   },
-  "settings": { "executionOrder": "v1" },
-  "staticData": null,
-  "tags": [{ "name": "main-workflow" }, { "name": "pillar-3" }],
   "active": false,
-  "meta": { "manifestoSection": "Section 5.4", "description": "Download from provider, upload to Supabase, verify asset exists", "nodeCount": 15 }
+  "settings": {
+    "executionOrder": "v1",
+    "callerPolicy": "workflowsFromSameOwner",
+    "availableInMCP": false
+  },
+  "versionId": "15cbb075-a48f-4092-bcb2-eca53ca75b72",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "fb0f3042150127121074617aaee31b106c313805cbc452132240d35f72eba898"
+  },
+  "id": "FPgAmuI38fr8TCze",
+  "tags": [
+    {
+      "updatedAt": "2025-12-23T09:40:14.135Z",
+      "createdAt": "2025-12-23T09:40:14.135Z",
+      "id": "ak5oOECQqNIPSE0N",
+      "name": "Brand Infinity Engine"
+    }
+  ]
 }

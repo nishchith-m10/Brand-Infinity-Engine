@@ -3,13 +3,22 @@
   "nodes": [
     {
       "parameters": {
-        "rule": { "interval": [{ "field": "hours", "hoursInterval": 1 }] }
+        "rule": {
+          "interval": [
+            {
+              "field": "hours"
+            }
+          ]
+        }
       },
       "id": "cron",
       "name": "Every Hour",
       "type": "n8n-nodes-base.scheduleTrigger",
       "typeVersion": 1.1,
-      "position": [100, 300]
+      "position": [
+        112,
+        304
+      ]
     },
     {
       "parameters": {
@@ -21,18 +30,36 @@
       "name": "Find Zombie Campaigns",
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2.4,
-      "position": [300, 300],
-      "credentials": { "postgres": { "id": "postgres-creds", "name": "Supabase Postgres" } }
+      "position": [
+        304,
+        304
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "5kCruSryNkW0E0CB",
+          "name": "Brand Infinity"
+        }
+      }
     },
     {
       "parameters": {
-        "conditions": { "number": [{ "value1": "={{ ($json || []).length }}", "operation": "larger", "value2": 0 }] }
+        "conditions": {
+          "number": [
+            {
+              "value1": "={{ ($json || []).length }}",
+              "operation": "larger"
+            }
+          ]
+        }
       },
       "id": "has-zombies",
       "name": "Has Zombies?",
       "type": "n8n-nodes-base.if",
       "typeVersion": 1,
-      "position": [500, 300]
+      "position": [
+        512,
+        304
+      ]
     },
     {
       "parameters": {
@@ -42,18 +69,23 @@
       "name": "No Zombies",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [700, 450]
+      "position": [
+        704,
+        464
+      ]
     },
     {
       "parameters": {
-        "batchSize": 1,
         "options": {}
       },
       "id": "loop",
       "name": "Loop Zombies",
       "type": "n8n-nodes-base.splitInBatches",
       "typeVersion": 3,
-      "position": [700, 200]
+      "position": [
+        704,
+        208
+      ]
     },
     {
       "parameters": {
@@ -63,17 +95,30 @@
       "name": "Classify Zombie",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [900, 200]
+      "position": [
+        912,
+        192
+      ]
     },
     {
       "parameters": {
-        "conditions": { "string": [{ "value1": "={{ $json.action }}", "value2": "mark_failed" }] }
+        "conditions": {
+          "string": [
+            {
+              "value1": "={{ $json.action }}",
+              "value2": "mark_failed"
+            }
+          ]
+        }
       },
       "id": "action-check",
       "name": "Mark Failed?",
       "type": "n8n-nodes-base.if",
       "typeVersion": 1,
-      "position": [1100, 200]
+      "position": [
+        1104,
+        208
+      ]
     },
     {
       "parameters": {
@@ -85,8 +130,16 @@
       "name": "Mark as Failed",
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2.4,
-      "position": [1300, 100],
-      "credentials": { "postgres": { "id": "postgres-creds", "name": "Supabase Postgres" } }
+      "position": [
+        1312,
+        112
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "5kCruSryNkW0E0CB",
+          "name": "Brand Infinity"
+        }
+      }
     },
     {
       "parameters": {
@@ -98,25 +151,30 @@
       "name": "Unlock for Retry",
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2.4,
-      "position": [1300, 300],
-      "credentials": { "postgres": { "id": "postgres-creds", "name": "Supabase Postgres" } }
+      "position": [
+        1312,
+        304
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "5kCruSryNkW0E0CB",
+          "name": "Brand Infinity"
+        }
+      }
     },
     {
       "parameters": {
-        "workflowId": "={{ $env.SEND_ALERT_WORKFLOW_ID }}",
-        "options": {},
-        "inputData": {
-          "alert_type": "zombie",
-          "message": "={{ 'Zombie campaign killed: ' + $('Classify Zombie').first().json.campaign_id + ' (stuck for ' + $('Classify Zombie').first().json.minutes_stuck + ' min)' }}",
-          "campaign_id": "={{ $('Classify Zombie').first().json.campaign_id }}",
-          "context": "={{ { action: $('Classify Zombie').first().json.action, severity: $('Classify Zombie').first().json.severity } }}"
-        }
+        "workflowId": "uCTePCAfvuecs7La",
+        "options": {}
       },
       "id": "alert",
       "name": "Alert Zombie Killed",
       "type": "n8n-nodes-base.executeWorkflow",
       "typeVersion": 1,
-      "position": [1500, 200]
+      "position": [
+        1504,
+        208
+      ]
     },
     {
       "parameters": {
@@ -126,24 +184,157 @@
       "name": "Continue",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [1700, 200]
+      "position": [
+        1712,
+        208
+      ]
     }
   ],
+  "pinData": {},
   "connections": {
-    "Every Hour": { "main": [[{ "node": "Find Zombie Campaigns", "type": "main", "index": 0 }]] },
-    "Find Zombie Campaigns": { "main": [[{ "node": "Has Zombies?", "type": "main", "index": 0 }]] },
-    "Has Zombies?": { "main": [[{ "node": "Loop Zombies", "type": "main", "index": 0 }], [{ "node": "No Zombies", "type": "main", "index": 0 }]] },
-    "Loop Zombies": { "main": [[{ "node": "Classify Zombie", "type": "main", "index": 0 }], []] },
-    "Classify Zombie": { "main": [[{ "node": "Mark Failed?", "type": "main", "index": 0 }]] },
-    "Mark Failed?": { "main": [[{ "node": "Mark as Failed", "type": "main", "index": 0 }], [{ "node": "Unlock for Retry", "type": "main", "index": 0 }]] },
-    "Mark as Failed": { "main": [[{ "node": "Alert Zombie Killed", "type": "main", "index": 0 }]] },
-    "Unlock for Retry": { "main": [[{ "node": "Alert Zombie Killed", "type": "main", "index": 0 }]] },
-    "Alert Zombie Killed": { "main": [[{ "node": "Continue", "type": "main", "index": 0 }]] },
-    "Continue": { "main": [[{ "node": "Loop Zombies", "type": "main", "index": 0 }]] }
+    "Every Hour": {
+      "main": [
+        [
+          {
+            "node": "Find Zombie Campaigns",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Find Zombie Campaigns": {
+      "main": [
+        [
+          {
+            "node": "Has Zombies?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Has Zombies?": {
+      "main": [
+        [
+          {
+            "node": "Loop Zombies",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "No Zombies",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Loop Zombies": {
+      "main": [
+        [
+          {
+            "node": "Classify Zombie",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        []
+      ]
+    },
+    "Classify Zombie": {
+      "main": [
+        [
+          {
+            "node": "Mark Failed?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Mark Failed?": {
+      "main": [
+        [
+          {
+            "node": "Mark as Failed",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Unlock for Retry",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Mark as Failed": {
+      "main": [
+        [
+          {
+            "node": "Alert Zombie Killed",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Unlock for Retry": {
+      "main": [
+        [
+          {
+            "node": "Alert Zombie Killed",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Alert Zombie Killed": {
+      "main": [
+        [
+          {
+            "node": "Continue",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Continue": {
+      "main": [
+        [
+          {
+            "node": "Loop Zombies",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
   },
-  "settings": { "executionOrder": "v1" },
-  "staticData": null,
-  "tags": [{ "name": "monitoring" }, { "name": "cron" }],
   "active": false,
-  "meta": { "manifestoSection": "Section 12.1", "description": "Hourly zombie campaign detection and cleanup", "nodeCount": 12 }
+  "settings": {
+    "executionOrder": "v1",
+    "callerPolicy": "workflowsFromSameOwner",
+    "availableInMCP": false
+  },
+  "versionId": "63441037-cd77-4e76-9edd-2cb67694a720",
+  "meta": {
+    "instanceId": "fb0f3042150127121074617aaee31b106c313805cbc452132240d35f72eba898"
+  },
+  "id": "rLcyJhg0iVQHSvxv",
+  "tags": [
+    {
+      "updatedAt": "2025-12-23T09:40:14.135Z",
+      "createdAt": "2025-12-23T09:40:14.135Z",
+      "id": "ak5oOECQqNIPSE0N",
+      "name": "Brand Infinity Engine"
+    }
+  ]
 }

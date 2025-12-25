@@ -2,7 +2,7 @@
 
 import { useState } from 'react';
 import { MotionRow } from "@/components/ui/motion-row";
-import { Search, SlidersHorizontal, Plus, Edit, Trash2, X } from "lucide-react";
+import { Search, SlidersHorizontal, Plus, Edit, Trash2, X, Loader2 } from "lucide-react";
 import { AnimatePresence } from "framer-motion";
 import { Modal } from "@/components/ui/modal";
 import { Input } from "@/components/ui/input";
@@ -13,19 +13,36 @@ import { ToastContainer } from "@/components/ui/toast-container";
 import { useCampaigns } from "@/lib/hooks/use-campaigns";
 import { useModal } from "@/lib/hooks/use-modal";
 import { useToast } from "@/lib/hooks/use-toast";
-import { useCampaigns as useCampaignsData } from "@/lib/hooks/use-api";
+import { useV1Campaigns } from "@/lib/hooks/use-api";
 
-// Mock Data (will be replaced by actual API data)
+// Campaign type from API
+interface Campaign {
+  campaign_id: string;
+  campaign_name: string;
+  status: string;
+  budget_limit_usd: number;
+  current_cost_usd: number;
+  created_at: string;
+  updated_at: string;
+  metadata?: {
+    target_demographic?: string;
+    campaign_objective?: string;
+    budget_tier?: string;
+  };
+}
+
+// Mock Data fallback
 const MOCK_CAMPAIGNS = [
-  { id: '1', name: "Summer Launch 2024", type: "Social Media", status: "active" as const, progress: 65, reach: "12K", engagement: "4.5%" },
-  { id: '2', name: "Q3 Webinar Series", type: "Webinar", status: "draft" as const, progress: 20, reach: "-", engagement: "-" },
-  { id: '3', name: "Black Friday Pre-Sale", type: "Email + Ads", status: "completed" as const, progress: 100, reach: "85K", engagement: "Pending" },
-  { id: '4', name: "Influencer Outreach", type: "Outreach", status: "paused" as const, progress: 75, reach: "45K", engagement: "12%" },
-  { id: '5', name: "Product Hunt Launch", type: "Social Media", status: "active" as const, progress: 80, reach: "30K", engagement: "8.2%" },
+  { campaign_id: '1', campaign_name: "Summer Launch 2024", status: "active", budget_limit_usd: 150, current_cost_usd: 45 },
+  { campaign_id: '2', campaign_name: "Q3 Webinar Series", status: "draft", budget_limit_usd: 50, current_cost_usd: 0 },
+  { campaign_id: '3', campaign_name: "Black Friday Pre-Sale", status: "completed", budget_limit_usd: 500, current_cost_usd: 485 },
 ];
 
 export default function CampaignsPage() {
-  // Hooks
+  // Real API data with fallback
+  const { data: apiCampaigns, isLoading, error, mutate } = useV1Campaigns();
+  
+  // Hooks for local state management
   const {
     filters,
     updateFilters,
@@ -53,14 +70,17 @@ export default function CampaignsPage() {
 
   // Local state
   const [searchQuery, setSearchQuery] = useState('');
-  const [selectedCampaign, setSelectedCampaign] = useState<typeof MOCK_CAMPAIGNS[0] | null>(null);
-  const [createForm, setCreateForm] = useState({ name: '', brand_id: 'brand_001' });
-  const [editForm, setEditForm] = useState<{ name: string; status: 'draft' | 'active' | 'completed' | 'paused' }>({ name: '', status: 'draft' });
+  const [selectedCampaign, setSelectedCampaign] = useState<Campaign | null>(null);
+  const [createForm, setCreateForm] = useState({ name: '', brand_id: 'brand_001', budget_tier: 'medium' });
+  const [editForm, setEditForm] = useState<{ name: string; status: string }>({ name: '', status: 'draft' });
   
-  // In production, use: const { data: campaigns, isLoading } = useCampaignsData(filters);
-  // For now, filter mock data
-  const campaigns = MOCK_CAMPAIGNS.filter(campaign => {
-    if (searchQuery && !campaign.name.toLowerCase().includes(searchQuery.toLowerCase())) {
+  // Use mock data if API returns empty or is still loading
+  const showMockData = !apiCampaigns || apiCampaigns.length === 0;
+  const rawCampaigns: Campaign[] = showMockData ? MOCK_CAMPAIGNS as unknown as Campaign[] : apiCampaigns;
+  
+  // Filter campaigns
+  const campaigns = rawCampaigns.filter(campaign => {
+    if (searchQuery && !campaign.campaign_name.toLowerCase().includes(searchQuery.toLowerCase())) {
       return false;
     }
     if (filters.status && campaign.status !== filters.status) {
@@ -88,10 +108,23 @@ export default function CampaignsPage() {
     }
 
     try {
-      await createCampaign(createForm);
+      // Call API to create campaign
+      const response = await fetch('/api/v1/campaigns', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          campaign_name: createForm.name,
+          brand_id: createForm.brand_id,
+          budget_tier: createForm.budget_tier,
+        }),
+      });
+      
+      if (!response.ok) throw new Error('Failed to create campaign');
+      
       showToast({ type: 'success', message: `Campaign "${createForm.name}" created successfully` });
       createModal.close();
-      setCreateForm({ name: '', brand_id: 'brand_001' });
+      setCreateForm({ name: '', brand_id: 'brand_001', budget_tier: 'medium' });
+      mutate(); // Refresh campaigns list
     } catch (error: unknown) {
       showToast({ 
         type: 'error', 
@@ -100,9 +133,9 @@ export default function CampaignsPage() {
     }
   };
 
-  const handleEditClick = (campaign: typeof MOCK_CAMPAIGNS[0]) => {
+  const handleEditClick = (campaign: Campaign) => {
     setSelectedCampaign(campaign);
-    setEditForm({ name: campaign.name, status: campaign.status as "draft" });
+    setEditForm({ name: campaign.campaign_name, status: campaign.status });
     editModal.open();
   };
 
@@ -110,13 +143,21 @@ export default function CampaignsPage() {
     if (!selectedCampaign) return;
 
     try {
-      await updateCampaign({
-        campaignId: selectedCampaign.id,
-        data: editForm,
+      const response = await fetch(`/api/v1/campaigns/${selectedCampaign.campaign_id}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          campaign_name: editForm.name,
+          status: editForm.status,
+        }),
       });
+      
+      if (!response.ok) throw new Error('Failed to update campaign');
+      
       showToast({ type: 'success', message: 'Campaign updated successfully' });
       editModal.close();
       setSelectedCampaign(null);
+      mutate(); // Refresh campaigns list
     } catch (error: unknown) {
       showToast({ 
         type: 'error', 
@@ -125,7 +166,7 @@ export default function CampaignsPage() {
     }
   };
 
-  const handleDeleteClick = (campaign: typeof MOCK_CAMPAIGNS[0]) => {
+  const handleDeleteClick = (campaign: Campaign) => {
     setSelectedCampaign(campaign);
     deleteModal.open();
   };
@@ -134,10 +175,16 @@ export default function CampaignsPage() {
     if (!selectedCampaign) return;
 
     try {
-      await deleteCampaign(selectedCampaign.id);
-      showToast({ type: 'success', message: `Campaign "${selectedCampaign.name}" deleted successfully` });
+      const response = await fetch(`/api/v1/campaigns/${selectedCampaign.campaign_id}`, {
+        method: 'DELETE',
+      });
+      
+      if (!response.ok) throw new Error('Failed to delete campaign');
+      
+      showToast({ type: 'success', message: `Campaign "${selectedCampaign.campaign_name}" deleted successfully` });
       deleteModal.close();
       setSelectedCampaign(null);
+      mutate(); // Refresh campaigns list
     } catch (error: unknown) {
       showToast({ 
         type: 'error', 
@@ -214,49 +261,39 @@ export default function CampaignsPage() {
              <thead>
                 <tr className="text-left text-slate-400 text-xs font-semibold uppercase tracking-wider">
                    <th className="pb-4 pl-4">Name</th>
-                   <th className="pb-4">Type</th>
+                   <th className="pb-4">Budget</th>
                    <th className="pb-4">Status</th>
-                   <th className="pb-4">Progress</th>
-                   <th className="pb-4">Metrics</th>
+                   <th className="pb-4">Spent</th>
                    <th className="pb-4 pr-4 text-right">Actions</th>
                 </tr>
              </thead>
              <tbody>
                 <AnimatePresence>
                    {campaigns.map((campaign, index) => (
-                      <MotionRow key={campaign.id} index={index}>
+                      <MotionRow key={campaign.campaign_id} index={index}>
                          <td className="py-2 pl-4 rounded-l-xl bg-slate-50 border-y border-l border-slate-100">
                             <div className="flex flex-col">
-                               <span className="font-semibold text-slate-800 text-sm">{campaign.name}</span>
-                               <span className="text-[10px] text-slate-400">ID: {campaign.id}</span>
+                               <span className="font-semibold text-slate-800 text-sm">{campaign.campaign_name}</span>
+                               <span className="text-[10px] text-slate-400">ID: {campaign.campaign_id.slice(0, 8)}...</span>
                             </div>
                          </td>
                          <td className="py-2 bg-slate-50 border-y border-slate-100">
-                            <span className="text-sm text-slate-600">{campaign.type}</span>
+                            <span className="text-sm text-slate-600">${campaign.budget_limit_usd}</span>
                          </td>
                          <td className="py-2 bg-slate-50 border-y border-slate-100">
                              <div className={`inline-flex px-2 py-1 rounded-full text-[10px] font-bold uppercase
-                                ${campaign.status === "active" ? "bg-lamaPurpleLight text-lamaPurple" : ""}
-                                ${campaign.status === "completed" ? "bg-emerald-100 text-emerald-600" : ""}
+                                ${campaign.status === "active" || campaign.status === "strategizing" || campaign.status === "writing" || campaign.status === "producing" ? "bg-lamaPurpleLight text-lamaPurple" : ""}
+                                ${campaign.status === "completed" || campaign.status === "published" ? "bg-emerald-100 text-emerald-600" : ""}
                                 ${campaign.status === "draft" ? "bg-lamaYellowLight text-amber-600" : ""}
-                                ${campaign.status === "paused" ? "bg-slate-200 text-slate-600" : ""}
+                                ${campaign.status === "paused" || campaign.status === "archived" ? "bg-slate-200 text-slate-600" : ""}
+                                ${campaign.status === "failed" ? "bg-red-100 text-red-600" : ""}
                              `}>
                                 {campaign.status}
                              </div>
                          </td>
                          <td className="py-2 bg-slate-50 border-y border-slate-100">
-                            <div className="w-24 h-1.5 bg-slate-200 rounded-full overflow-hidden">
-                               <div 
-                                  className="h-full bg-lamaSky rounded-full" 
-                                  style={{ width: `${campaign.progress}%` }} 
-                               />
-                            </div>
-                         </td>
-                         <td className="py-2 bg-slate-50 border-y border-slate-100">
-                            <div className="text-xs text-slate-500">
-                               <span className="font-medium text-slate-800">{campaign.reach}</span> Reach
-                               <span className="mx-1">&bull;</span>
-                               <span className="font-medium text-slate-800">{campaign.engagement}</span> Eng.
+                            <div className="text-sm text-slate-600">
+                               ${campaign.current_cost_usd?.toFixed(2) || '0.00'}
                             </div>
                          </td>
                          <td className="py-2 pr-4 rounded-r-xl bg-slate-50 border-y border-r border-slate-100 text-right">
@@ -401,7 +438,7 @@ export default function CampaignsPage() {
          onClose={deleteModal.close}
          onConfirm={handleConfirmDelete}
          title="Delete Campaign"
-         message={`Are you sure you want to delete "${selectedCampaign?.name}"? This action cannot be undone.`}
+         message={`Are you sure you want to delete "${selectedCampaign?.campaign_name}"? This action cannot be undone.`}
          confirmText="Delete Campaign"
          variant="danger"
          isLoading={isDeleting}

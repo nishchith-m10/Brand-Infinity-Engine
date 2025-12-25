@@ -196,6 +196,116 @@ export function useHealth() {
 }
 
 // =============================================================================
+// V1 API Hooks (Connected to backend)
+// =============================================================================
+
+// Simple fetch wrapper for v1 endpoints
+const v1Fetcher = async (url: string) => {
+  const response = await fetch(url);
+  if (!response.ok) throw new Error('API request failed');
+  const data = await response.json();
+  return data.data;
+};
+
+export function useDashboardStats() {
+  return useSWR(
+    '/api/v1/dashboard/stats',
+    v1Fetcher,
+    { refreshInterval: 30000 } // Refresh every 30 seconds
+  );
+}
+
+export function useV1Campaigns(params?: { status?: string; limit?: number; offset?: number }) {
+  const searchParams = new URLSearchParams();
+  if (params?.status) searchParams.set('status', params.status);
+  if (params?.limit) searchParams.set('limit', params.limit.toString());
+  if (params?.offset) searchParams.set('offset', params.offset.toString());
+  
+  const url = `/api/v1/campaigns${searchParams.toString() ? `?${searchParams.toString()}` : ''}`;
+  
+  return useSWR(url, v1Fetcher);
+}
+
+export function useV1Campaign(campaignId: string | null) {
+  return useSWR(
+    campaignId ? `/api/v1/campaigns/${campaignId}` : null,
+    v1Fetcher,
+    {
+      // Poll faster when campaign is processing
+      refreshInterval: (data) => {
+        const processingStates = ['strategizing', 'writing', 'producing', 'publishing'];
+        if (data && processingStates.includes(data.status)) {
+          return 2000; // Poll every 2 seconds during processing
+        }
+        return 10000; // Slow poll when stable
+      },
+    }
+  );
+}
+
+export function useTriggerWorkflow() {
+  return useSWRMutation(
+    '/api/v1/campaigns/trigger',
+    async (_key, { arg }: { arg: { campaignId: string; action: string; data?: Record<string, unknown> } }) => {
+      const response = await fetch(`/api/v1/campaigns/${arg.campaignId}/trigger`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: arg.action, ...arg.data }),
+      });
+      if (!response.ok) throw new Error('Failed to trigger workflow');
+      return response.json();
+    }
+  );
+}
+
+export function useSystemHealth() {
+  return useSWR(
+    '/api/v1/health',
+    v1Fetcher,
+    { refreshInterval: 30000 }
+  );
+}
+
+export function useV1Videos(params?: { status?: string; campaign_id?: string; limit?: number }) {
+  const searchParams = new URLSearchParams();
+  if (params?.status) searchParams.set('status', params.status);
+  if (params?.campaign_id) searchParams.set('campaign_id', params.campaign_id);
+  if (params?.limit) searchParams.set('limit', params.limit.toString());
+  
+  const url = `/api/v1/videos${searchParams.toString() ? `?${searchParams.toString()}` : ''}`;
+  return useSWR(url, v1Fetcher, { refreshInterval: 10000 });
+}
+
+export function useV1Briefs(params?: { campaign_id?: string; limit?: number }) {
+  const searchParams = new URLSearchParams();
+  if (params?.campaign_id) searchParams.set('campaign_id', params.campaign_id);
+  if (params?.limit) searchParams.set('limit', params.limit.toString());
+  
+  const url = `/api/v1/briefs${searchParams.toString() ? `?${searchParams.toString()}` : ''}`;
+  return useSWR(url, v1Fetcher);
+}
+
+export function useV1Scripts(params?: { campaign_id?: string; brief_id?: string; limit?: number }) {
+  const searchParams = new URLSearchParams();
+  if (params?.campaign_id) searchParams.set('campaign_id', params.campaign_id);
+  if (params?.brief_id) searchParams.set('brief_id', params.brief_id);
+  if (params?.limit) searchParams.set('limit', params.limit.toString());
+  
+  const url = `/api/v1/scripts${searchParams.toString() ? `?${searchParams.toString()}` : ''}`;
+  return useSWR(url, v1Fetcher);
+}
+
+export function useV1Publications(params?: { status?: string; platform?: string; limit?: number }) {
+  const searchParams = new URLSearchParams();
+  if (params?.status) searchParams.set('status', params.status);
+  if (params?.platform) searchParams.set('platform', params.platform);
+  if (params?.limit) searchParams.set('limit', params.limit.toString());
+  
+  const url = `/api/v1/publications${searchParams.toString() ? `?${searchParams.toString()}` : ''}`;
+  return useSWR(url, v1Fetcher, { refreshInterval: 15000 });
+}
+
+// =============================================================================
 // Mutation Hooks (for POST/PUT/DELETE operations)
 // =============================================================================
 
@@ -278,3 +388,33 @@ export function useUpdateCampaign() {
     }
   );
 }
+
+// =============================================================================
+// V1 API Hooks - Reviews, Analytics, Variants
+// =============================================================================
+
+export function useV1Reviews(params?: { type?: 'brief' | 'script' | 'video' }) {
+  const searchParams = new URLSearchParams();
+  if (params?.type) searchParams.set('type', params.type);
+  
+  const url = `/api/v1/reviews${searchParams.toString() ? `?${searchParams.toString()}` : ''}`;
+  return useSWR(url, v1Fetcher, { refreshInterval: 30000 });
+}
+
+export function useV1Analytics(params?: { range?: '7d' | '30d' | '90d' | 'year' }) {
+  const searchParams = new URLSearchParams();
+  if (params?.range) searchParams.set('range', params.range);
+  
+  const url = `/api/v1/analytics${searchParams.toString() ? `?${searchParams.toString()}` : ''}`;
+  return useSWR(url, v1Fetcher);
+}
+
+export function useV1Variants(params?: { video_id?: string; platform?: string }) {
+  const searchParams = new URLSearchParams();
+  if (params?.video_id) searchParams.set('video_id', params.video_id);
+  if (params?.platform) searchParams.set('platform', params.platform);
+  
+  const url = `/api/v1/variants${searchParams.toString() ? `?${searchParams.toString()}` : ''}`;
+  return useSWR(url, v1Fetcher);
+}
+

@@ -40,24 +40,7 @@ export default function Navbar() {
       {/* ICONS AND USER */}
       <div className="flex items-center gap-6 justify-end w-full md:w-auto">
         
-        {/* ACTION ICONS */}
-        <motion.div 
-          whileHover={{ y: -2 }}
-          className="bg-white rounded-full w-9 h-9 flex items-center justify-center cursor-pointer relative shadow-sm hover:shadow-md transition-shadow"
-        >
-          <MessageSquare size={18} className="text-slate-600" />
-        </motion.div>
-        
-        <motion.div 
-          whileHover={{ y: -2 }}
-          className="bg-white rounded-full w-9 h-9 flex items-center justify-center cursor-pointer relative shadow-sm hover:shadow-md transition-shadow"
-        >
-          <Megaphone size={18} className="text-slate-600" />
-          <div className="absolute -top-1 -right-1 w-4 h-4 flex items-center justify-center bg-lamaPurple text-white rounded-full text-[10px] font-bold">
-            1
-          </div>
-        </motion.div>
-        
+
         <motion.div 
           whileHover={{ y: -2 }}
           className="bg-white rounded-full w-9 h-9 flex items-center justify-center cursor-pointer relative shadow-sm hover:shadow-md transition-shadow"
@@ -78,14 +61,20 @@ export default function Navbar() {
               </div>
               <motion.div 
                 whileHover={{ scale: 1.05 }}
-                className="w-9 h-9 rounded-full bg-slate-200 relative overflow-hidden ring-2 ring-white shadow-sm"
+                className="w-9 h-9 rounded-full bg-gradient-to-br from-lamaPurple to-lamaSky relative overflow-hidden ring-2 ring-white shadow-sm flex items-center justify-center"
               >
-                <Image 
-                  src={user?.user_metadata?.avatar_url || "https://images.pexels.com/photos/1102341/pexels-photo-1102341.jpeg?auto=compress&cs=tinysrgb&w=1200"}
-                  alt="Avatar" 
-                  fill
-                  className="object-cover"
-                />
+                {user?.user_metadata?.avatar_url ? (
+                  <Image 
+                    src={user.user_metadata.avatar_url}
+                    alt="Avatar" 
+                    fill
+                    className="object-cover"
+                  />
+                ) : (
+                  <span className="text-white font-bold text-sm">
+                    {user?.user_metadata?.full_name?.charAt(0)?.toUpperCase() || user?.email?.charAt(0)?.toUpperCase() || 'U'}
+                  </span>
+                )}
               </motion.div>
             </div>
           </DropdownMenuTrigger>

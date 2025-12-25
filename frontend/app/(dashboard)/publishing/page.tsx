@@ -22,6 +22,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { publisherApi, type Publication, type Variant, type ScheduleRequest } from '@/lib/api-client';
 import { formatDate, getPlatformColor } from '@/lib/utils';
 import { getPlatformIcon } from '@/lib/platform-icons';
+import { useV1Publications } from '@/lib/hooks/use-api';
 
 // Mock variants data
 const mockVariants: Variant[] = [
@@ -146,7 +147,12 @@ export default function PublishingPage() {
   const [showScheduleModal, setShowScheduleModal] = useState(false);
   const [showPostDetail, setShowPostDetail] = useState(false);
   const [selectedPost, setSelectedPost] = useState<(Publication & { variant?: Variant }) | null>(null);
-  const [scheduledPosts, setScheduledPosts] = useState(mockScheduledPosts);
+  
+  // Fetch from API with fallback to mock data
+  const { data: apiPublications } = useV1Publications();
+  const [scheduledPosts, setScheduledPosts] = useState<(Publication & { variant?: Variant })[]>(() => 
+    apiPublications?.length > 0 ? apiPublications : mockScheduledPosts
+  );
 
   // Schedule form state
   const [scheduleForm, setScheduleForm] = useState({
@@ -165,7 +171,7 @@ export default function PublishingPage() {
   // Group posts by date
   const postsByDate = useMemo(() => {
     const grouped: Record<string, Publication[]> = {};
-    scheduledPosts.forEach((post) => {
+    scheduledPosts.forEach((post: Publication) => {
       const date = new Date(post.scheduled_time || '').toDateString();
       if (!grouped[date]) grouped[date] = [];
       grouped[date].push(post);
@@ -204,7 +210,7 @@ export default function PublishingPage() {
 
   // Cancel scheduled post
   const handleCancelPost = (postId: string) => {
-    setScheduledPosts((prev) => prev.filter((p) => p.publication_id !== postId));
+    setScheduledPosts((prev: (Publication & { variant?: Variant })[]) => prev.filter((p) => p.publication_id !== postId));
     setShowPostDetail(false);
     setSelectedPost(null);
   };
@@ -225,7 +231,7 @@ export default function PublishingPage() {
       variant,
     };
     
-    setScheduledPosts((prev) => [...prev, newPost]);
+    setScheduledPosts((prev: (Publication & { variant?: Variant })[]) => [...prev, newPost]);
     setShowScheduleModal(false);
     setScheduleForm({ variantId: '', date: '', time: '10:00', caption: '', hashtags: '' });
   };

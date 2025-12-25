@@ -14,6 +14,7 @@ credentials/
 *.key
 *.pem
 *.p12
+N8N_MASTER_CREDENTIALS.md
 
 # Logs
 logs/
