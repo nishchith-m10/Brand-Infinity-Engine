@@ -7,7 +7,10 @@
       "name": "Start",
       "type": "n8n-nodes-base.executeWorkflowTrigger",
       "typeVersion": 1,
-      "position": [250, 300]
+      "position": [
+        256,
+        304
+      ]
     },
     {
       "parameters": {
@@ -17,22 +20,30 @@
       "name": "Prepare Check",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [450, 300]
+      "position": [
+        464,
+        304
+      ]
     },
     {
       "parameters": {
-        "operation": "mget",
-        "keys": "={{ [$json.redis_keys.consecutive_failures, $json.redis_keys.status, $json.redis_keys.opened_at] }}"
+        "operation": "get",
+        "propertyName": "key_status",
+        "key": "={{ $json.redis_keys.status }}",
+        "options": {}
       },
       "id": "get-circuit-state",
       "name": "Get Circuit State",
       "type": "n8n-nodes-base.redis",
       "typeVersion": 1,
-      "position": [650, 300],
+      "position": [
+        656,
+        304
+      ],
       "credentials": {
         "redis": {
-          "id": "redis-creds",
-          "name": "Redis"
+          "id": "1Vc5f2QSvfPfCpxX",
+          "name": "Brand Infinity Redis"
         }
       },
       "onError": "continueRegularOutput"
@@ -45,7 +56,10 @@
       "name": "Evaluate Circuit State",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [850, 300]
+      "position": [
+        864,
+        304
+      ]
     },
     {
       "parameters": {
@@ -62,7 +76,10 @@
       "name": "Status Changed?",
       "type": "n8n-nodes-base.if",
       "typeVersion": 1,
-      "position": [1100, 300]
+      "position": [
+        1104,
+        304
+      ]
     },
     {
       "parameters": {
@@ -77,11 +94,14 @@
       "name": "Update Circuit Status",
       "type": "n8n-nodes-base.redis",
       "typeVersion": 1,
-      "position": [1300, 200],
+      "position": [
+        1312,
+        208
+      ],
       "credentials": {
         "redis": {
-          "id": "redis-creds",
-          "name": "Redis"
+          "id": "1Vc5f2QSvfPfCpxX",
+          "name": "Brand Infinity Redis"
         }
       },
       "onError": "continueRegularOutput"
@@ -94,9 +114,13 @@
       "name": "Final Result",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [1500, 300]
+      "position": [
+        1520,
+        320
+      ]
     }
   ],
+  "pinData": {},
   "connections": {
     "Start": {
       "main": [
@@ -172,28 +196,23 @@
       ]
     }
   },
+  "active": false,
   "settings": {
-    "executionOrder": "v1"
+    "executionOrder": "v1",
+    "callerPolicy": "workflowsFromSameOwner",
+    "availableInMCP": false
   },
-  "staticData": null,
+  "versionId": "8aab71cb-d186-4033-908f-5ad8199ab0a8",
+  "meta": {
+    "instanceId": "fb0f3042150127121074617aaee31b106c313805cbc452132240d35f72eba898"
+  },
+  "id": "QOgvjzuDoykfiqvh",
   "tags": [
     {
-      "name": "sub-workflow"
-    },
-    {
-      "name": "circuit-breaker"
-    },
-    {
-      "name": "phase-4"
+      "updatedAt": "2025-12-23T09:40:14.135Z",
+      "createdAt": "2025-12-23T09:40:14.135Z",
+      "id": "ak5oOECQqNIPSE0N",
+      "name": "Brand Infinity Engine"
     }
-  ],
-  "triggerCount": 0,
-  "active": false,
-  "pinData": {},
-  "versionId": "1.0.0",
-  "meta": {
-    "instanceId": "brand-infinity-engine",
-    "manifestoSection": "Section 2, Dimension 6",
-    "description": "Redis-backed circuit breaker with CLOSED/OPEN/HALF_OPEN state machine"
-  }
+  ]
 }

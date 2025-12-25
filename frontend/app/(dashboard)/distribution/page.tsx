@@ -22,6 +22,8 @@ import { Textarea } from '@/components/ui/textarea';
 import { variantsApi, type Variant } from '@/lib/api-client';
 import { formatDate, getPlatformColor } from '@/lib/utils';
 import { getPlatformIcon } from '@/lib/platform-icons';
+import { useV1Variants } from '@/lib/hooks/use-api';
+import { useToast } from '@/lib/hooks/use-toast';
 
 // Available platforms configuration
 const PLATFORMS = [
@@ -50,12 +52,15 @@ const mockVariants: Variant[] = [
 export default function DistributionPage() {
   const [selectedVideo] = useState<string | null>(mockVideos[0]?.video_id);
   const [selectedPlatforms, setSelectedPlatforms] = useState<string[]>([]);
+  const { showToast: toast } = useToast();
   const [showGenerateModal, setShowGenerateModal] = useState(false);
   const [showVariantDetail, setShowVariantDetail] = useState(false);
   const [selectedVariant, setSelectedVariant] = useState<Variant | null>(null);
   const [customCaption, setCustomCaption] = useState('');
 
-  const variants = mockVariants.filter((v) => v.video_id === selectedVideo);
+  // Fetch from API with fallback to mock data
+  const { data: apiVariants } = useV1Variants({ video_id: selectedVideo || undefined });
+  const variants = (apiVariants?.length > 0 ? apiVariants : mockVariants).filter((v: Variant) => v.video_id === selectedVideo);
 
   const generateMutation = useMutation({
     mutationFn: async (data: { videoId: string; platforms: string[] }) => {
@@ -108,7 +113,7 @@ export default function DistributionPage() {
           {/* SEARCH */}
           <div className="flex items-center gap-2 text-xs rounded-full ring-[1.5px] ring-slate-200 px-3 py-2 w-full md:w-[240px] bg-white">
             <Search size={16} className="text-slate-500" />
-            <input type="text" placeholder="Search variants..." className="w-full bg-transparent outline-none text-slate-700" />
+            <input type="text" placeholder="Search variants..." className="w-full bg-transparent outline-none text-slate-700" autoComplete="off" data-form-type="other" />
           </div>
           <div className="flex items-center gap-4 self-end">
             <button className="w-9 h-9 flex items-center justify-center rounded-full bg-amber-100 text-amber-700 hover:bg-amber-500 hover:text-white transition-colors">
@@ -159,7 +164,7 @@ export default function DistributionPage() {
       ) : (
         <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
           <AnimatePresence>
-            {variants.map((variant, index) => {
+            {variants.map((variant: Variant, index: number) => {
               const platform = getPlatformConfig(variant.platform);
               return (
                 <motion.div
@@ -228,7 +233,7 @@ export default function DistributionPage() {
           <div className="grid gap-3 sm:grid-cols-2">
             {PLATFORMS.map((platform) => {
               const isSelected = selectedPlatforms.includes(platform.id);
-              const alreadyExists = variants.some((v) => v.platform === platform.id);
+              const alreadyExists = variants.some((v: Variant) => v.platform === platform.id);
               return (
                 <button
                   key={platform.id}
@@ -325,10 +330,10 @@ export default function DistributionPage() {
             </div>
 
             <div className="flex justify-end gap-3">
-              <button className="flex items-center gap-2 px-4 py-2 rounded-xl border border-slate-200 text-slate-700 hover:bg-slate-50 transition-colors">
+              <button onClick={() => toast({ type: 'info', message: "Video preview player coming soon" })} className="flex items-center gap-2 px-4 py-2 rounded-xl border border-slate-200 text-slate-700 hover:bg-slate-50 transition-colors">
                 <Eye className="h-4 w-4" /> Preview
               </button>
-              <button className="flex items-center gap-2 px-4 py-2 rounded-xl border border-slate-200 text-slate-700 hover:bg-slate-50 transition-colors">
+              <button onClick={() => toast({ type: 'info', message: "Download functionality coming soon" })} className="flex items-center gap-2 px-4 py-2 rounded-xl border border-slate-200 text-slate-700 hover:bg-slate-50 transition-colors">
                 <Download className="h-4 w-4" /> Download
               </button>
               <button onClick={() => { setShowVariantDetail(false); window.location.href = '/publishing'; }} className="flex items-center gap-2 px-4 py-2 rounded-xl bg-lamaPurple text-white font-medium hover:bg-lamaPurple/90 transition-colors">

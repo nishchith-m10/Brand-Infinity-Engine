@@ -6,43 +6,37 @@
         "httpMethod": "POST",
         "path": "strategist",
         "authentication": "headerAuth",
-        "options": {
-          "responseMode": "responseNode"
-        }
+        "options": {}
       },
       "id": "webhook-trigger",
       "name": "Webhook Trigger",
       "type": "n8n-nodes-base.webhook",
       "typeVersion": 1.1,
-      "position": [100, 400],
-      "webhookId": "strategist-main"
+      "position": [
+        112,
+        592
+      ],
+      "webhookId": "strategist-main",
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "uNNf74d1EVpcGBgo",
+          "name": "Header Auth account"
+        }
+      }
     },
     {
       "parameters": {
-        "workflowId": "={{ $env.VALIDATE_SCHEMA_WORKFLOW_ID }}",
-        "options": {},
-        "inputData": {
-          "data": "={{ $json.body }}",
-          "schema": {
-            "type": "object",
-            "required": ["campaign_id", "brand_id", "user_id"],
-            "properties": {
-              "campaign_id": { "type": "string" },
-              "brand_id": { "type": "string" },
-              "user_id": { "type": "string" },
-              "industry": { "type": "string" },
-              "focus_topic": { "type": "string" },
-              "excluded_keywords": { "type": "array" }
-            }
-          },
-          "schema_name": "StrategistRequest"
-        }
+        "workflowId": "y0c3JFOEAZFkvAjC",
+        "options": {}
       },
       "id": "validate-request",
       "name": "Validate Request Schema",
       "type": "n8n-nodes-base.executeWorkflow",
       "typeVersion": 1,
-      "position": [300, 400]
+      "position": [
+        336,
+        592
+      ]
     },
     {
       "parameters": {
@@ -59,7 +53,10 @@
       "name": "Validation Passed?",
       "type": "n8n-nodes-base.if",
       "typeVersion": 1,
-      "position": [500, 400]
+      "position": [
+        560,
+        592
+      ]
     },
     {
       "parameters": {
@@ -73,25 +70,24 @@
       "name": "Return 400 Error",
       "type": "n8n-nodes-base.respondToWebhook",
       "typeVersion": 1,
-      "position": [700, 550]
+      "position": [
+        784,
+        688
+      ]
     },
     {
       "parameters": {
-        "workflowId": "={{ $env.ACQUIRE_LOCK_WORKFLOW_ID }}",
-        "options": {},
-        "inputData": {
-          "table_name": "campaigns",
-          "record_id": "={{ $('Webhook Trigger').first().json.body.campaign_id }}",
-          "workflow_id": "={{ $execution.id }}",
-          "expected_status": "idea",
-          "target_status": "strategizing"
-        }
+        "workflowId": "lwHIR7PonbgLVkmJ",
+        "options": {}
       },
       "id": "acquire-campaign-lock",
       "name": "Acquire Campaign Lock",
       "type": "n8n-nodes-base.executeWorkflow",
       "typeVersion": 1,
-      "position": [700, 300]
+      "position": [
+        784,
+        496
+      ]
     },
     {
       "parameters": {
@@ -108,7 +104,10 @@
       "name": "Lock Acquired?",
       "type": "n8n-nodes-base.if",
       "typeVersion": 1,
-      "position": [900, 300]
+      "position": [
+        1008,
+        496
+      ]
     },
     {
       "parameters": {
@@ -122,7 +121,10 @@
       "name": "Return 409 Conflict",
       "type": "n8n-nodes-base.respondToWebhook",
       "typeVersion": 1,
-      "position": [1100, 450]
+      "position": [
+        1216,
+        688
+      ]
     },
     {
       "parameters": {
@@ -132,23 +134,24 @@
       "name": "Prepare Parallel Requests",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [1100, 200]
+      "position": [
+        1232,
+        304
+      ]
     },
     {
       "parameters": {
-        "workflowId": "={{ $env.GET_BRAND_CONTEXT_WORKFLOW_ID }}",
-        "options": {},
-        "inputData": {
-          "brand_id": "={{ $json.brand_id }}",
-          "query_context": "={{ $json.focus_topic || $json.industry }}",
-          "limit": 10
-        }
+        "workflowId": "W0vejFr0Sv62X70X",
+        "options": {}
       },
       "id": "get-brand-context",
       "name": "Get Brand Context (RAG)",
       "type": "n8n-nodes-base.executeWorkflow",
       "typeVersion": 1,
-      "position": [1350, 100]
+      "position": [
+        1456,
+        112
+      ]
     },
     {
       "parameters": {
@@ -175,7 +178,10 @@
       "name": "Scrape Trends (UTI)",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.1,
-      "position": [1350, 250],
+      "position": [
+        1456,
+        304
+      ],
       "onError": "continueRegularOutput"
     },
     {
@@ -203,20 +209,30 @@
       "name": "Analyze Competitors",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.1,
-      "position": [1350, 400],
+      "position": [
+        1456,
+        496
+      ],
       "onError": "continueRegularOutput"
     },
     {
       "parameters": {
         "mode": "combine",
-        "combineBy": "combineAll",
+        "mergeByFields": {
+          "values": [
+            {}
+          ]
+        },
         "options": {}
       },
       "id": "merge-parallel",
       "name": "Merge Parallel Results",
       "type": "n8n-nodes-base.merge",
       "typeVersion": 2.1,
-      "position": [1600, 250]
+      "position": [
+        1680,
+        304
+      ]
     },
     {
       "parameters": {
@@ -226,33 +242,10 @@
       "name": "Assemble Intelligence Context",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [1800, 250]
-    },
-    {
-      "parameters": {
-        "method": "POST",
-        "url": "https://api.openai.com/v1/chat/completions",
-        "authentication": "genericCredentialType",
-        "genericAuthType": "httpHeaderAuth",
-        "sendBody": true,
-        "specifyBody": "json",
-        "jsonBody": "={{ JSON.stringify({ model: 'gpt-4o', messages: [{ role: 'system', content: 'You are the Chief Strategy Officer for ' + $json.brand_name + '. Analyze trends and create a creative brief. Brand Voice: ' + $json.brand_tone + '. RULES: ' + ($json.brand_rules || []).join('; ') + '. DO NOT mention: ' + ($json.negative_constraints || []).join(', ') + '. Respond with valid JSON only containing: {\"recommended_trend\": {\"topic\": \"...\", \"relevance_score\": 0-100, \"connection_angle\": \"...\"}, \"creative_direction\": \"...\", \"hook_concept\": \"...\", \"target_emotion\": \"...\", \"call_to_action\": \"...\"}' }, { role: 'user', content: 'Analyze these trends for ' + $json.industry + ': ' + JSON.stringify($json.trending_topics) + '. Focus on: ' + ($json.focus_topic || 'general engagement') + '. Create a viral content strategy.' }], temperature: 0.7, max_tokens: 1000 }) }}",
-        "options": {
-          "timeout": 60000
-        }
-      },
-      "id": "generate-strategy",
-      "name": "Generate Strategy (LLM)",
-      "type": "n8n-nodes-base.httpRequest",
-      "typeVersion": 4.1,
-      "position": [2050, 250],
-      "credentials": {
-        "httpHeaderAuth": {
-          "id": "openai-creds",
-          "name": "OpenAI API"
-        }
-      },
-      "onError": "continueRegularOutput"
+      "position": [
+        1904,
+        304
+      ]
     },
     {
       "parameters": {
@@ -262,7 +255,10 @@
       "name": "Parse Strategy & Cost",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [2300, 250]
+      "position": [
+        2352,
+        304
+      ]
     },
     {
       "parameters": {
@@ -279,19 +275,24 @@
       "name": "LLM Success?",
       "type": "n8n-nodes-base.if",
       "typeVersion": 1,
-      "position": [2500, 250]
+      "position": [
+        2576,
+        304
+      ]
     },
     {
       "parameters": {
-        "workflowId": "={{ $env.LOG_COST_EVENT_WORKFLOW_ID }}",
-        "options": {},
-        "inputData": "={{ $json.cost_data }}"
+        "workflowId": "4OuxyvQvJ9GV3yD1",
+        "options": {}
       },
       "id": "log-cost",
       "name": "Log Cost Event",
       "type": "n8n-nodes-base.executeWorkflow",
       "typeVersion": 1,
-      "position": [2750, 150]
+      "position": [
+        2800,
+        208
+      ]
     },
     {
       "parameters": {
@@ -301,7 +302,10 @@
       "name": "Hallucination Gate",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [2750, 300]
+      "position": [
+        2800,
+        400
+      ]
     },
     {
       "parameters": {
@@ -319,7 +323,10 @@
       "name": "Passed Gate?",
       "type": "n8n-nodes-base.if",
       "typeVersion": 1,
-      "position": [3000, 300]
+      "position": [
+        3024,
+        400
+      ]
     },
     {
       "parameters": {
@@ -329,25 +336,59 @@
       "name": "Gate Failed Handler",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [3250, 450]
+      "position": [
+        3280,
+        640
+      ]
     },
     {
       "parameters": {
-        "operation": "insert",
-        "schema": "public",
-        "table": "creative_briefs",
-        "columns": "campaign_id,strategy_data,trend_data,validation_score,status",
-        "additionalFields": {}
+        "tableId": "creative_briefs",
+        "fieldsUi": {
+          "fieldValues": [
+            {
+              "fieldId": "brief_id",
+              "fieldValue": "={{ $json.campaign_id }}"
+            },
+            {
+              "fieldId": "brand_id",
+              "fieldValue": "brand_id"
+            },
+            {
+              "fieldId": "campaign_request",
+              "fieldValue": "={{ JSON.stringify($json.context) }}"
+            },
+            {
+              "fieldId": "creative_brief",
+              "fieldValue": "={{ JSON.stringify($json.strategy) }}"
+            },
+            {
+              "fieldId": "brand_alignment_score",
+              "fieldValue": "={{ $json.validation_score }}"
+            },
+            {
+              "fieldId": "approval_status",
+              "fieldValue": "pending"
+            },
+            {
+              "fieldId": "metadata",
+              "fieldValue": "={{ $json.context }}"
+            }
+          ]
+        }
       },
       "id": "store-brief",
       "name": "Store Creative Brief",
       "type": "n8n-nodes-base.supabase",
       "typeVersion": 1,
-      "position": [3250, 200],
+      "position": [
+        3472,
+        208
+      ],
       "credentials": {
         "supabaseApi": {
-          "id": "supabase-creds",
-          "name": "Supabase API"
+          "id": "ChWvV6najCTQ4JEQ",
+          "name": "Brand Infinity"
         }
       }
     },
@@ -359,41 +400,38 @@
       "name": "Prep Brief for Storage",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [3050, 200]
+      "position": [
+        3216,
+        208
+      ]
     },
     {
       "parameters": {
-        "workflowId": "={{ $env.RELEASE_LOCK_WORKFLOW_ID }}",
-        "options": {},
-        "inputData": {
-          "table_name": "campaigns",
-          "record_id": "={{ $('Webhook Trigger').first().json.body.campaign_id }}",
-          "workflow_id": "={{ $execution.id }}",
-          "final_status": "strategized"
-        }
+        "workflowId": "4OwwpHBjkMYBzsuI",
+        "options": {}
       },
       "id": "release-lock-success",
       "name": "Release Lock (Success)",
       "type": "n8n-nodes-base.executeWorkflow",
       "typeVersion": 1,
-      "position": [3500, 200]
+      "position": [
+        3696,
+        208
+      ]
     },
     {
       "parameters": {
-        "workflowId": "={{ $env.RELEASE_LOCK_WORKFLOW_ID }}",
-        "options": {},
-        "inputData": {
-          "table_name": "campaigns",
-          "record_id": "={{ $('Webhook Trigger').first().json.body.campaign_id }}",
-          "workflow_id": "={{ $execution.id }}",
-          "final_status": "strategy_failed"
-        }
+        "workflowId": "4OwwpHBjkMYBzsuI",
+        "options": {}
       },
       "id": "release-lock-failed",
       "name": "Release Lock (Failed)",
       "type": "n8n-nodes-base.executeWorkflow",
       "typeVersion": 1,
-      "position": [3500, 450]
+      "position": [
+        3504,
+        544
+      ]
     },
     {
       "parameters": {
@@ -407,24 +445,24 @@
       "name": "Return Success",
       "type": "n8n-nodes-base.respondToWebhook",
       "typeVersion": 1,
-      "position": [3700, 200]
+      "position": [
+        3920,
+        208
+      ]
     },
     {
       "parameters": {
-        "workflowId": "={{ $env.SEND_ALERT_WORKFLOW_ID }}",
-        "options": {},
-        "inputData": {
-          "alert_type": "warning",
-          "message": "={{ 'Hallucination gate failed for campaign ' + $json.campaign_id + '. Score: ' + $json.validation_score }}",
-          "campaign_id": "={{ $json.campaign_id }}",
-          "context": "={{ { validation_issues: $json.issues } }}"
-        }
+        "workflowId": "uCTePCAfvuecs7La",
+        "options": {}
       },
       "id": "alert-gate-failure",
       "name": "Alert: Gate Failure",
       "type": "n8n-nodes-base.executeWorkflow",
       "typeVersion": 1,
-      "position": [3500, 550]
+      "position": [
+        3504,
+        736
+      ]
     },
     {
       "parameters": {
@@ -438,41 +476,38 @@
       "name": "Return 422 Gate Error",
       "type": "n8n-nodes-base.respondToWebhook",
       "typeVersion": 1,
-      "position": [3700, 550]
+      "position": [
+        3728,
+        544
+      ]
     },
     {
       "parameters": {
-        "workflowId": "={{ $env.SEND_ALERT_WORKFLOW_ID }}",
-        "options": {},
-        "inputData": {
-          "alert_type": "error",
-          "message": "={{ 'LLM call failed for campaign ' + $json.campaign_id + ': ' + ($json.error_details?.message || 'Unknown error') }}",
-          "campaign_id": "={{ $json.campaign_id }}",
-          "context": "={{ { error: $json.error_details } }}"
-        }
+        "workflowId": "uCTePCAfvuecs7La",
+        "options": {}
       },
       "id": "alert-llm-failure",
       "name": "Alert: LLM Failure",
       "type": "n8n-nodes-base.executeWorkflow",
       "typeVersion": 1,
-      "position": [2750, 400]
+      "position": [
+        2768,
+        944
+      ]
     },
     {
       "parameters": {
-        "workflowId": "={{ $env.RELEASE_LOCK_WORKFLOW_ID }}",
-        "options": {},
-        "inputData": {
-          "table_name": "campaigns",
-          "record_id": "={{ $('Webhook Trigger').first().json.body.campaign_id }}",
-          "workflow_id": "={{ $execution.id }}",
-          "final_status": "failed"
-        }
+        "workflowId": "4OwwpHBjkMYBzsuI",
+        "options": {}
       },
       "id": "release-lock-llm-error",
       "name": "Release Lock (LLM Error)",
       "type": "n8n-nodes-base.executeWorkflow",
       "typeVersion": 1,
-      "position": [2950, 400]
+      "position": [
+        2992,
+        944
+      ]
     },
     {
       "parameters": {
@@ -486,9 +521,42 @@
       "name": "Return 500 LLM Error",
       "type": "n8n-nodes-base.respondToWebhook",
       "typeVersion": 1,
-      "position": [3150, 400]
+      "position": [
+        3216,
+        944
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://openrouter.ai/api/v1/chat/completions",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ model: 'openai/gpt-4o-mini-2024-07-18', messages: [{ role: 'system', content: 'You are the Chief Strategy Officer for ' + $json.brand_name + '. Analyze trends and create a creative brief. Brand Voice: ' + $json.brand_tone + '. RULES: ' + ($json.brand_rules || []).join('; ') + '. DO NOT mention: ' + ($json.negative_constraints || []).join(', ') + '. Respond with valid JSON only containing: {\"recommended_trend\": {\"topic\": \"...\", \"relevance_score\": 0-100, \"connection_angle\": \"...\"}, \"creative_direction\": \"...\", \"hook_concept\": \"...\", \"target_emotion\": \"...\", \"call_to_action\": \"...\"}' }, { role: 'user', content: 'Analyze these trends for ' + $json.industry + ': ' + JSON.stringify($json.trending_topics) + '. Focus on: ' + ($json.focus_topic || 'general engagement') + '. Create a viral content strategy.' }], temperature: 0.7, max_tokens: 1000 }) }}",
+        "options": {
+          "timeout": 60000
+        }
+      },
+      "id": "1dd82a47-27c3-4840-af4d-92bcee9e6bd0",
+      "name": "Generate Strategy (LLM)",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.1,
+      "position": [
+        2128,
+        304
+      ],
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "q4uMr62R3vBxNENX",
+          "name": "Header Auth account 2"
+        }
+      },
+      "onError": "continueRegularOutput"
     }
   ],
+  "pinData": {},
   "connections": {
     "Webhook Trigger": {
       "main": [
@@ -629,17 +697,6 @@
         [
           {
             "node": "Generate Strategy (LLM)",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Generate Strategy (LLM)": {
-      "main": [
-        [
-          {
-            "node": "Parse Strategy & Cost",
             "type": "main",
             "index": 0
           }
@@ -790,34 +847,48 @@
           }
         ]
       ]
+    },
+    "Log Cost Event": {
+      "main": [
+        [
+          {
+            "node": "Prep Brief for Storage",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Generate Strategy (LLM)": {
+      "main": [
+        [
+          {
+            "node": "Parse Strategy & Cost",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     }
   },
+  "active": false,
   "settings": {
-    "executionOrder": "v1"
+    "executionOrder": "v1",
+    "callerPolicy": "workflowsFromSameOwner",
+    "availableInMCP": false
   },
-  "staticData": null,
+  "versionId": "54686a1c-dcfc-4cc4-bc97-f5d9ec8035d2",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "fb0f3042150127121074617aaee31b106c313805cbc452132240d35f72eba898"
+  },
+  "id": "AGskIRuSRHAibfHl",
   "tags": [
     {
-      "name": "main-workflow"
-    },
-    {
-      "name": "pillar-1"
-    },
-    {
-      "name": "strategist"
-    },
-    {
-      "name": "phase-4"
+      "updatedAt": "2025-12-23T09:40:14.135Z",
+      "createdAt": "2025-12-23T09:40:14.135Z",
+      "id": "ak5oOECQqNIPSE0N",
+      "name": "Brand Infinity Engine"
     }
-  ],
-  "triggerCount": 1,
-  "active": false,
-  "pinData": {},
-  "versionId": "1.0.0",
-  "meta": {
-    "instanceId": "brand-infinity-engine",
-    "manifestoSection": "Section 3 - Pillar 1",
-    "description": "Main Strategist workflow: trend scraping, RAG retrieval, LLM strategy generation, hallucination gate, and brief storage",
-    "nodeCount": 35
-  }
+  ]
 }

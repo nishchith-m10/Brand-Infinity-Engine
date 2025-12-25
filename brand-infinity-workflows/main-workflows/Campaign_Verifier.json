@@ -6,30 +6,40 @@
         "httpMethod": "POST",
         "path": "campaign/verify",
         "authentication": "headerAuth",
-        "options": { "responseMode": "responseNode" }
+        "options": {}
       },
       "id": "webhook",
       "name": "Webhook",
       "type": "n8n-nodes-base.webhook",
       "typeVersion": 1.1,
-      "position": [100, 300],
+      "position": [
+        112,
+        304
+      ],
       "webhookId": "campaign-verify"
     },
     {
       "parameters": {
-        "operation": "select",
-        "schema": "public",
-        "table": "videos",
+        "operation": "getAll",
+        "tableId": "videos",
+        "limit": 10,
         "filterType": "string",
-        "filterString": "campaign_id=eq.{{ $json.body.campaign_id }}",
-        "limit": 10
+        "filterString": "=campaign_id=eq.{{ $json.body.campaign_id }}"
       },
       "id": "fetch-assets",
       "name": "Fetch Campaign Assets",
       "type": "n8n-nodes-base.supabase",
       "typeVersion": 1,
-      "position": [300, 300],
-      "credentials": { "supabaseApi": { "id": "supabase-creds", "name": "Supabase API" } }
+      "position": [
+        304,
+        304
+      ],
+      "credentials": {
+        "supabaseApi": {
+          "id": "ChWvV6najCTQ4JEQ",
+          "name": "Brand Infinity"
+        }
+      }
     },
     {
       "parameters": {
@@ -39,30 +49,40 @@
       "name": "Prepare Verification",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [500, 300]
+      "position": [
+        512,
+        304
+      ]
     },
     {
       "parameters": {
-        "batchSize": 1,
         "options": {}
       },
       "id": "loop",
       "name": "Loop Assets",
       "type": "n8n-nodes-base.splitInBatches",
       "typeVersion": 3,
-      "position": [700, 300]
+      "position": [
+        704,
+        304
+      ]
     },
     {
       "parameters": {
         "method": "HEAD",
         "url": "={{ $json.asset_url }}",
-        "options": { "timeout": 10000 }
+        "options": {
+          "timeout": 10000
+        }
       },
       "id": "head-check",
       "name": "HEAD Request",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.1,
-      "position": [900, 300],
+      "position": [
+        912,
+        288
+      ],
       "onError": "continueRegularOutput"
     },
     {
@@ -73,17 +93,30 @@
       "name": "Verify Response",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [1100, 300]
+      "position": [
+        1104,
+        288
+      ]
     },
     {
       "parameters": {
-        "conditions": { "boolean": [{ "value1": "={{ $json.verified }}", "value2": true }] }
+        "conditions": {
+          "boolean": [
+            {
+              "value1": "={{ $json.verified }}",
+              "value2": true
+            }
+          ]
+        }
       },
       "id": "verified-check",
       "name": "Verified?",
       "type": "n8n-nodes-base.if",
       "typeVersion": 1,
-      "position": [1300, 300]
+      "position": [
+        1312,
+        288
+      ]
     },
     {
       "parameters": {
@@ -93,24 +126,24 @@
       "name": "Mark Verified",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [1500, 200]
+      "position": [
+        1504,
+        208
+      ]
     },
     {
       "parameters": {
-        "workflowId": "={{ $env.SEND_ALERT_WORKFLOW_ID }}",
-        "options": {},
-        "inputData": {
-          "alert_type": "error",
-          "message": "={{ 'Asset verification failed: ' + $json.asset_url + ' (Status: ' + $json.status_code + ')' }}",
-          "campaign_id": "={{ $json.campaign_id }}",
-          "context": "={{ { checks: $json.checks } }}"
-        }
+        "workflowId": "uCTePCAfvuecs7La",
+        "options": {}
       },
       "id": "alert-fail",
       "name": "Alert Failed",
       "type": "n8n-nodes-base.executeWorkflow",
       "typeVersion": 1,
-      "position": [1500, 400]
+      "position": [
+        1504,
+        400
+      ]
     },
     {
       "parameters": {
@@ -120,7 +153,10 @@
       "name": "Continue",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [1700, 300]
+      "position": [
+        1712,
+        304
+      ]
     },
     {
       "parameters": {
@@ -130,17 +166,30 @@
       "name": "Platform Compliance",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [1900, 300]
+      "position": [
+        1904,
+        304
+      ]
     },
     {
       "parameters": {
-        "conditions": { "boolean": [{ "value1": "={{ $json.all_compliant }}", "value2": true }] }
+        "conditions": {
+          "boolean": [
+            {
+              "value1": "={{ $json.all_compliant }}",
+              "value2": true
+            }
+          ]
+        }
       },
       "id": "compliant-check",
       "name": "All Compliant?",
       "type": "n8n-nodes-base.if",
       "typeVersion": 1,
-      "position": [2100, 300]
+      "position": [
+        2112,
+        304
+      ]
     },
     {
       "parameters": {
@@ -152,52 +201,236 @@
       "name": "Update Campaign Status",
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2.4,
-      "position": [2300, 200],
-      "credentials": { "postgres": { "id": "postgres-creds", "name": "Supabase Postgres" } }
+      "position": [
+        2304,
+        208
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "5kCruSryNkW0E0CB",
+          "name": "Brand Infinity"
+        }
+      }
     },
     {
       "parameters": {
         "respondWith": "json",
         "responseBody": "={{ JSON.stringify({ success: true, campaign_id: $('Webhook').first().json.body.campaign_id, verified: true, compliance: $('Platform Compliance').first().json.compliance }) }}",
-        "options": { "responseCode": 200 }
+        "options": {
+          "responseCode": 200
+        }
       },
       "id": "return-success",
       "name": "Return Success",
       "type": "n8n-nodes-base.respondToWebhook",
       "typeVersion": 1,
-      "position": [2500, 200]
+      "position": [
+        2512,
+        208
+      ]
     },
     {
       "parameters": {
         "respondWith": "json",
         "responseBody": "={{ JSON.stringify({ success: false, error: 'NOT_COMPLIANT', compliance: $json.compliance }) }}",
-        "options": { "responseCode": 422 }
+        "options": {
+          "responseCode": 422
+        }
       },
       "id": "return-fail",
       "name": "Return Compliance Error",
       "type": "n8n-nodes-base.respondToWebhook",
       "typeVersion": 1,
-      "position": [2300, 400]
+      "position": [
+        2304,
+        400
+      ]
     }
   ],
+  "pinData": {},
   "connections": {
-    "Webhook": { "main": [[{ "node": "Fetch Campaign Assets", "type": "main", "index": 0 }]] },
-    "Fetch Campaign Assets": { "main": [[{ "node": "Prepare Verification", "type": "main", "index": 0 }]] },
-    "Prepare Verification": { "main": [[{ "node": "Loop Assets", "type": "main", "index": 0 }]] },
-    "Loop Assets": { "main": [[{ "node": "HEAD Request", "type": "main", "index": 0 }], [{ "node": "Platform Compliance", "type": "main", "index": 0 }]] },
-    "HEAD Request": { "main": [[{ "node": "Verify Response", "type": "main", "index": 0 }]] },
-    "Verify Response": { "main": [[{ "node": "Verified?", "type": "main", "index": 0 }]] },
-    "Verified?": { "main": [[{ "node": "Mark Verified", "type": "main", "index": 0 }], [{ "node": "Alert Failed", "type": "main", "index": 0 }]] },
-    "Mark Verified": { "main": [[{ "node": "Continue", "type": "main", "index": 0 }]] },
-    "Alert Failed": { "main": [[{ "node": "Continue", "type": "main", "index": 0 }]] },
-    "Continue": { "main": [[{ "node": "Loop Assets", "type": "main", "index": 0 }]] },
-    "Platform Compliance": { "main": [[{ "node": "All Compliant?", "type": "main", "index": 0 }]] },
-    "All Compliant?": { "main": [[{ "node": "Update Campaign Status", "type": "main", "index": 0 }], [{ "node": "Return Compliance Error", "type": "main", "index": 0 }]] },
-    "Update Campaign Status": { "main": [[{ "node": "Return Success", "type": "main", "index": 0 }]] }
+    "Webhook": {
+      "main": [
+        [
+          {
+            "node": "Fetch Campaign Assets",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Fetch Campaign Assets": {
+      "main": [
+        [
+          {
+            "node": "Prepare Verification",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Prepare Verification": {
+      "main": [
+        [
+          {
+            "node": "Loop Assets",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Loop Assets": {
+      "main": [
+        [
+          {
+            "node": "HEAD Request",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Platform Compliance",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "HEAD Request": {
+      "main": [
+        [
+          {
+            "node": "Verify Response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Verify Response": {
+      "main": [
+        [
+          {
+            "node": "Verified?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Verified?": {
+      "main": [
+        [
+          {
+            "node": "Mark Verified",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Alert Failed",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Mark Verified": {
+      "main": [
+        [
+          {
+            "node": "Continue",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Alert Failed": {
+      "main": [
+        [
+          {
+            "node": "Continue",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Continue": {
+      "main": [
+        [
+          {
+            "node": "Loop Assets",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Platform Compliance": {
+      "main": [
+        [
+          {
+            "node": "All Compliant?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "All Compliant?": {
+      "main": [
+        [
+          {
+            "node": "Update Campaign Status",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Return Compliance Error",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Update Campaign Status": {
+      "main": [
+        [
+          {
+            "node": "Return Success",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
   },
-  "settings": { "executionOrder": "v1" },
-  "staticData": null,
-  "tags": [{ "name": "main-workflow" }, { "name": "pillar-4" }],
   "active": false,
-  "meta": { "manifestoSection": "Section 6.1, 6.3", "description": "Asset verification via HEAD requests and platform compliance checking", "nodeCount": 18 }
+  "settings": {
+    "executionOrder": "v1",
+    "callerPolicy": "workflowsFromSameOwner",
+    "availableInMCP": false
+  },
+  "versionId": "c2ab0c7c-cb64-4283-ab2b-19154d151838",
+  "meta": {
+    "instanceId": "fb0f3042150127121074617aaee31b106c313805cbc452132240d35f72eba898"
+  },
+  "id": "XRqNj55hczvqWAp3",
+  "tags": [
+    {
+      "updatedAt": "2025-12-23T09:40:14.135Z",
+      "createdAt": "2025-12-23T09:40:14.135Z",
+      "id": "ak5oOECQqNIPSE0N",
+      "name": "Brand Infinity Engine"
+    }
+  ]
 }

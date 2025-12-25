@@ -6,42 +6,37 @@
         "httpMethod": "POST",
         "path": "copywriter",
         "authentication": "headerAuth",
-        "options": {
-          "responseMode": "responseNode"
-        }
+        "options": {}
       },
       "id": "webhook-trigger",
       "name": "Webhook Trigger",
       "type": "n8n-nodes-base.webhook",
       "typeVersion": 1.1,
-      "position": [100, 400],
-      "webhookId": "copywriter-main"
+      "position": [
+        112,
+        512
+      ],
+      "webhookId": "copywriter-main",
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "q4uMr62R3vBxNENX",
+          "name": "Header Auth account 2"
+        }
+      }
     },
     {
       "parameters": {
-        "workflowId": "={{ $env.VALIDATE_SCHEMA_WORKFLOW_ID }}",
-        "options": {},
-        "inputData": {
-          "data": "={{ $json.body }}",
-          "schema": {
-            "type": "object",
-            "required": ["campaign_id", "brief_id", "brand_id"],
-            "properties": {
-              "campaign_id": { "type": "string" },
-              "brief_id": { "type": "string" },
-              "brand_id": { "type": "string" },
-              "target_duration": { "type": "number", "minimum": 15, "maximum": 180 },
-              "platform": { "type": "string", "enum": ["tiktok", "instagram", "youtube_shorts", "youtube"] }
-            }
-          },
-          "schema_name": "CopywriterRequest"
-        }
+        "workflowId": "y0c3JFOEAZFkvAjC",
+        "options": {}
       },
       "id": "validate-request",
       "name": "Validate Request Schema",
       "type": "n8n-nodes-base.executeWorkflow",
       "typeVersion": 1,
-      "position": [300, 400]
+      "position": [
+        336,
+        512
+      ]
     },
     {
       "parameters": {
@@ -58,93 +53,121 @@
       "name": "Validation Passed?",
       "type": "n8n-nodes-base.if",
       "typeVersion": 1,
-      "position": [500, 400]
+      "position": [
+        560,
+        512
+      ]
     },
     {
       "parameters": {
         "respondWith": "json",
         "responseBody": "={{ JSON.stringify({ error: true, code: 'ERR_VALIDATION_FAILED', message: $json.message }) }}",
-        "options": { "responseCode": 400 }
+        "options": {
+          "responseCode": 400
+        }
       },
       "id": "return-validation-error",
       "name": "Return 400 Error",
       "type": "n8n-nodes-base.respondToWebhook",
       "typeVersion": 1,
-      "position": [700, 550]
+      "position": [
+        784,
+        608
+      ]
     },
     {
       "parameters": {
-        "workflowId": "={{ $env.ACQUIRE_LOCK_WORKFLOW_ID }}",
-        "options": {},
-        "inputData": {
-          "table_name": "campaigns",
-          "record_id": "={{ $('Webhook Trigger').first().json.body.campaign_id }}",
-          "workflow_id": "={{ $execution.id }}",
-          "expected_status": "strategized",
-          "target_status": "scripting"
-        }
+        "workflowId": "lwHIR7PonbgLVkmJ",
+        "options": {}
       },
       "id": "acquire-lock",
       "name": "Acquire Campaign Lock",
       "type": "n8n-nodes-base.executeWorkflow",
       "typeVersion": 1,
-      "position": [700, 300]
+      "position": [
+        784,
+        416
+      ]
     },
     {
       "parameters": {
         "conditions": {
-          "boolean": [{ "value1": "={{ $json.lock_acquired }}", "value2": true }]
+          "boolean": [
+            {
+              "value1": "={{ $json.lock_acquired }}",
+              "value2": true
+            }
+          ]
         }
       },
       "id": "lock-check",
       "name": "Lock Acquired?",
       "type": "n8n-nodes-base.if",
       "typeVersion": 1,
-      "position": [900, 300]
+      "position": [
+        1008,
+        416
+      ]
     },
     {
       "parameters": {
         "respondWith": "json",
         "responseBody": "={{ JSON.stringify({ error: true, code: 'ERR_LOCK_FAILED' }) }}",
-        "options": { "responseCode": 409 }
+        "options": {
+          "responseCode": 409
+        }
       },
       "id": "return-lock-error",
       "name": "Return 409 Conflict",
       "type": "n8n-nodes-base.respondToWebhook",
       "typeVersion": 1,
-      "position": [1100, 450]
+      "position": [
+        1232,
+        512
+      ]
     },
     {
       "parameters": {
-        "operation": "select",
-        "schema": "public",
-        "table": "creative_briefs",
-        "filterType": "string",
-        "filterString": "id=eq.{{ $('Webhook Trigger').first().json.body.brief_id }}",
-        "limit": 1
+        "operation": "getAll",
+        "tableId": "creative_briefs",
+        "filters": {
+          "conditions": [
+            {
+              "keyName": "brief_id",
+              "condition": "eq",
+              "keyValue": "={{ $json.campaign_id }}"
+            }
+          ]
+        }
       },
       "id": "load-brief",
       "name": "Load Creative Brief",
       "type": "n8n-nodes-base.supabase",
       "typeVersion": 1,
-      "position": [1100, 200],
-      "credentials": { "supabaseApi": { "id": "supabase-creds", "name": "Supabase API" } }
+      "position": [
+        1232,
+        320
+      ],
+      "credentials": {
+        "supabaseApi": {
+          "id": "ChWvV6najCTQ4JEQ",
+          "name": "Brand Infinity"
+        }
+      }
     },
     {
       "parameters": {
-        "workflowId": "={{ $env.GET_BRAND_CONTEXT_WORKFLOW_ID }}",
-        "options": {},
-        "inputData": {
-          "brand_id": "={{ $('Webhook Trigger').first().json.body.brand_id }}",
-          "query_context": "script writing",
-          "limit": 8
-        }
+        "workflowId": "W0vejFr0Sv62X70X",
+        "options": {}
       },
       "id": "get-brand-context",
       "name": "Get Brand Context",
       "type": "n8n-nodes-base.executeWorkflow",
       "typeVersion": 1,
-      "position": [1100, 100]
+      "position": [
+        1232,
+        128
+      ]
     },
     {
       "parameters": {
@@ -154,7 +177,10 @@
       "name": "Assemble Script Context",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [1350, 150]
+      "position": [
+        1456,
+        224
+      ]
     },
     {
       "parameters": {
@@ -165,14 +191,24 @@
         "sendBody": true,
         "specifyBody": "json",
         "jsonBody": "={{ JSON.stringify({ model: 'gpt-4o', messages: [{ role: 'system', content: 'You are a Viral Scriptwriter for ' + $json.platform.toUpperCase() + ' with 10M+ views track record. Brand: ' + $json.brand_name + '. Voice: ' + $json.brand_tone + '. NEVER mention: ' + ($json.negative_constraints || []).join(', ') + '. Write a ' + $json.target_duration + '-second script. Structure: Hook (0-3s stop the scroll), Value (deliver insight), CTA (urgent action). Output JSON: {\"hook\": \"...\", \"scenes\": [{\"visual_prompt\": \"...\", \"voiceover\": \"...\", \"duration_seconds\": N}], \"total_duration\": N, \"cta\": \"...\"}' }, { role: 'user', content: 'Creative Direction: ' + $json.creative_direction + '. Hook Concept: ' + ($json.hook_concept || 'curiosity gap') + '. Target Emotion: ' + ($json.target_emotion || 'excitement') + '. CTA: ' + ($json.call_to_action || 'Follow for more') }], temperature: 0.8, max_tokens: 1500 }) }}",
-        "options": { "timeout": 90000 }
+        "options": {
+          "timeout": 90000
+        }
       },
       "id": "generate-script",
       "name": "Generate Script (LLM)",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.1,
-      "position": [1600, 150],
-      "credentials": { "httpHeaderAuth": { "id": "openai-creds", "name": "OpenAI API" } },
+      "position": [
+        1696,
+        944
+      ],
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "openai-creds",
+          "name": "OpenAI API"
+        }
+      },
       "onError": "continueRegularOutput"
     },
     {
@@ -183,31 +219,44 @@
       "name": "Parse Script & Cost",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [1850, 150]
+      "position": [
+        1904,
+        144
+      ]
     },
     {
       "parameters": {
         "conditions": {
-          "boolean": [{ "value1": "={{ $json.success }}", "value2": true }]
+          "boolean": [
+            {
+              "value1": "={{ $json.success }}",
+              "value2": true
+            }
+          ]
         }
       },
       "id": "script-success",
       "name": "Script Generated?",
       "type": "n8n-nodes-base.if",
       "typeVersion": 1,
-      "position": [2050, 150]
+      "position": [
+        2128,
+        144
+      ]
     },
     {
       "parameters": {
-        "workflowId": "={{ $env.LOG_COST_EVENT_WORKFLOW_ID }}",
-        "options": {},
-        "inputData": "={{ $json.cost_data }}"
+        "workflowId": "4OuxyvQvJ9GV3yD1",
+        "options": {}
       },
       "id": "log-gen-cost",
       "name": "Log Generation Cost",
       "type": "n8n-nodes-base.executeWorkflow",
       "typeVersion": 1,
-      "position": [2300, 50]
+      "position": [
+        2352,
+        -48
+      ]
     },
     {
       "parameters": {
@@ -218,14 +267,24 @@
         "sendBody": true,
         "specifyBody": "json",
         "jsonBody": "={{ JSON.stringify({ model: 'gpt-4o', messages: [{ role: 'system', content: 'You are a harsh Senior Editor at a viral content agency. Grade scripts 0-100. Rubric: Hook (30%): stops scroll in 0-3s? Value (25%): clear insight? CTA (20%): obvious action? Brand Voice (15%): matches tone? Conciseness (10%): no wasted words? Output JSON: {\"score\": N, \"breakdown\": {\"hook\": N, \"value\": N, \"cta\": N, \"brand_voice\": N, \"conciseness\": N}, \"critique\": \"...\", \"improved_hook\": \"...if score<85\"}' }, { role: 'user', content: 'Script to grade: ' + JSON.stringify($json.script) + '. Brand tone: ' + $json.context.brand_tone + '. Target duration: ' + $json.context.target_duration + 's' }], temperature: 0.3, max_tokens: 800 }) }}",
-        "options": { "timeout": 60000 }
+        "options": {
+          "timeout": 60000
+        }
       },
       "id": "critic-evaluation",
       "name": "Critic Evaluation (LLM)",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.1,
-      "position": [2300, 150],
-      "credentials": { "httpHeaderAuth": { "id": "openai-creds", "name": "OpenAI API" } },
+      "position": [
+        1952,
+        944
+      ],
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "openai-creds",
+          "name": "OpenAI API"
+        }
+      },
       "onError": "continueRegularOutput"
     },
     {
@@ -236,43 +295,64 @@
       "name": "Parse Critique",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [2550, 150]
+      "position": [
+        2576,
+        128
+      ]
     },
     {
       "parameters": {
-        "workflowId": "={{ $env.LOG_COST_EVENT_WORKFLOW_ID }}",
-        "options": {},
-        "inputData": "={{ $json.critic_cost }}"
+        "workflowId": "4OuxyvQvJ9GV3yD1",
+        "options": {}
       },
       "id": "log-critic-cost",
       "name": "Log Critic Cost",
       "type": "n8n-nodes-base.executeWorkflow",
       "typeVersion": 1,
-      "position": [2750, 50]
+      "position": [
+        2800,
+        48
+      ]
     },
     {
       "parameters": {
         "conditions": {
-          "boolean": [{ "value1": "={{ $json.passed }}", "value2": true }]
+          "boolean": [
+            {
+              "value1": "={{ $json.passed }}",
+              "value2": true
+            }
+          ]
         }
       },
       "id": "score-check",
       "name": "Score >= 85?",
       "type": "n8n-nodes-base.if",
       "typeVersion": 1,
-      "position": [2800, 150]
+      "position": [
+        2800,
+        240
+      ]
     },
     {
       "parameters": {
         "conditions": {
-          "boolean": [{ "value1": "={{ $json.should_retry }}", "value2": true }]
+          "boolean": [
+            {
+              "value1": "={{ $json.should_retry }}",
+              "value2": true
+            }
+          ]
         }
       },
       "id": "retry-check",
       "name": "Should Retry?",
       "type": "n8n-nodes-base.if",
       "typeVersion": 1,
-      "position": [3000, 300]
+      "position": [
+        3024,
+        320
+      ]
     },
     {
       "parameters": {
@@ -282,7 +362,10 @@
       "name": "Prepare Retry",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [3200, 200]
+      "position": [
+        3248,
+        464
+      ]
     },
     {
       "parameters": {
@@ -292,19 +375,30 @@
       "name": "Brand Safety Filter",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [3050, 50]
+      "position": [
+        3472,
+        336
+      ]
     },
     {
       "parameters": {
         "conditions": {
-          "boolean": [{ "value1": "={{ $json.is_safe }}", "value2": true }]
+          "boolean": [
+            {
+              "value1": "={{ $json.is_safe }}",
+              "value2": true
+            }
+          ]
         }
       },
       "id": "safety-check",
       "name": "Passed Safety?",
       "type": "n8n-nodes-base.if",
       "typeVersion": 1,
-      "position": [3250, 50]
+      "position": [
+        3696,
+        336
+      ]
     },
     {
       "parameters": {
@@ -314,97 +408,141 @@
       "name": "Prep Script Storage",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [3450, -50]
+      "position": [
+        3920,
+        336
+      ]
     },
     {
       "parameters": {
-        "operation": "insert",
-        "schema": "public",
-        "table": "scripts",
-        "columns": "campaign_id,brief_id,script_content,hook,scenes,critic_score,target_duration,platform,status",
-        "additionalFields": {}
+        "tableId": "scripts",
+        "fieldsUi": {
+          "fieldValues": [
+            {
+              "fieldId": "brief_id",
+              "fieldValue": "={{ $json.brief_id }}"
+            },
+            {
+              "fieldId": "hook",
+              "fieldValue": "={{ $json.hook }}"
+            },
+            {
+              "fieldId": "scenes",
+              "fieldValue": "={{ $json.scenes }}"
+            },
+            {
+              "fieldId": "voiceover_full_text",
+              "fieldValue": "={{ JSON.parse($json.script_content).voiceover_full_text || \"\" }}"
+            },
+            {
+              "fieldId": "total_duration_seconds",
+              "fieldValue": "={{ $json.target_duration }}"
+            },
+            {
+              "fieldId": "brand_compliance_score",
+              "fieldValue": "={{ $json.critic_score / 100 }}"
+            },
+            {
+              "fieldId": "approval_status",
+              "fieldValue": "={{ $json.status }}"
+            },
+            {
+              "fieldId": "metadata",
+              "fieldValue": "={{ JSON.stringify({ campaign_id: $json.campaign_id, platform: $json.platform, script_content: $json.script_content }) }}"
+            }
+          ]
+        }
       },
       "id": "store-script",
       "name": "Store Script",
       "type": "n8n-nodes-base.supabase",
       "typeVersion": 1,
-      "position": [3650, -50],
-      "credentials": { "supabaseApi": { "id": "supabase-creds", "name": "Supabase API" } }
+      "position": [
+        4144,
+        336
+      ],
+      "credentials": {
+        "supabaseApi": {
+          "id": "ChWvV6najCTQ4JEQ",
+          "name": "Brand Infinity"
+        }
+      }
     },
     {
       "parameters": {
-        "workflowId": "={{ $env.RELEASE_LOCK_WORKFLOW_ID }}",
-        "options": {},
-        "inputData": {
-          "table_name": "campaigns",
-          "record_id": "={{ $('Webhook Trigger').first().json.body.campaign_id }}",
-          "workflow_id": "={{ $execution.id }}",
-          "final_status": "scripted"
-        }
+        "workflowId": "4OwwpHBjkMYBzsuI",
+        "options": {}
       },
       "id": "release-lock-success",
       "name": "Release Lock (Success)",
       "type": "n8n-nodes-base.executeWorkflow",
       "typeVersion": 1,
-      "position": [3850, -50]
+      "position": [
+        4368,
+        336
+      ]
     },
     {
       "parameters": {
         "respondWith": "json",
         "responseBody": "={{ JSON.stringify({ success: true, campaign_id: $('Webhook Trigger').first().json.body.campaign_id, script_id: $('Store Script').first().json.id, critic_score: $('Parse Critique').first().json.score }) }}",
-        "options": { "responseCode": 200 }
+        "options": {
+          "responseCode": 200
+        }
       },
       "id": "return-success",
       "name": "Return Success",
       "type": "n8n-nodes-base.respondToWebhook",
       "typeVersion": 1,
-      "position": [4050, -50]
+      "position": [
+        4592,
+        336
+      ]
     },
     {
       "parameters": {
-        "workflowId": "={{ $env.SEND_ALERT_WORKFLOW_ID }}",
-        "options": {},
-        "inputData": {
-          "alert_type": "error",
-          "message": "={{ 'Brand safety violation in campaign ' + $json.campaign_id + ': ' + $json.violations.join('; ') }}",
-          "campaign_id": "={{ $json.campaign_id }}",
-          "context": "={{ { violations: $json.violations } }}"
-        }
+        "workflowId": "uCTePCAfvuecs7La",
+        "options": {}
       },
       "id": "alert-safety",
       "name": "Alert: Safety Violation",
       "type": "n8n-nodes-base.executeWorkflow",
       "typeVersion": 1,
-      "position": [3450, 150]
+      "position": [
+        3920,
+        528
+      ]
     },
     {
       "parameters": {
-        "workflowId": "={{ $env.RELEASE_LOCK_WORKFLOW_ID }}",
-        "options": {},
-        "inputData": {
-          "table_name": "campaigns",
-          "record_id": "={{ $('Webhook Trigger').first().json.body.campaign_id }}",
-          "workflow_id": "={{ $execution.id }}",
-          "final_status": "safety_failed"
-        }
+        "workflowId": "4OwwpHBjkMYBzsuI",
+        "options": {}
       },
       "id": "release-lock-safety",
       "name": "Release Lock (Safety)",
       "type": "n8n-nodes-base.executeWorkflow",
       "typeVersion": 1,
-      "position": [3650, 150]
+      "position": [
+        4144,
+        528
+      ]
     },
     {
       "parameters": {
         "respondWith": "json",
         "responseBody": "={{ JSON.stringify({ success: false, error: 'ERR_LLM_REFUSAL', violations: $json.violations, campaign_id: $json.campaign_id }) }}",
-        "options": { "responseCode": 422 }
+        "options": {
+          "responseCode": 422
+        }
       },
       "id": "return-safety-error",
       "name": "Return Safety Error",
       "type": "n8n-nodes-base.respondToWebhook",
       "typeVersion": 1,
-      "position": [3850, 150]
+      "position": [
+        4368,
+        528
+      ]
     },
     {
       "parameters": {
@@ -414,160 +552,464 @@
       "name": "Accept Low Score",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [3200, 400]
+      "position": [
+        3248,
+        672
+      ]
     },
     {
       "parameters": {
-        "workflowId": "={{ $env.RELEASE_LOCK_WORKFLOW_ID }}",
-        "options": {},
-        "inputData": {
-          "table_name": "campaigns",
-          "record_id": "={{ $('Webhook Trigger').first().json.body.campaign_id }}",
-          "workflow_id": "={{ $execution.id }}",
-          "final_status": "script_failed"
-        }
+        "workflowId": "4OwwpHBjkMYBzsuI",
+        "options": {}
       },
       "id": "release-lock-failed",
       "name": "Release Lock (Failed)",
       "type": "n8n-nodes-base.executeWorkflow",
       "typeVersion": 1,
-      "position": [2250, 350]
+      "position": [
+        2352,
+        480
+      ]
     },
     {
       "parameters": {
         "respondWith": "json",
         "responseBody": "={{ JSON.stringify({ success: false, error: 'ERR_LLM_FAILURE' }) }}",
-        "options": { "responseCode": 500 }
+        "options": {
+          "responseCode": 500
+        }
       },
       "id": "return-llm-error",
       "name": "Return LLM Error",
       "type": "n8n-nodes-base.respondToWebhook",
       "typeVersion": 1,
-      "position": [2450, 350]
+      "position": [
+        2576,
+        480
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://openrouter.ai/api/v1/chat/completions",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ model: 'openai/gpt-oss-120b:free', messages: [{ role: 'system', content: 'You are a Viral Scriptwriter for ' + $json.platform.toUpperCase() + ' with 10M+ views track record. Brand: ' + $json.brand_name + '. Voice: ' + $json.brand_tone + '. NEVER mention: ' + ($json.negative_constraints || []).join(', ') + '. Write a ' + $json.target_duration + '-second script. Structure: Hook (0-3s stop the scroll), Value (deliver insight), CTA (urgent action). Output JSON: {\\\"hook\\\": \\\"...\\\", \\\"scenes\\\": [{\\\"visual_prompt\\\": \\\"...\\\", \\\"voiceover\\\": \\\"...\\\", \\\"duration_seconds\\\": N}], \\\"total_duration\\\": N, \\\"cta\\\": \\\"...\\\"}' }, { role: 'user', content: 'Creative Direction: ' + $json.creative_direction + '. Hook Concept: ' + ($json.hook_concept || 'curiosity gap') + '. Target Emotion: ' + ($json.target_emotion || 'excitement') + '. CTA: ' + ($json.call_to_action || 'Follow for more') }], temperature: 0.8, max_tokens: 1500 }) }}",
+        "options": {
+          "timeout": 90000
+        }
+      },
+      "id": "daebdcfa-dc57-4319-b6ef-b33ecd4462b1",
+      "name": "Generate Script (LLM)1",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.1,
+      "position": [
+        1680,
+        192
+      ],
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "q4uMr62R3vBxNENX",
+          "name": "Brand Infinity"
+        }
+      },
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://openrouter.ai/api/v1/chat/completions",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ model: 'openai/gpt-oss-120b:free', messages: [{ role: 'system', content: 'You are a harsh Senior Editor at a viral content agency. Grade scripts 0-100. Rubric: Hook (30%): stops scroll in 0-3s? Value (25%): clear insight? CTA (20%): obvious action? Brand Voice (15%): matches tone? Conciseness (10%): no wasted words? Output JSON: {\\\"score\\\": N, \\\"breakdown\\\": {\\\"hook\\\": N, \\\"value\\\": N, \\\"cta\\\": N, \\\"brand_voice\\\": N, \\\"conciseness\\\": N}, \\\"critique\\\": \\\"...\\\", \\\"improved_hook\\\": \\\"...if score<85\\\"}' }, { role: 'user', content: 'Script to grade: ' + JSON.stringify($json.script) + '. Brand tone: ' + $json.context.brand_tone + '. Target duration: ' + $json.context.target_duration + 's' }], temperature: 0.3, max_tokens: 800 }) }}",
+        "options": {
+          "timeout": 60000
+        }
+      },
+      "id": "372211d3-c937-4cd4-a7fd-eefae19884e3",
+      "name": "Critic Evaluation (LLM)1",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.1,
+      "position": [
+        2352,
+        128
+      ],
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "q4uMr62R3vBxNENX",
+          "name": "Brand Infinity"
+        }
+      },
+      "onError": "continueRegularOutput"
     }
   ],
+  "pinData": {},
   "connections": {
     "Webhook Trigger": {
-      "main": [[{ "node": "Validate Request Schema", "type": "main", "index": 0 }]]
+      "main": [
+        [
+          {
+            "node": "Validate Request Schema",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     },
     "Validate Request Schema": {
-      "main": [[{ "node": "Validation Passed?", "type": "main", "index": 0 }]]
+      "main": [
+        [
+          {
+            "node": "Validation Passed?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     },
     "Validation Passed?": {
       "main": [
-        [{ "node": "Acquire Campaign Lock", "type": "main", "index": 0 }],
-        [{ "node": "Return 400 Error", "type": "main", "index": 0 }]
+        [
+          {
+            "node": "Acquire Campaign Lock",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Return 400 Error",
+            "type": "main",
+            "index": 0
+          }
+        ]
       ]
     },
     "Acquire Campaign Lock": {
-      "main": [[{ "node": "Lock Acquired?", "type": "main", "index": 0 }]]
+      "main": [
+        [
+          {
+            "node": "Lock Acquired?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     },
     "Lock Acquired?": {
       "main": [
         [
-          { "node": "Load Creative Brief", "type": "main", "index": 0 },
-          { "node": "Get Brand Context", "type": "main", "index": 0 }
+          {
+            "node": "Load Creative Brief",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Get Brand Context",
+            "type": "main",
+            "index": 0
+          }
         ],
-        [{ "node": "Return 409 Conflict", "type": "main", "index": 0 }]
+        [
+          {
+            "node": "Return 409 Conflict",
+            "type": "main",
+            "index": 0
+          }
+        ]
       ]
     },
     "Load Creative Brief": {
-      "main": [[{ "node": "Assemble Script Context", "type": "main", "index": 0 }]]
+      "main": [
+        [
+          {
+            "node": "Assemble Script Context",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     },
     "Get Brand Context": {
-      "main": [[{ "node": "Assemble Script Context", "type": "main", "index": 0 }]]
+      "main": [
+        [
+          {
+            "node": "Assemble Script Context",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     },
     "Assemble Script Context": {
-      "main": [[{ "node": "Generate Script (LLM)", "type": "main", "index": 0 }]]
+      "main": [
+        [
+          {
+            "node": "Generate Script (LLM)1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     },
     "Generate Script (LLM)": {
-      "main": [[{ "node": "Parse Script & Cost", "type": "main", "index": 0 }]]
+      "main": [
+        []
+      ]
     },
     "Parse Script & Cost": {
-      "main": [[{ "node": "Script Generated?", "type": "main", "index": 0 }]]
+      "main": [
+        [
+          {
+            "node": "Script Generated?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     },
     "Script Generated?": {
       "main": [
         [
-          { "node": "Log Generation Cost", "type": "main", "index": 0 },
-          { "node": "Critic Evaluation (LLM)", "type": "main", "index": 0 }
+          {
+            "node": "Log Generation Cost",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Critic Evaluation (LLM)1",
+            "type": "main",
+            "index": 0
+          }
         ],
-        [{ "node": "Release Lock (Failed)", "type": "main", "index": 0 }]
+        [
+          {
+            "node": "Release Lock (Failed)",
+            "type": "main",
+            "index": 0
+          }
+        ]
       ]
     },
     "Release Lock (Failed)": {
-      "main": [[{ "node": "Return LLM Error", "type": "main", "index": 0 }]]
+      "main": [
+        [
+          {
+            "node": "Return LLM Error",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     },
     "Critic Evaluation (LLM)": {
-      "main": [[{ "node": "Parse Critique", "type": "main", "index": 0 }]]
+      "main": [
+        []
+      ]
     },
     "Parse Critique": {
       "main": [
         [
-          { "node": "Log Critic Cost", "type": "main", "index": 0 },
-          { "node": "Score >= 85?", "type": "main", "index": 0 }
+          {
+            "node": "Log Critic Cost",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Score >= 85?",
+            "type": "main",
+            "index": 0
+          }
         ]
       ]
     },
     "Score >= 85?": {
       "main": [
-        [{ "node": "Brand Safety Filter", "type": "main", "index": 0 }],
-        [{ "node": "Should Retry?", "type": "main", "index": 0 }]
+        [
+          {
+            "node": "Brand Safety Filter",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Should Retry?",
+            "type": "main",
+            "index": 0
+          }
+        ]
       ]
     },
     "Should Retry?": {
       "main": [
-        [{ "node": "Prepare Retry", "type": "main", "index": 0 }],
-        [{ "node": "Accept Low Score", "type": "main", "index": 0 }]
+        [
+          {
+            "node": "Prepare Retry",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Accept Low Score",
+            "type": "main",
+            "index": 0
+          }
+        ]
       ]
     },
     "Prepare Retry": {
-      "main": [[{ "node": "Generate Script (LLM)", "type": "main", "index": 0 }]]
+      "main": [
+        [
+          {
+            "node": "Generate Script (LLM)1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     },
     "Accept Low Score": {
-      "main": [[{ "node": "Brand Safety Filter", "type": "main", "index": 0 }]]
+      "main": [
+        [
+          {
+            "node": "Brand Safety Filter",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     },
     "Brand Safety Filter": {
-      "main": [[{ "node": "Passed Safety?", "type": "main", "index": 0 }]]
+      "main": [
+        [
+          {
+            "node": "Passed Safety?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     },
     "Passed Safety?": {
       "main": [
-        [{ "node": "Prep Script Storage", "type": "main", "index": 0 }],
-        [{ "node": "Alert: Safety Violation", "type": "main", "index": 0 }]
+        [
+          {
+            "node": "Prep Script Storage",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Alert: Safety Violation",
+            "type": "main",
+            "index": 0
+          }
+        ]
       ]
     },
     "Alert: Safety Violation": {
-      "main": [[{ "node": "Release Lock (Safety)", "type": "main", "index": 0 }]]
+      "main": [
+        [
+          {
+            "node": "Release Lock (Safety)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     },
     "Release Lock (Safety)": {
-      "main": [[{ "node": "Return Safety Error", "type": "main", "index": 0 }]]
+      "main": [
+        [
+          {
+            "node": "Return Safety Error",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     },
     "Prep Script Storage": {
-      "main": [[{ "node": "Store Script", "type": "main", "index": 0 }]]
+      "main": [
+        [
+          {
+            "node": "Store Script",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     },
     "Store Script": {
-      "main": [[{ "node": "Release Lock (Success)", "type": "main", "index": 0 }]]
+      "main": [
+        [
+          {
+            "node": "Release Lock (Success)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     },
     "Release Lock (Success)": {
-      "main": [[{ "node": "Return Success", "type": "main", "index": 0 }]]
+      "main": [
+        [
+          {
+            "node": "Return Success",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Generate Script (LLM)1": {
+      "main": [
+        [
+          {
+            "node": "Parse Script & Cost",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Critic Evaluation (LLM)1": {
+      "main": [
+        [
+          {
+            "node": "Parse Critique",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     }
   },
-  "settings": { "executionOrder": "v1" },
-  "staticData": null,
-  "tags": [
-    { "name": "main-workflow" },
-    { "name": "pillar-2" },
-    { "name": "copywriter" },
-    { "name": "phase-4" }
-  ],
-  "triggerCount": 1,
   "active": false,
-  "pinData": {},
-  "versionId": "1.0.0",
+  "settings": {
+    "executionOrder": "v1",
+    "callerPolicy": "workflowsFromSameOwner",
+    "availableInMCP": false
+  },
+  "versionId": "a9fcffce-d9fa-4035-8ad2-9bc5b0ce7917",
   "meta": {
-    "instanceId": "brand-infinity-engine",
-    "manifestoSection": "Section 4 - Pillar 2",
-    "description": "Copywriter workflow with recursive critic loop, brand safety filter, and ToV injection",
-    "nodeCount": 35
-  }
+    "templateCredsSetupCompleted": true,
+    "instanceId": "fb0f3042150127121074617aaee31b106c313805cbc452132240d35f72eba898"
+  },
+  "id": "E1yW4kVs3vBXj0jg",
+  "tags": [
+    {
+      "updatedAt": "2025-12-23T09:40:14.135Z",
+      "createdAt": "2025-12-23T09:40:14.135Z",
+      "id": "ak5oOECQqNIPSE0N",
+      "name": "Brand Infinity Engine"
+    }
+  ]
 }

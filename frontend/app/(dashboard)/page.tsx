@@ -7,20 +7,49 @@ import {
 } from 'recharts';
 import { 
   Users, Video, Calendar, ArrowUpRight, ArrowDownRight, 
-  Activity, TrendingUp, PenTool, MonitorPlay, Share2, Radio
+  Activity, TrendingUp, PenTool, MonitorPlay, Share2, Radio, DollarSign
 } from "lucide-react";
-import { useTrends } from "@/lib/hooks/use-api";
+import { useTrends, useDashboardStats } from "@/lib/hooks/use-api";
 import { motion } from "framer-motion";
 
 export default function DashboardPage() {
   const { data: trends } = useTrends();
+  const { data: dashboardStats, isLoading } = useDashboardStats();
 
+  // Use real data when available, fallback to placeholder
   const stats = [
-    { title: "Total Views", value: "2.4M", change: "+12.5%", icon: Users, color: "text-lamaSky" },
-    { title: "Active Campaigns", value: "12", change: "+4", icon: Activity, color: "text-lamaPurple" },
-    { title: "Videos Produced", value: "148", change: "+24%", icon: Video, color: "text-lamaYellow" },
-    { title: "Scheduled", value: "8", change: "-2", icon: Calendar, color: "text-red-400" },
+    { 
+      title: "Total Campaigns", 
+      value: dashboardStats?.campaigns?.total?.toString() || "0", 
+      change: `${dashboardStats?.campaigns?.active || 0} active`, 
+      icon: Activity, 
+      color: "text-lamaPurple" 
+    },
+    { 
+      title: "Videos Produced", 
+      value: dashboardStats?.videos?.completed?.toString() || "0", 
+      change: `${dashboardStats?.videos?.processing || 0} processing`, 
+      icon: Video, 
+      color: "text-lamaYellow" 
+    },
+    { 
+      title: "Published", 
+      value: dashboardStats?.publications?.total_published?.toString() || "0", 
+      change: "+0%", 
+      icon: Share2, 
+      color: "text-lamaSky" 
+    },
+    { 
+      title: "Cost (This Month)", 
+      value: `$${dashboardStats?.cost?.this_month_usd || "0.00"}`, 
+      change: "Usage", 
+      icon: DollarSign, 
+      color: "text-emerald-500" 
+    },
   ];
+
+  // Recent activity from API
+  const recentActivity = dashboardStats?.recent_activity || [];
 
   return (
     <div className="flex flex-col gap-6">
@@ -31,7 +60,9 @@ export default function DashboardPage() {
         className="flex items-center justify-between"
       >
         <h1 className="text-2xl font-bold text-slate-800">Dashboard</h1>
-        <div className="text-sm text-slate-500">Welcome back, Strategist</div>
+        <div className="text-sm text-slate-500">
+          {isLoading ? "Loading..." : "Welcome back, Strategist"}
+        </div>
       </motion.div>
 
       {/* STATS GRID */}
@@ -48,15 +79,7 @@ export default function DashboardPage() {
                </div>
              </div>
              <div className="flex items-center gap-1 text-xs">
-                {stat.change.startsWith('+') ? (
-                  <ArrowUpRight size={14} className="text-emerald-500" />
-                ) : (
-                  <ArrowDownRight size={14} className="text-red-500" />
-                )}
-                <span className={stat.change.startsWith('+') ? "text-emerald-500" : "text-red-500"}>
-                  {stat.change}
-                </span>
-                <span className="text-slate-400">from last month</span>
+                <span className="text-slate-500">{stat.change}</span>
              </div>
           </MotionCard>
         ))}

@@ -7,7 +7,10 @@
       "name": "Start",
       "type": "n8n-nodes-base.executeWorkflowTrigger",
       "typeVersion": 1,
-      "position": [250, 300]
+      "position": [
+        256,
+        304
+      ]
     },
     {
       "parameters": {
@@ -17,7 +20,10 @@
       "name": "Validate Input",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [450, 300]
+      "position": [
+        464,
+        304
+      ]
     },
     {
       "parameters": {
@@ -27,23 +33,29 @@
       "name": "Build Lock Query",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [650, 300]
+      "position": [
+        656,
+        304
+      ]
     },
     {
       "parameters": {
         "operation": "executeQuery",
-        "query": "={{ $json.lock_query.query }}",
+        "query": "{{ $json.lock_query.query }}",
         "options": {}
       },
       "id": "execute-lock",
       "name": "Execute Atomic Lock",
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2.4,
-      "position": [850, 300],
+      "position": [
+        864,
+        304
+      ],
       "credentials": {
         "postgres": {
-          "id": "postgres-creds",
-          "name": "Supabase Postgres"
+          "id": "5kCruSryNkW0E0CB",
+          "name": "Brand Infinity"
         }
       }
     },
@@ -63,7 +75,10 @@
       "name": "Lock Acquired?",
       "type": "n8n-nodes-base.if",
       "typeVersion": 1,
-      "position": [1050, 300]
+      "position": [
+        1056,
+        304
+      ]
     },
     {
       "parameters": {
@@ -73,7 +88,10 @@
       "name": "Lock Success",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [1300, 200]
+      "position": [
+        1312,
+        208
+      ]
     },
     {
       "parameters": {
@@ -83,9 +101,13 @@
       "name": "Lock Failed",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [1300, 400]
+      "position": [
+        1312,
+        400
+      ]
     }
   ],
+  "pinData": {},
   "connections": {
     "Start": {
       "main": [
@@ -150,28 +172,23 @@
       ]
     }
   },
+  "active": false,
   "settings": {
-    "executionOrder": "v1"
+    "executionOrder": "v1",
+    "callerPolicy": "workflowsFromSameOwner",
+    "availableInMCP": false
   },
-  "staticData": null,
+  "versionId": "fc893481-0450-470c-876b-d0e9df974e3e",
+  "meta": {
+    "instanceId": "fb0f3042150127121074617aaee31b106c313805cbc452132240d35f72eba898"
+  },
+  "id": "lwHIR7PonbgLVkmJ",
   "tags": [
     {
-      "name": "sub-workflow"
-    },
-    {
-      "name": "locking"
-    },
-    {
-      "name": "phase-4"
+      "updatedAt": "2025-12-23T09:40:14.135Z",
+      "createdAt": "2025-12-23T09:40:14.135Z",
+      "id": "ak5oOECQqNIPSE0N",
+      "name": "Brand Infinity Engine"
     }
-  ],
-  "triggerCount": 0,
-  "active": false,
-  "pinData": {},
-  "versionId": "1.0.0",
-  "meta": {
-    "instanceId": "brand-infinity-engine",
-    "manifestoSection": "Section 2, Dimension 2",
-    "description": "Atomic row locking using UPDATE...RETURNING pattern with zombie protection"
-  }
+  ]
 }

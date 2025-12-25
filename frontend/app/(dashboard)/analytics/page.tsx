@@ -13,7 +13,7 @@ import {
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Select } from '@/components/ui/select';
 import { formatNumber, getPlatformColor } from '@/lib/utils';
-import { useAnalytics } from '@/lib/hooks/use-data';
+import { useV1Analytics } from '@/lib/hooks/use-api';
 import { getPlatformIcon } from '@/lib/platform-icons';
 
 // Mock analytics data
@@ -171,7 +171,7 @@ export default function AnalyticsPage() {
   const [selectedMetric, setSelectedMetric] = useState('views');
 
   // Use SWR for analytics data with caching
-  const { data: analyticsData, isLoading } = useAnalytics(timeRange);
+  const { data: analyticsData, isLoading } = useV1Analytics({ range: timeRange as '7d' | '30d' | '90d' | 'year' });
   
   // Use API data if available, fallback to mock data
   const overview = analyticsData?.overview || mockOverviewData;

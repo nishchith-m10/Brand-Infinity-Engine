@@ -18,8 +18,9 @@ import { Textarea } from '@/components/ui/textarea';
 import { EmptyState } from '@/components/ui/empty-state';
 import { type Brief, type Script, type Video as VideoType } from '@/lib/api-client';
 import { formatDate } from '@/lib/utils';
+import { useV1Reviews } from '@/lib/hooks/use-api';
 
-// Mock data for demonstration
+// Mock data for fallback when API returns empty
 const mockBriefs: (Brief & { campaign_name: string })[] = [
   {
     brief_id: 'brief_001',
@@ -124,33 +125,41 @@ export default function ContentReviewPage() {
   const [rejectionReason, setRejectionReason] = useState('');
   const [activeTab, setActiveTab] = useState('briefs');
 
+  // Fetch from API with fallback to mock data
+  const { data: apiData } = useV1Reviews();
+  
+  // Use API data if available and non-empty, otherwise use mock data
+  const briefs = apiData?.briefs?.length > 0 ? apiData.briefs : mockBriefs;
+  const scripts = apiData?.scripts?.length > 0 ? apiData.scripts : mockScripts;
+  const videos = apiData?.videos?.length > 0 ? apiData.videos : mockVideos;
+
   // Combine all items for review
   const reviewItems: ReviewItem[] = [
-    ...mockBriefs.map((brief) => ({
+    ...briefs.map((brief: Brief & { campaign_name?: string; campaigns?: { campaign_name: string } }) => ({
       id: brief.brief_id,
       type: 'brief' as const,
       name: 'Creative Brief',
-      campaign: brief.campaign_name,
+      campaign: brief.campaign_name || brief.campaigns?.campaign_name || 'Unknown Campaign',
       status: brief.approval_status,
       score: brief.brand_alignment_score,
       created_at: brief.created_at,
       data: brief,
     })),
-    ...mockScripts.map((script) => ({
+    ...scripts.map((script: Script & { campaign_name?: string }) => ({
       id: script.script_id,
       type: 'script' as const,
       name: 'Video Script',
-      campaign: script.campaign_name,
+      campaign: script.campaign_name || 'Unknown Campaign',
       status: 'pending',
       score: script.brand_compliance_score,
       created_at: script.created_at,
       data: script,
     })),
-    ...mockVideos.map((video) => ({
+    ...videos.map((video: VideoType & { campaign_name?: string }) => ({
       id: video.video_id,
       type: 'video' as const,
       name: 'Generated Video',
-      campaign: video.campaign_name,
+      campaign: video.campaign_name || 'Unknown Campaign',
       status: video.status,
       score: video.quality_score,
       created_at: video.created_at,
@@ -162,20 +171,42 @@ export default function ContentReviewPage() {
     item.status === 'pending' || item.status === 'generating'
   ).length;
 
-  const handleApprove = (item: ReviewItem) => {
-    // In production, call the API
-    console.log('Approving:', item);
-    setShowReviewModal(false);
-    setSelectedItem(null);
+  const handleApprove = async (item: ReviewItem) => {
+    try {
+      const endpoint = item.type === 'brief' 
+        ? `/api/v1/briefs/${item.id}/approve`
+        : item.type === 'script'
+        ? `/api/v1/scripts/${item.id}/approve`
+        : `/api/v1/videos/${item.id}/approve`;
+      
+      await fetch(endpoint, { method: 'POST' });
+      setShowReviewModal(false);
+      setSelectedItem(null);
+    } catch (error) {
+      // Show toast error in production
+    }
   };
 
-  const handleReject = (item: ReviewItem) => {
+  const handleReject = async (item: ReviewItem) => {
     if (!rejectionReason) return;
-    // In production, call the API
-    console.log('Rejecting:', item, 'Reason:', rejectionReason);
-    setShowReviewModal(false);
-    setSelectedItem(null);
-    setRejectionReason('');
+    try {
+      const endpoint = item.type === 'brief' 
+        ? `/api/v1/briefs/${item.id}/reject`
+        : item.type === 'script'
+        ? `/api/v1/scripts/${item.id}/reject`
+        : `/api/v1/videos/${item.id}/reject`;
+      
+      await fetch(endpoint, { 
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ reason: rejectionReason })
+      });
+      setShowReviewModal(false);
+      setSelectedItem(null);
+      setRejectionReason('');
+    } catch (error) {
+      // Show toast error in production
+    }
   };
 
   const getIcon = (type: string) => {

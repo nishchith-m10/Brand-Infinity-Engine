@@ -3,13 +3,22 @@
   "nodes": [
     {
       "parameters": {
-        "rule": { "interval": [{ "field": "minutes", "minutesInterval": 5 }] }
+        "rule": {
+          "interval": [
+            {
+              "field": "minutes"
+            }
+          ]
+        }
       },
       "id": "cron",
       "name": "Every 5 Minutes",
       "type": "n8n-nodes-base.scheduleTrigger",
       "typeVersion": 1.1,
-      "position": [100, 300]
+      "position": [
+        112,
+        304
+      ]
     },
     {
       "parameters": {
@@ -19,30 +28,44 @@
       "name": "List Providers",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [300, 300]
+      "position": [
+        304,
+        304
+      ]
     },
     {
       "parameters": {
-        "batchSize": 1,
         "options": {}
       },
       "id": "loop",
       "name": "Loop Providers",
       "type": "n8n-nodes-base.splitInBatches",
       "typeVersion": 3,
-      "position": [500, 300]
+      "position": [
+        512,
+        304
+      ]
     },
     {
       "parameters": {
-        "operation": "mget",
-        "keys": "={{ ['circuit_breaker:' + $json.provider + ':status', 'circuit_breaker:' + $json.provider + ':consecutive_failures', 'circuit_breaker:' + $json.provider + ':opened_at'] }}"
+        "operation": "get",
+        "key": "Pattern-based key scan",
+        "options": {}
       },
       "id": "get-state",
       "name": "Get Circuit State",
       "type": "n8n-nodes-base.redis",
       "typeVersion": 1,
-      "position": [700, 300],
-      "credentials": { "redis": { "id": "redis-creds", "name": "Redis" } },
+      "position": [
+        704,
+        288
+      ],
+      "credentials": {
+        "redis": {
+          "id": "1Vc5f2QSvfPfCpxX",
+          "name": "Brand Infinity Redis"
+        }
+      },
       "onError": "continueRegularOutput"
     },
     {
@@ -53,33 +76,44 @@
       "name": "Parse State",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [900, 300]
+      "position": [
+        912,
+        288
+      ]
     },
     {
       "parameters": {
-        "conditions": { "boolean": [{ "value1": "={{ $json.is_open }}", "value2": true }] }
+        "conditions": {
+          "boolean": [
+            {
+              "value1": "={{ $json.is_open }}",
+              "value2": true
+            }
+          ]
+        }
       },
       "id": "is-open",
       "name": "Is Open?",
       "type": "n8n-nodes-base.if",
       "typeVersion": 1,
-      "position": [1100, 300]
+      "position": [
+        1104,
+        288
+      ]
     },
     {
       "parameters": {
-        "workflowId": "={{ $env.SEND_ALERT_WORKFLOW_ID }}",
-        "options": {},
-        "inputData": {
-          "alert_type": "circuit_open",
-          "message": "={{ 'Circuit breaker OPEN for ' + $json.provider + ' (failures: ' + $json.consecutive_failures + ')' }}",
-          "context": "={{ { provider: $json.provider, opened_at: $json.opened_at } }}"
-        }
+        "workflowId": "uCTePCAfvuecs7La",
+        "options": {}
       },
       "id": "alert-open",
       "name": "Alert Open Circuit",
       "type": "n8n-nodes-base.executeWorkflow",
       "typeVersion": 1,
-      "position": [1300, 200]
+      "position": [
+        1312,
+        272
+      ]
     },
     {
       "parameters": {
@@ -89,22 +123,128 @@
       "name": "Continue",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [1500, 300]
+      "position": [
+        1520,
+        304
+      ]
     }
   ],
+  "pinData": {},
   "connections": {
-    "Every 5 Minutes": { "main": [[{ "node": "List Providers", "type": "main", "index": 0 }]] },
-    "List Providers": { "main": [[{ "node": "Loop Providers", "type": "main", "index": 0 }]] },
-    "Loop Providers": { "main": [[{ "node": "Get Circuit State", "type": "main", "index": 0 }], []] },
-    "Get Circuit State": { "main": [[{ "node": "Parse State", "type": "main", "index": 0 }]] },
-    "Parse State": { "main": [[{ "node": "Is Open?", "type": "main", "index": 0 }]] },
-    "Is Open?": { "main": [[{ "node": "Alert Open Circuit", "type": "main", "index": 0 }], [{ "node": "Continue", "type": "main", "index": 0 }]] },
-    "Alert Open Circuit": { "main": [[{ "node": "Continue", "type": "main", "index": 0 }]] },
-    "Continue": { "main": [[{ "node": "Loop Providers", "type": "main", "index": 0 }]] }
+    "Every 5 Minutes": {
+      "main": [
+        [
+          {
+            "node": "List Providers",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "List Providers": {
+      "main": [
+        [
+          {
+            "node": "Loop Providers",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Loop Providers": {
+      "main": [
+        [
+          {
+            "node": "Get Circuit State",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        []
+      ]
+    },
+    "Get Circuit State": {
+      "main": [
+        [
+          {
+            "node": "Parse State",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Parse State": {
+      "main": [
+        [
+          {
+            "node": "Is Open?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Is Open?": {
+      "main": [
+        [
+          {
+            "node": "Alert Open Circuit",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Continue",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Alert Open Circuit": {
+      "main": [
+        [
+          {
+            "node": "Continue",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Continue": {
+      "main": [
+        [
+          {
+            "node": "Loop Providers",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
   },
-  "settings": { "executionOrder": "v1" },
-  "staticData": null,
-  "tags": [{ "name": "monitoring" }, { "name": "cron" }],
   "active": false,
-  "meta": { "manifestoSection": "Section 2 Dimension 6", "description": "5-minute circuit breaker health check for all providers", "nodeCount": 9 }
+  "settings": {
+    "executionOrder": "v1",
+    "callerPolicy": "workflowsFromSameOwner",
+    "availableInMCP": false
+  },
+  "versionId": "e5dcc686-4685-401f-b54a-6de231254546",
+  "meta": {
+    "instanceId": "fb0f3042150127121074617aaee31b106c313805cbc452132240d35f72eba898"
+  },
+  "id": "I4xuCa0cmdhh6PCi",
+  "tags": [
+    {
+      "updatedAt": "2025-12-23T09:40:14.135Z",
+      "createdAt": "2025-12-23T09:40:14.135Z",
+      "id": "ak5oOECQqNIPSE0N",
+      "name": "Brand Infinity Engine"
+    }
+  ]
 }
