@@ -14,7 +14,7 @@ export abstract class BaseLLMAdapter {
   /**
    * Format messages for provider-specific API
    */
-  protected formatMessages(messages: LLMRequest['messages']): any[] {
+  protected formatMessages(messages: LLMRequest['messages']): unknown[] {
     return messages.map(msg => ({
       role: msg.role,
       content: msg.content,
@@ -24,9 +24,10 @@ export abstract class BaseLLMAdapter {
   /**
    * Handle errors consistently
    */
-  protected handleError(error: any, provider: string): never {
+  protected handleError(error: unknown, provider: string): never {
+    const message = error instanceof Error ? error.message : 'Unknown error';
     console.error(`[${provider}] API Error:`, error);
-    throw new Error(`${provider} API failed: ${error.message || 'Unknown error'}`);
+    throw new Error(`${provider} API failed: ${message}`);
   }
 
   /**

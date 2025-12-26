@@ -18,8 +18,8 @@ export const fetcher = async (url: string) => {
       errorMessage = `HTTP ${res.status}: ${res.statusText}`;
     }
     
-    const error = new Error(errorMessage);
-    (error as any).status = res.status;
+    const error = new Error(errorMessage) as Error & { status?: number };
+    error.status = res.status;
     throw error;
   }
   

@@ -91,8 +91,9 @@ export async function GET(request: NextRequest) {
       data: null,
       meta: { source: 'none', mode: 'default' },
     });
-  } catch (error: any) {
-    console.error('[API] Brand identity GET error:', error.message);
+  } catch (error) {
+    const message = error instanceof Error ? error.message : 'Unknown error';
+    console.error('[API] Brand identity GET error:', message);
     return NextResponse.json({
       success: true,
       data: null,

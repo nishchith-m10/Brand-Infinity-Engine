@@ -151,7 +151,7 @@ export async function GET() {
 }
 
 // Helper to determine pricing tier from OpenRouter pricing object
-function getPricingTier(pricing: any): string {
+function getPricingTier(pricing: { prompt?: string } | undefined): string {
   if (!pricing?.prompt) return '$$';
   
   const promptCost = parseFloat(pricing.prompt);

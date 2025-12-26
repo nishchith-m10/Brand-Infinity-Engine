@@ -15,6 +15,7 @@ import {
   invalidateStatsCache,
   setCachedQuestions,
 } from "@/lib/redis/session-cache";
+import type { ClarifyingQuestion } from "@/lib/agents/types";
 import { createExecutiveAgent } from "@/lib/agents/executive";
 
 // ============================================================================
@@ -53,7 +54,7 @@ interface StartConversationResponse {
   response?: {
     type: "message" | "questions" | "error";
     content: string;
-    questions?: any[];
+    questions?: ClarifyingQuestion[];
   };
   state?: string;
   error?: {
@@ -181,7 +182,6 @@ export async function POST(
     // Step 6: Extract context (use new context payload or fallback to legacy)
     const kbIds = body.context?.kb_ids || body.selected_kb_ids || [];
     const identity = body.context?.identity || null;
-    const campaignId = body.context?.campaign_id || null;
     const campaignName = body.context?.campaign_name || null;
     
     // Load brand knowledge from selected KBs
@@ -282,7 +282,7 @@ export async function POST(
       content: assistantContent,
       metadata: {
         actionTaken,
-        modelUsed: agent['agentModel'],
+        modelUsed: agent.getModel(),
         provider: 'openai',
         tokensUsed: 0, // Will be updated after LLM call
         costUsd: 0,

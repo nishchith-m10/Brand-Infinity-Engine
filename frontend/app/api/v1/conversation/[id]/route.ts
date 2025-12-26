@@ -16,6 +16,7 @@ import {
   getCachedMessages,
   getCachedStats,
 } from "@/lib/redis/session-cache";
+import type { ParsedIntent, ClarifyingQuestion } from "@/lib/agents/types";
 
 // ============================================================================
 // RESPONSE TYPES
@@ -29,9 +30,9 @@ interface GetConversationResponse {
     state: string;
     created_at: string;
     last_activity_at: string;
-    parsed_intent: any;
-    answered_questions: any;
-    pending_questions: any[];
+    parsed_intent: ParsedIntent;
+    answered_questions: Record<string, unknown>;
+    pending_questions: ClarifyingQuestion[];
     selected_kb_ids: string[];
     active_task_plan_id: string | null;
   };
@@ -138,7 +139,7 @@ export async function GET(
 
     // Step 5: Fetch statistics (Redis cached, best-effort)
     let totalCost = 0;
-    let statsByRole: any[] = [];
+    let statsByRole: NonNullable<GetConversationResponse['stats']>['by_role'] = [];
 
     try {
       const { cost } = await getSessionCost(sessionId);
