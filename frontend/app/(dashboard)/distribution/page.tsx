@@ -20,10 +20,13 @@ import { AnimatePresence, motion } from 'framer-motion';
 import { Modal } from '@/components/ui/modal';
 import { Textarea } from '@/components/ui/textarea';
 import { variantsApi, type Variant } from '@/lib/api-client';
-import { formatDate, getPlatformColor } from '@/lib/utils';
+import { formatDate, getPlatformColor, cn } from '@/lib/utils';
 import { getPlatformIcon } from '@/lib/platform-icons';
 import { useV1Variants } from '@/lib/hooks/use-api';
 import { useToast } from '@/lib/hooks/use-toast';
+import { useCampaignProgress } from '@/lib/hooks/use-campaign-progress';
+import { LockedState } from '@/components/LockedState';
+import { CustomSelect } from '@/components/ui/custom-select';
 
 // Available platforms configuration
 const PLATFORMS = [
@@ -43,8 +46,8 @@ const mockVideos = [
 ];
 
 const mockVariants: Variant[] = [
-  { variant_id: 'var_001', video_id: 'video_001', platform: 'tiktok', aspect_ratio: '9:16', duration_seconds: 30, caption: 'The future is here 🚀 #tech #innovation #lifestyle', hashtags: ['tech', 'innovation', 'lifestyle', 'gadgets'], status: 'ready', created_at: new Date().toISOString() },
-  { variant_id: 'var_002', video_id: 'video_001', platform: 'instagram_reels', aspect_ratio: '9:16', duration_seconds: 30, caption: 'Game changer alert! 🎯 Link in bio', hashtags: ['instagood', 'tech', 'reels', 'trending'], status: 'ready', created_at: new Date().toISOString() },
+  { variant_id: 'var_001', video_id: 'video_001', platform: 'tiktok', aspect_ratio: '9:16', duration_seconds: 30, caption: 'The future is here #tech #innovation #lifestyle', hashtags: ['tech', 'innovation', 'lifestyle', 'gadgets'], status: 'ready', created_at: new Date().toISOString() },
+  { variant_id: 'var_002', video_id: 'video_001', platform: 'instagram_reels', aspect_ratio: '9:16', duration_seconds: 30, caption: 'Game changer alert! Link in bio', hashtags: ['instagood', 'tech', 'reels', 'trending'], status: 'ready', created_at: new Date().toISOString() },
   { variant_id: 'var_003', video_id: 'video_001', platform: 'youtube_shorts', aspect_ratio: '9:16', duration_seconds: 30, caption: 'You NEED to see this! #shorts', hashtags: ['shorts', 'tech', 'gadgets'], status: 'ready', created_at: new Date().toISOString() },
   { variant_id: 'var_004', video_id: 'video_001', platform: 'instagram_feed', aspect_ratio: '1:1', duration_seconds: 30, caption: 'Innovation meets design. Tap to explore.', hashtags: ['design', 'innovation', 'style'], status: 'pending', created_at: new Date().toISOString() },
 ];
@@ -57,23 +60,47 @@ export default function DistributionPage() {
   const [showVariantDetail, setShowVariantDetail] = useState(false);
   const [selectedVariant, setSelectedVariant] = useState<Variant | null>(null);
   const [customCaption, setCustomCaption] = useState('');
-
-  // Fetch from API with fallback to mock data
-  const { data: apiVariants } = useV1Variants({ video_id: selectedVideo || undefined });
-  const variants = (apiVariants?.length > 0 ? apiVariants : mockVariants).filter((v: Variant) => v.video_id === selectedVideo);
-
+  const [showFilters, setShowFilters] = useState(false);
+  const [filterPlatform, setFilterPlatform] = useState('');
+  const [filterStatus, setFilterStatus] = useState('');
+  const [filterAspectRatio, setFilterAspectRatio] = useState('');
+  
+  // Check prerequisites
+  const { canAccessDistribution, steps, isLoading: progressLoading } = useCampaignProgress();
+  
+  // Fetch from API - MUST be called before any conditional returns
+  const { data: apiVariants, mutate } = useV1Variants({ video_id: selectedVideo || undefined });
+  
+  // useMutation - MUST be called before any conditional returns
   const generateMutation = useMutation({
     mutationFn: async (data: { videoId: string; platforms: string[] }) => {
-      const response = await variantsApi.generateVariants(data.videoId, {
-        platforms: data.platforms,
-        includeCaption: true,
-        includeBranding: true,
+      const response = await fetch('/api/v1/variants', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          video_id: data.videoId,
+          platforms: data.platforms,
+        }),
       });
-      return response.data;
+
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.error?.message || 'Failed to generate variants');
+      }
+
+      return response.json();
     },
     onSuccess: () => {
       setShowGenerateModal(false);
       setSelectedPlatforms([]);
+      toast({ type: 'success', message: 'Variants generation started' });
+      mutate();
+    },
+    onError: (error) => {
+      toast({ 
+        type: 'error', 
+        message: error instanceof Error ? error.message : 'Failed to generate variants' 
+      });
     },
   });
 
@@ -104,30 +131,143 @@ export default function DistributionPage() {
     }
   };
 
+  // Show locked state if prerequisites not met - AFTER all hooks
+  if (!progressLoading && !canAccessDistribution) {
+    return (
+      <LockedState
+        title="Distribution is Locked"
+        description="Videos must be ready before creating platform variants"
+        steps={[
+          { label: 'Approve content', completed: steps?.contentApproved || false },
+          { label: 'Wait for video generation to complete', completed: steps?.videosReady || false },
+        ]}
+        nextAction={{ label: 'Go to Videos', href: '/videos' }}
+        explanation="Create platform variants once your videos are ready."
+      />
+    );
+  }
+  
+  // Apply filters
+  let variants = apiVariants?.filter((v: Variant) => v.video_id === selectedVideo) || [];
+  
+  if (filterPlatform) {
+    variants = variants.filter(v => v.platform === filterPlatform);
+  }
+  if (filterStatus) {
+    variants = variants.filter(v => v.status === filterStatus);
+  }
+  if (filterAspectRatio) {
+    variants = variants.filter(v => v.aspect_ratio === filterAspectRatio);
+  }
+
   return (
     <div className="bg-white p-4 rounded-3xl m-4 flex-1 shadow-sm border border-slate-100/50">
       {/* TOP SECTION */}
-      <div className="flex items-center justify-between mb-8">
-        <h1 className="hidden md:block text-2xl font-bold text-slate-800">Distribution</h1>
-        <div className="flex flex-col md:flex-row items-center gap-4 w-full md:w-auto">
-          {/* SEARCH */}
-          <div className="flex items-center gap-2 text-xs rounded-full ring-[1.5px] ring-slate-200 px-3 py-2 w-full md:w-[240px] bg-white">
-            <Search size={16} className="text-slate-500" />
-            <input type="text" placeholder="Search variants..." className="w-full bg-transparent outline-none text-slate-700" autoComplete="off" data-form-type="other" />
-          </div>
-          <div className="flex items-center gap-4 self-end">
-            <button className="w-9 h-9 flex items-center justify-center rounded-full bg-amber-100 text-amber-700 hover:bg-amber-500 hover:text-white transition-colors">
-              <SlidersHorizontal size={18} />
-            </button>
-            <button 
-              onClick={() => setShowGenerateModal(true)}
-              className="flex items-center gap-2 px-4 py-2 rounded-full bg-lamaPurpleLight text-slate-700 hover:bg-lamaPurple hover:text-white transition-colors font-medium text-sm"
-            >
-              <Sparkles size={16} />
-              Generate Variants
-            </button>
+      <div className="flex flex-col gap-4 mb-8">
+        <div className="flex items-center justify-between">
+          <h1 className="hidden md:block text-2xl font-bold text-slate-800">Distribution</h1>
+          <div className="flex flex-col md:flex-row items-center gap-4 w-full md:w-auto">
+            {/* SEARCH */}
+            <div className="flex items-center gap-2 text-xs rounded-full ring-[1.5px] ring-slate-200 px-3 py-2 w-full md:w-[240px] bg-white">
+              <Search size={16} className="text-slate-500" />
+              <input type="text" placeholder="Search variants..." className="w-full bg-transparent outline-none text-slate-700" autoComplete="off" data-form-type="other" />
+            </div>
+            <div className="flex items-center gap-4 self-end">
+              <button 
+                className={cn(
+                  "w-9 h-9 flex items-center justify-center rounded-full transition-colors",
+                  showFilters 
+                    ? "bg-amber-500 text-white" 
+                    : "bg-amber-100 text-amber-700 hover:bg-amber-500 hover:text-white"
+                )}
+                onClick={() => setShowFilters(!showFilters)}
+              >
+                <SlidersHorizontal size={18} />
+              </button>
+              <button 
+                onClick={() => setShowGenerateModal(true)}
+                className="flex items-center gap-2 px-4 py-2 rounded-full bg-lamaPurpleLight text-slate-700 hover:bg-lamaPurple hover:text-white transition-colors font-medium text-sm"
+              >
+                <Sparkles size={16} />
+                Generate Variants
+              </button>
+            </div>
           </div>
         </div>
+        
+        {/* FILTER PANEL */}
+        {showFilters && (
+          <motion.div
+            initial={{ opacity: 0, height: 0 }}
+            animate={{ opacity: 1, height: "auto" }}
+            exit={{ opacity: 0, height: 0 }}
+            className="bg-slate-50 rounded-xl border border-slate-200 p-4"
+          >
+            <div className="flex items-center justify-between mb-3">
+              <h3 className="font-semibold text-sm text-slate-700">Filters</h3>
+              <button
+                onClick={() => {
+                  setFilterPlatform("");
+                  setFilterStatus("");
+                  setFilterAspectRatio("");
+                }}
+                className="text-xs text-slate-500 hover:text-slate-700"
+              >
+                Clear all
+              </button>
+            </div>
+            <div className="grid grid-cols-3 gap-4">
+              <div>
+                <label className="text-xs text-slate-600 mb-2 block font-medium">Platform</label>
+                <CustomSelect
+                  value={filterPlatform}
+                  onChange={setFilterPlatform}
+                  placeholder="All Platforms"
+                  options={[
+                    { value: '', label: 'All Platforms' },
+                    { value: 'tiktok', label: 'TikTok' },
+                    { value: 'instagram_reels', label: 'Instagram Reels' },
+                    { value: 'instagram_feed', label: 'Instagram Feed' },
+                    { value: 'youtube_shorts', label: 'YouTube Shorts' },
+                    { value: 'youtube_feed', label: 'YouTube' },
+                    { value: 'facebook_feed', label: 'Facebook' },
+                    { value: 'linkedin_feed', label: 'LinkedIn' },
+                    { value: 'twitter_feed', label: 'X (Twitter)' },
+                  ]}
+                />
+              </div>
+              <div>
+                <label className="text-xs text-slate-600 mb-2 block font-medium">Status</label>
+                <CustomSelect
+                  value={filterStatus}
+                  onChange={setFilterStatus}
+                  placeholder="All Status"
+                  options={[
+                    { value: '', label: 'All Status' },
+                    { value: 'ready', label: 'Ready' },
+                    { value: 'processing', label: 'Processing' },
+                    { value: 'pending', label: 'Pending' },
+                    { value: 'error', label: 'Error' },
+                  ]}
+                />
+              </div>
+              <div>
+                <label className="text-xs text-slate-600 mb-2 block font-medium">Aspect Ratio</label>
+                <CustomSelect
+                  value={filterAspectRatio}
+                  onChange={setFilterAspectRatio}
+                  placeholder="All Ratios"
+                  options={[
+                    { value: '', label: 'All Ratios' },
+                    { value: '9:16', label: 'Vertical (9:16)' },
+                    { value: '16:9', label: 'Horizontal (16:9)' },
+                    { value: '1:1', label: 'Square (1:1)' },
+                  ]}
+                />
+              </div>
+            </div>
+          </motion.div>
+        )}
       </div>
 
       {/* SOURCE VIDEO */}

@@ -162,7 +162,7 @@ export default function CampaignEditor() {
                         <Sparkles className="h-12 w-12 text-lamaPurple/40 animate-pulse" />
                         <div className="absolute inset-0 bg-linear-to-t from-black/20 to-transparent" />
                         <div className="absolute bottom-4 left-4 text-white font-medium text-sm">
-                            Unlock your potential 🚀
+                            Unlock your potential
                         </div>
                     </div>
 

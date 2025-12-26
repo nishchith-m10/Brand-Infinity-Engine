@@ -1,92 +1,262 @@
-import axios, { AxiosInstance, AxiosError } from 'axios';
+/**
+ * n8n Workflow Integration Client
+ * Slice 11: N8N Integration
+ */
 
-const N8N_WEBHOOK_BASE = process.env.N8N_WEBHOOK_URL || 'http://localhost:5678/webhook';
+import { logger } from '../monitoring/logger';
 
-export interface WorkflowTriggerResult {
-  success: boolean;
-  executionId?: string;
+export interface N8NWorkflowTrigger {
+  workflow_id: string;
+  webhook_url: string;
+  data: Record<string, any>;
+}
+
+export interface N8NWorkflowStatus {
+  execution_id: string;
+  status: 'running' | 'completed' | 'failed' | 'waiting';
+  result?: any;
   error?: string;
 }
 
-/**
- * n8n Webhook Client
- * 
- * Centralized client for triggering n8n workflows from API routes.
- * Implements timeout handling, error logging, and consistent response format.
- */
-class N8nClient {
-  private client: AxiosInstance;
+export class N8NClient {
+  private baseUrl: string;
+  private apiKey: string;
 
   constructor() {
-    this.client = axios.create({
-      baseURL: N8N_WEBHOOK_BASE,
-      timeout: 30000, // 30 second timeout
-      headers: {
-        'Content-Type': 'application/json',
-      },
-    });
+    this.baseUrl = process.env.N8N_WEBHOOK_URL || '';
+    this.apiKey = process.env.N8N_API_KEY || '';
+
+    if (!this.baseUrl) {
+      logger.warn('N8N', 'n8n webhook URL not configured');
+    }
   }
 
   /**
-   * Trigger an n8n workflow via webhook
-   * 
-   * @param webhookPath - The webhook path (e.g., '/strategist/campaign')
-   * @param payload - The data to send to the workflow
-   * @returns Result with success status and optional execution ID
+   * Trigger content generation workflow
    */
-  async triggerWorkflow(
-    webhookPath: string,
-    payload: Record<string, unknown>
-  ): Promise<WorkflowTriggerResult> {
+  async triggerContentGeneration(params: {
+    content_type: string;
+    brief: string;
+    specifications: Record<string, any>;
+    brand_id: string;
+    session_id: string;
+  }): Promise<{ execution_id: string; webhook_url: string }> {
+    const workflowUrl = `${this.baseUrl}/content-generation`;
+
     try {
-      console.log(`[n8n] Triggering workflow: ${webhookPath}`, { campaignId: payload.campaign_id });
+      const response = await fetch(workflowUrl, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          ...(this.apiKey && { 'Authorization': `Bearer ${this.apiKey}` }),
+        },
+        body: JSON.stringify({
+          trigger: 'content_generation',
+          data: params,
+          timestamp: new Date().toISOString(),
+        }),
+      });
+
+      if (!response.ok) {
+        throw new Error(`n8n workflow failed: ${response.statusText}`);
+      }
+
+      const result = await response.json();
       
-      const response = await this.client.post(webhookPath, payload);
-      
-      console.log(`[n8n] Workflow triggered successfully: ${webhookPath}`);
-      
+      logger.info('N8N', 'Content generation workflow triggered', {
+        execution_id: result.execution_id,
+        content_type: params.content_type,
+      });
+
       return {
-        success: true,
-        executionId: response.data?.executionId || response.data?.id,
+        execution_id: result.execution_id || `exec_${Date.now()}`,
+        webhook_url: workflowUrl,
       };
     } catch (error) {
-      const axiosError = error as AxiosError;
-      const errorMessage = axiosError.response?.data 
-        ? JSON.stringify(axiosError.response.data)
-        : axiosError.message;
-      
-      console.error(`[n8n] Webhook error (${webhookPath}):`, errorMessage);
-      
+      logger.error('N8N', 'Failed to trigger content generation', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Trigger video production workflow
+   */
+  async triggerVideoProduction(params: {
+    script: string;
+    visual_specs: Record<string, any>;
+    brand_assets: string[];
+    session_id: string;
+  }): Promise<{ execution_id: string }> {
+    const workflowUrl = `${this.baseUrl}/video-production`;
+
+    try {
+      const response = await fetch(workflowUrl, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          ...(this.apiKey && { 'Authorization': `Bearer ${this.apiKey}` }),
+        },
+        body: JSON.stringify({
+          trigger: 'video_production',
+          data: params,
+          timestamp: new Date().toISOString(),
+        }),
+      });
+
+      if (!response.ok) {
+        throw new Error(`n8n workflow failed: ${response.statusText}`);
+      }
+
+      const result = await response.json();
+
+      logger.info('N8N', 'Video production workflow triggered', {
+        execution_id: result.execution_id,
+      });
+
       return {
-        success: false,
-        error: errorMessage,
+        execution_id: result.execution_id || `exec_${Date.now()}`,
+      };
+    } catch (error) {
+      logger.error('N8N', 'Failed to trigger video production', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Check workflow status (polling)
+   */
+  async checkStatus(executionId: string): Promise<N8NWorkflowStatus> {
+    const statusUrl = `${this.baseUrl}/status/${executionId}`;
+
+    try {
+      const response = await fetch(statusUrl, {
+        headers: {
+          ...(this.apiKey && { 'Authorization': `Bearer ${this.apiKey}` }),
+        },
+      });
+
+      if (!response.ok) {
+        throw new Error(`Failed to check status: ${response.statusText}`);
+      }
+
+      const status = await response.json();
+      return status;
+    } catch (error) {
+      logger.error('N8N', 'Failed to check workflow status', error);
+      return {
+        execution_id: executionId,
+        status: 'failed',
+        error: error instanceof Error ? error.message : 'Unknown error',
       };
     }
   }
 
   /**
-   * Check if n8n is available
+   * Wait for workflow completion (with timeout)
    */
-  async healthCheck(): Promise<boolean> {
+  async waitForCompletion(
+    executionId: string,
+    timeoutMs: number = 300000, // 5 minutes
+    pollInterval: number = 5000 // 5 seconds
+  ): Promise<N8NWorkflowStatus> {
+    const startTime = Date.now();
+
+    while (Date.now() - startTime < timeoutMs) {
+      const status = await this.checkStatus(executionId);
+
+      if (status.status === 'completed' || status.status === 'failed') {
+        return status;
+      }
+
+      // Wait before next poll
+      await new Promise(resolve => setTimeout(resolve, pollInterval));
+    }
+
+    throw new Error(`Workflow ${executionId} timed out after ${timeoutMs}ms`);
+  }
+
+  /**
+   * Check if n8n is configured
+   */
+  isConfigured(): boolean {
+    return !!this.baseUrl;
+  }
+
+  /**
+   * Generic workflow trigger (backward compatibility)
+   */
+  async triggerWorkflow(
+    webhookPath: string,
+    data: Record<string, any>
+  ): Promise<{ success: boolean; execution_id?: string; error?: string }> {
+    if (!this.isConfigured()) {
+      logger.warn('N8N', 'n8n not configured, skipping workflow trigger');
+      return { success: false, error: 'n8n not configured' };
+    }
+
+    const workflowUrl = `${this.baseUrl}${webhookPath}`;
+
     try {
-      await this.client.get('/health', { timeout: 5000 });
-      return true;
-    } catch {
-      return false;
+      const response = await fetch(workflowUrl, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          ...(this.apiKey && { 'Authorization': `Bearer ${this.apiKey}` }),
+        },
+        body: JSON.stringify({
+          data,
+          timestamp: new Date().toISOString(),
+        }),
+      });
+
+      if (!response.ok) {
+        throw new Error(`Workflow trigger failed: ${response.statusText}`);
+      }
+
+      const result = await response.json();
+      
+      logger.info('N8N', 'Workflow triggered', {
+        webhook: webhookPath,
+        execution_id: result.execution_id,
+      });
+
+      return {
+        success: true,
+        execution_id: result.execution_id || `exec_${Date.now()}`,
+      };
+    } catch (error) {
+      logger.error('N8N', 'Failed to trigger workflow', error);
+      return {
+        success: false,
+        error: error instanceof Error ? error.message : 'Unknown error',
+      };
     }
   }
 }
 
-// Singleton instance
-export const n8nClient = new N8nClient();
-
-// Webhook path constants
+/**
+ * Webhook endpoints for different workflows
+ */
 export const N8N_WEBHOOKS = {
-  STRATEGIST_CAMPAIGN: '/strategist/campaign',
-  STRATEGIST_BRIEF: '/strategist/brief',
-  COPYWRITER_SCRIPT: '/copywriter/script',
-  PRODUCTION_DISPATCH: '/production/dispatch',
-  PRODUCTION_DOWNLOAD: '/production/download',
-  BROADCASTER_PUBLISH: '/broadcaster/publish',
-  APPROVAL_HANDLE: '/approval/handle',
+  STRATEGIST_CAMPAIGN: '/campaign-strategy',
+  CONTENT_GENERATION: '/content-generation',
+  VIDEO_PRODUCTION: '/video-production',
+  REVIEW_CONTENT: '/content-review',
 } as const;
+
+/**
+ * Get n8n client instance (singleton)
+ */
+let clientInstance: N8NClient | null = null;
+
+export function getN8NClient(): N8NClient {
+  if (!clientInstance) {
+    clientInstance = new N8NClient();
+  }
+  return clientInstance;
+}
+
+/**
+ * Export singleton instance for backward compatibility
+ */
+export const n8nClient = new N8NClient();

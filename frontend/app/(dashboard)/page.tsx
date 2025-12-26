@@ -9,12 +9,25 @@ import {
   Users, Video, Calendar, ArrowUpRight, ArrowDownRight, 
   Activity, TrendingUp, PenTool, MonitorPlay, Share2, Radio, DollarSign
 } from "lucide-react";
-import { useTrends, useDashboardStats } from "@/lib/hooks/use-api";
+import { useTrends, useDashboardStats, useCampaigns } from "@/lib/hooks/use-api";
 import { motion } from "framer-motion";
+import { OnboardingWizard } from "@/components/OnboardingWizard";
 
 export default function DashboardPage() {
   const { data: trends } = useTrends();
   const { data: dashboardStats, isLoading } = useDashboardStats();
+  const { data: campaignsData, isLoading: campaignsLoading } = useCampaigns();
+  
+  // Check if user has campaigns
+  const campaigns = Array.isArray(campaignsData) 
+    ? campaignsData 
+    : (campaignsData as any)?.data || [];
+  const hasCampaigns = campaigns.length > 0;
+  
+  // Show onboarding if no campaigns
+  if (!campaignsLoading && !hasCampaigns) {
+    return <OnboardingWizard />;
+  }
 
   // Use real data when available, fallback to placeholder
   const stats = [
@@ -129,15 +142,34 @@ export default function DashboardPage() {
                    Recent Activity
                  </h3>
                  <div className="space-y-6">
-                   {[1, 2, 3, 4, 5].map((_, i) => (
-                     <div key={i} className="flex gap-3 items-start relative pl-4 border-l-2 border-slate-100 last:border-0">
-                       <div className="absolute -left-[5px] top-1 w-2.5 h-2.5 rounded-full bg-lamaPurple ring-4 ring-white" />
-                       <div className="space-y-1">
-                         <p className="text-sm font-medium text-slate-800">New Campaign Launched</p>
-                         <p className="text-xs text-slate-500">2 hours ago</p>
+                   {recentActivity.length > 0 ? (
+                     recentActivity.map((item: { campaign_id: string; campaign_name: string; status: string; created_at: string; updated_at: string }, i: number) => (
+                       <div key={item.campaign_id || i} className="flex gap-3 items-start relative pl-4 border-l-2 border-slate-100 last:border-0">
+                         <div className={`absolute -left-[5px] top-1 w-2.5 h-2.5 rounded-full ring-4 ring-white ${
+                           item.status === 'active' ? 'bg-green-500' :
+                           item.status === 'completed' ? 'bg-blue-500' :
+                           item.status === 'paused' ? 'bg-yellow-500' :
+                           'bg-lamaPurple'
+                         }`} />
+                         <div className="space-y-1">
+                           <p className="text-sm font-medium text-slate-800">{item.campaign_name || 'Campaign'}</p>
+                           <p className="text-xs text-slate-500">
+                             {item.status === 'active' ? 'Campaign active' : 
+                              item.status === 'completed' ? 'Campaign completed' :
+                              item.status === 'draft' ? 'Draft created' : 
+                              `Status: ${item.status}`}
+                             {' • '}
+                             {new Date(item.updated_at || item.created_at).toLocaleDateString()}
+                           </p>
+                         </div>
                        </div>
+                     ))
+                   ) : (
+                     <div className="text-center text-slate-400 py-8">
+                       <p>No recent activity</p>
+                       <p className="text-xs mt-1">Create a campaign to get started</p>
                      </div>
-                   ))}
+                   )}
                  </div>
               </MotionCard>
            </div>

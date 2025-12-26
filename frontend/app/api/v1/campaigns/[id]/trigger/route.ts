@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { createAdminClient } from '@/lib/supabase/admin';
+import { createClient } from '@/lib/supabase/server';
 import { n8nClient, N8N_WEBHOOKS } from '@/lib/n8n/client';
 import type { WorkflowAction } from '@/lib/n8n/types';
 
@@ -31,9 +31,19 @@ export async function POST(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const supabase = createAdminClient();
+    const supabase = await createClient();
     const { id: campaignId } = await params;
     const body = await request.json();
+
+    // Authenticate user
+    const { data: { user }, error: authError } = await supabase.auth.getUser();
+    
+    if (authError || !user) {
+      return NextResponse.json(
+        { success: false, error: { code: 'UNAUTHORIZED', message: 'Not authenticated' } },
+        { status: 401 }
+      );
+    }
 
     const action = body.action as WorkflowAction;
 
@@ -51,7 +61,7 @@ export async function POST(
       );
     }
 
-    // Get current campaign state
+    // Get current campaign state (RLS will filter by user access)
     const { data: campaign, error: fetchError } = await supabase
       .from('campaigns')
       .select('*')
