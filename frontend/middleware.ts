@@ -1,30 +1,12 @@
 import { NextResponse } from 'next/server';
 import type { NextRequest } from 'next/server';
-
-import { NextResponse } from 'next/server';
-import type { NextRequest } from 'next/server';
-import { ratelimit } from '@/lib/ratelimit';
+// TODO: Implement Upstash REST rate limiting for edge middleware.
+// Removed import of '@/lib/ratelimit' because it pulls modules incompatible with Edge.
 
 export async function middleware(request: NextRequest) {
-  // Rate limiting for API routes
-  if (request.nextUrl.pathname.startsWith('/api')) {
-    const ip = request.headers.get('x-forwarded-for') ?? '127.0.0.1';
-    const { success, limit, reset, remaining } = await ratelimit.limit(ip);
-
-    if (!success) {
-      return NextResponse.json(
-        { error: 'Too Many Requests' },
-        {
-          status: 429,
-          headers: {
-            'X-RateLimit-Limit': limit.toString(),
-            'X-RateLimit-Remaining': remaining.toString(),
-            'X-RateLimit-Reset': reset.toString(),
-          },
-        }
-      );
-    }
-  }
+  // Note: Rate limiting has been temporarily disabled in middleware.
+  // API routes should implement per-route rate limiting until an edge-safe
+  // solution (REST-based Upstash ratelimit) is added.
 
   // For page routing, consult the /api/auth/session endpoint which runs on the server
   const authPaths = ['/login', '/signup', '/verify-passcode'];
