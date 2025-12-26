@@ -78,7 +78,7 @@ export function OnboardingWizard() {
             <Sparkles className="h-8 w-8 text-white" />
           </div>
           <h1 className="text-3xl font-bold text-slate-800 mb-3">
-            Welcome to Brand Infinity Engine
+            Welcome to Brand Infinity
           </h1>
           <p className="text-lg text-slate-500">
             Create AI-powered video content in 7 simple steps
