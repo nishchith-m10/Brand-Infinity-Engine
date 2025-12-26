@@ -24,43 +24,67 @@ export default function VerifyPasscodePage() {
   useEffect(() => {
     const tryExchange = async () => {
       try {
-        const { data, error } = await supabase.auth.getSessionFromUrl({ storeSession: true });
-        if (error) {
-          console.debug('[VerifyPasscode] getSessionFromUrl error:', error);
-          return;
-        }
-        if (data?.session) {
-          console.log('[VerifyPasscode] Session obtained via OAuth callback, storing server-side session');
-
-          try {
-            const storeRes = await fetch('/api/auth/store-session', {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({
-                access_token: data.session.access_token,
-                refresh_token: data.session.refresh_token,
-              }),
-              credentials: 'include',
-            });
-
-            const storeJson = await storeRes.json();
-            if (storeJson.success) {
-              console.log('[VerifyPasscode] Server-side session stored, redirecting to dashboard');
-              window.location.href = '/dashboard';
-              return;
-            }
-
-            console.warn('[VerifyPasscode] Failed to store session on server, falling back to redirect', storeJson);
-            window.location.href = '/dashboard';
-          } catch (err) {
-            console.error('[VerifyPasscode] Error storing session on server', err);
-            window.location.href = '/dashboard';
+        // Preferred method if available
+        if (typeof (supabase.auth as any).getSessionFromUrl === 'function') {
+          const { data, error } = await (supabase.auth as any).getSessionFromUrl({ storeSession: true });
+          if (error) {
+            console.debug('[VerifyPasscode] getSessionFromUrl error:', error);
+          } else if (data?.session) {
+            console.log('[VerifyPasscode] Session obtained via getSessionFromUrl');
+            await storeSessionOnServer(data.session);
+            return;
           }
         }
+
+        // Fallback: try exchangeCodeForSession if available
+        const url = new URL(window.location.href);
+        const code = url.searchParams.get('code');
+        if (code && typeof (supabase.auth as any).exchangeCodeForSession === 'function') {
+          console.log('[VerifyPasscode] Exchanging auth code via exchangeCodeForSession');
+          const { data, error } = await (supabase.auth as any).exchangeCodeForSession({ code });
+          if (error) {
+            console.debug('[VerifyPasscode] exchangeCodeForSession error:', error);
+          } else if (data?.session) {
+            console.log('[VerifyPasscode] Session obtained via exchangeCodeForSession');
+            await storeSessionOnServer(data.session);
+            return;
+          }
+        }
+
+        // As last resort, log available auth methods for debugging
+        console.warn('[VerifyPasscode] No session exchange method found on supabase.auth. Available methods:', Object.keys(supabase.auth as any));
       } catch (err) {
         console.error('[VerifyPasscode] unexpected error while exchanging session', err);
       }
     };
+
+    const storeSessionOnServer = async (session: any) => {
+      try {
+        const storeRes = await fetch('/api/auth/store-session', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            access_token: session.access_token,
+            refresh_token: session.refresh_token,
+          }),
+          credentials: 'include',
+        });
+
+        const storeJson = await storeRes.json();
+        if (storeJson.success) {
+          console.log('[VerifyPasscode] Server-side session stored, redirecting to dashboard');
+          window.location.href = '/dashboard';
+          return;
+        }
+
+        console.warn('[VerifyPasscode] Failed to store session on server, falling back to redirect', storeJson);
+        window.location.href = '/dashboard';
+      } catch (err) {
+        console.error('[VerifyPasscode] Error storing session on server', err);
+        window.location.href = '/dashboard';
+      }
+    };
+
 
     // Only attempt exchange when auth callback params are present
     const url = new URL(window.location.href);
