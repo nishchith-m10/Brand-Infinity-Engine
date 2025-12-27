@@ -226,8 +226,8 @@ export async function POST(
       ? 'budget' as const
       : 'premium' as const;
     
-    // Use user-provided API key if available
-    const agent = createExecutiveAgent(preset, user.id, body.openrouter_api_key);
+    // Use user-provided API key and specific model if available
+    const agent = createExecutiveAgent(preset, user.id, body.openrouter_api_key, body.model_id);
     
     // Combine all context for the agent
     const fullContext = [
