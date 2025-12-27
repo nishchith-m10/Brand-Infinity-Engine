@@ -137,7 +137,7 @@ export default function SettingsPage() {
       <div className="mb-8">
         <h1 className="text-3xl font-bold text-gray-900">Settings</h1>
         <p className="mt-2 text-sm text-gray-600">
-          Configure your Brand Infinity Engine preferences
+          Configure your Brand Infinity preferences
         </p>
       </div>
 
