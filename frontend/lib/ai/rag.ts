@@ -20,6 +20,21 @@ export interface BrandContext {
   primary_colors?: string[];
   product_images?: string[];
   logo_url?: string;
+  /** Image URLs for vision-enabled AI models */
+  image_urls?: Array<{
+    url: string;
+    type: string;
+    file_name: string;
+  }>;
+  /** Full asset details for advanced processing */
+  assets?: Array<{
+    id: string;
+    file_name: string;
+    file_url: string;
+    asset_type: string;
+    content: string;
+    similarity: number;
+  }>;
 }
 
 export interface RAGSearchOptions {
@@ -94,6 +109,10 @@ export async function getBrandContext(
     }
 
     // 3. Extract relevant context
+    const imageMatches = matches.filter((m: any) => 
+      m.file_url && (m.asset_type === 'logo' || m.asset_type === 'product' || m.asset_type === 'color')
+    );
+
     return {
       matched_assets: matches.map((m: any) => m.file_name),
       brand_voice: matches.find((m: any) => m.asset_type === 'guideline')?.metadata?.voice,
@@ -102,6 +121,21 @@ export async function getBrandContext(
         .filter((m: any) => m.asset_type === 'product')
         .map((m: any) => m.file_url),
       logo_url: matches.find((m: any) => m.asset_type === 'logo')?.file_url,
+      // NEW: Image URLs for vision API
+      image_urls: imageMatches.map((m: any) => ({
+        url: m.file_url,
+        type: m.asset_type,
+        file_name: m.file_name,
+      })),
+      // NEW: Full asset details for advanced processing
+      assets: matches.map((m: any) => ({
+        id: m.id,
+        file_name: m.file_name,
+        file_url: m.file_url,
+        asset_type: m.asset_type,
+        content: m.content,
+        similarity: m.similarity,
+      })),
     };
   } catch (error) {
     console.error('RAG error:', error);
