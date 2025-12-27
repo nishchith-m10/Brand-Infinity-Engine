@@ -3,7 +3,7 @@
  * Slice 6: Task Planning & Delegation
  */
 
-import type { ParsedIntent, TaskPlan, SubTask } from './types';
+import type { ParsedIntent, TaskPlan, Task } from './types';
 import { createTaskPlanner } from './task-planner';
 import { createStrategistAgent } from './managers/strategist';
 import { createCopywriterAgent } from './managers/copywriter';
@@ -85,17 +85,17 @@ export class AgentOrchestrator {
    * Execute single task with appropriate agent
    */
   private async executeTask(
-    task: SubTask,
+    task: Task,
     intent: ParsedIntent,
     brandContext?: string,
     previousResults?: any[]
   ): Promise<{ success: boolean; result?: any; error?: string }> {
     try {
-      // Update task status to in_progress
-      task.status = 'in_progress';
+      // Update task status to running
+      task.status = 'running';
 
       // Route to appropriate agent
-      switch (task.agent) {
+      switch (task.manager) {
         case 'strategist':
           return await this.strategist.executeTask({
             task,
@@ -126,7 +126,7 @@ export class AgentOrchestrator {
         default:
           return {
             success: false,
-            error: `Unknown agent: ${task.agent}`,
+            error: `Unknown agent: ${task.manager}`,
           };
       }
     } catch (error) {
@@ -150,8 +150,8 @@ export class AgentOrchestrator {
     const completed = plan.tasks.filter(t => t.status === 'completed').length;
     const total = plan.tasks.length;
     const current = plan.tasks
-      .filter(t => t.status === 'in_progress')
-      .map(t => t.description);
+      .filter(t => t.status === 'running')
+      .map(t => t.name);
 
     return {
       percentage: Math.round((completed / total) * 100),
@@ -166,10 +166,10 @@ export class AgentOrchestrator {
    */
   estimateRemainingTime(plan: TaskPlan): number {
     const remainingTasks = plan.tasks.filter(
-      t => t.status === 'pending' || t.status === 'in_progress'
+      t => t.status === 'pending' || t.status === 'running'
     );
 
-    return remainingTasks.reduce((sum, task) => sum + task.estimated_duration, 0);
+    return remainingTasks.reduce((sum, task) => sum + (task.estimated_duration || 0), 0);
   }
 }
 

@@ -9,10 +9,12 @@ export { ExecutiveAgent, createExecutiveAgent } from './executive';
 // Task Planning
 export { TaskPlanner, createTaskPlanner } from './task-planner';
 
-// Manager Agents
-export { StrategistAgent, createStrategistAgent } from './managers/strategist';
-export { CopywriterAgent, createCopywriterAgent } from './managers/copywriter';
-export { ProducerAgent, createProducerAgent } from './managers/producer';
+// Manager Agents - TEMPORARILY DISABLED
+// These agents need to be updated to match new type signatures
+// (LLMResponse properties, ParsedIntent fields, Task vs SubTask)
+// export { StrategistAgent, createStrategistAgent } from './managers/strategist';
+// export { CopywriterAgent, createCopywriterAgent } from './managers/copywriter';
+// export { ProducerAgent, createProducerAgent } from './managers/producer';
 
 // Verifier Agent
 export { VerifierAgent, createVerifierAgent } from './verifier';
@@ -29,7 +31,6 @@ export type {
   ClarifyingQuestion,
   ExecutiveAction,
   TaskPlan,
-  SubTask,
   DelegationPlan,
 } from './types';
 

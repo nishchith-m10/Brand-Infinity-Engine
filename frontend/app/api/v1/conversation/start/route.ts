@@ -222,13 +222,10 @@ export async function POST(
     // Step 7: Use Executive Agent to process message
     // Use provided model or default to premium preset
     const preset = body.provider && body.model_id 
-      ? undefined 
-      : 'premium';
+      ? 'budget' as const
+      : 'premium' as const;
     
-    const agent = createExecutiveAgent(preset as 'premium' | 'fast' | undefined, {
-      provider: body.provider as 'openai' | 'anthropic' | 'deepseek' | undefined,
-      model: body.model_id,
-    });
+    const agent = createExecutiveAgent(preset, user.id);
     
     // Combine all context for the agent
     const fullContext = [
@@ -249,13 +246,13 @@ export async function POST(
 
     if (action.type === 'ask_questions') {
       // Agent needs more information
-      assistantContent = `I'd like to understand your needs better. Please answer these questions:\n\n${action.questions.map((q, i) => `${i + 1}. ${q.question}`).join('\n')}`;
+      assistantContent = `I'd like to understand your needs better. Please answer these questions:\n\n${action.questions.map((q: { question: string }, i: number) => `${i + 1}. ${q.question}`).join('\n')}`;
       responseType = 'questions';
       actionTaken = 'asked_questions';
 
       // Update session with parsed intent and pending questions
       await updateSession(session.id, {
-        state: 'gathering_info',
+        state: 'gathering' as const,
         parsed_intent: action.parsedIntent,
         pending_questions: action.questions,
       });
@@ -270,7 +267,7 @@ export async function POST(
 
       // Update session with final intent
       await updateSession(session.id, {
-        state: 'confirming_plan',
+        state: 'confirming' as const,
         parsed_intent: action.parsedIntent,
         pending_questions: [],
       });

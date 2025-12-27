@@ -4,7 +4,7 @@
  */
 
 import { getLLMService } from '@/lib/llm';
-import type { SubTask, ParsedIntent } from './types';
+import type { ParsedIntent } from './types';
 import { AGENT_TEMPERATURES, AGENT_MAX_TOKENS } from './config';
 
 export interface QualityCheckResult {
@@ -78,11 +78,11 @@ ${params.content}
 CONTENT TYPE: ${params.contentType}
 
 REQUIREMENTS:
-- Goal: ${params.intent.campaign_goal}
+- Goal: general
 - Tone: ${params.intent.tone}
 - Target Audience: ${JSON.stringify(params.intent.target_audience)}
-- Key Messages: ${params.intent.key_messages.join(', ')}
-- Platform: ${params.intent.platform.join(', ')}
+- Key Messages: ${params.intent.key_message || ''}
+- Platform: ${params.intent.platform || 'social media'}
 
 ${params.brandGuidelines ? `\nBRAND GUIDELINES:\n${params.brandGuidelines}` : ''}
 

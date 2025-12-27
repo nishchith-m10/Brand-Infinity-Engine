@@ -52,11 +52,13 @@ export class OpenAIAdapter extends BaseLLMAdapter {
       
       return {
         content: data.choices[0].message.content,
-        tokensUsed: {
-          input: data.usage?.prompt_tokens || 0,
-          output: data.usage?.completion_tokens || 0,
+        usage: {
+          inputTokens: data.usage?.prompt_tokens || 0,
+          outputTokens: data.usage?.completion_tokens || 0,
+          totalTokens: (data.usage?.prompt_tokens || 0) + (data.usage?.completion_tokens || 0),
+          totalCost: 0,
         },
-        finishReason: data.choices[0].finish_reason,
+        finish_reason: data.choices[0].finish_reason,
         model: data.model,
         provider: 'openai',
       };

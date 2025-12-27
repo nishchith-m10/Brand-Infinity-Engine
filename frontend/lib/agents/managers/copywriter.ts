@@ -4,7 +4,7 @@
  */
 
 import { getLLMService } from '@/lib/llm';
-import type { SubTask, ParsedIntent } from '../types';
+import type { Task, ParsedIntent } from '../types';
 import { AGENT_TEMPERATURES, AGENT_MAX_TOKENS } from '../config';
 
 export class CopywriterAgent {
@@ -19,7 +19,7 @@ export class CopywriterAgent {
    * Execute copywriting task
    */
   async executeTask(params: {
-    task: SubTask;
+    task: Task;
     intent: ParsedIntent;
     strategicBrief?: string;
     brandContext?: string;
@@ -39,14 +39,12 @@ Be creative, persuasive, and authentic.`;
 
       const userPrompt = `Create content for:
 
-TASK: ${params.task.description}
+TASK: ${params.task.name}
 
 CAMPAIGN DETAILS:
-- Goal: ${params.intent.campaign_goal}
-- Tone: ${params.intent.tone}
-- Platforms: ${params.intent.platform.join(', ')}
-- Key Messages: ${params.intent.key_messages.join(', ')}
-- Target Audience: ${JSON.stringify(params.intent.target_audience)}
+- Tone: ${params.intent.tone || 'professional'}
+- Platform: ${params.intent.platform || 'social media'}
+- Target Audience: ${params.intent.target_audience || 'general audience'}
 
 ${params.strategicBrief ? `\nSTRATEGIC BRIEF:\n${params.strategicBrief}` : ''}
 ${params.brandContext ? `\nBRAND CONTEXT:\n${params.brandContext}` : ''}
@@ -67,10 +65,9 @@ Write the content now.`;
         result: {
           type: 'content',
           content: response.content,
-          content_type: this.detectContentType(params.task.description),
+          content_type: this.detectContentType(params.task.name),
           model: response.model,
-          tokens_used: response.tokensUsed,
-          cost_usd: response.costUsd,
+          tokens_used: response.usage.totalTokens,
         },
         success: true,
       };

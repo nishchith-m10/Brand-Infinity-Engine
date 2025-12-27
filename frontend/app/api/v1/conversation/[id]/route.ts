@@ -180,8 +180,6 @@ export async function GET(
           created_at: msg.created_at,
           tokens_used: msg.tokens_used,
           model_used: msg.model_used,
-          provider: msg.provider,
-          cost_usd: msg.cost_usd,
           action_taken: msg.action_taken,
         })),
         stats: {

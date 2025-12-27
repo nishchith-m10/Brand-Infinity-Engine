@@ -62,47 +62,25 @@ export function QuestionForm({ questions, onSubmit, disabled }: QuestionFormProp
           </label>
 
           {question.options ? (
-            // Multiple choice
-            question.multiple ? (
-              // Checkboxes
-              <div className="space-y-2">
-                {question.options.map((option) => (
-                  <label
-                    key={option}
-                    className="flex items-center gap-2 p-3 border rounded-lg hover:bg-gray-50 cursor-pointer"
-                  >
-                    <input
-                      type="checkbox"
-                      checked={(answers[question.field] || []).includes(option)}
-                      onChange={() => handleAnswerChange(question.field, option, true)}
-                      disabled={disabled}
-                      className="w-4 h-4 text-blue-600 rounded focus:ring-2 focus:ring-blue-500"
-                    />
-                    <span className="text-sm text-gray-700">{option}</span>
-                  </label>
-                ))}
-              </div>
-            ) : (
-              // Radio buttons
-              <div className="space-y-2">
-                {question.options.map((option) => (
-                  <label
-                    key={option}
-                    className="flex items-center gap-2 p-3 border rounded-lg hover:bg-gray-50 cursor-pointer"
-                  >
-                    <input
-                      type="radio"
-                      name={question.field}
-                      checked={answers[question.field] === option}
-                      onChange={() => handleAnswerChange(question.field, option, false)}
-                      disabled={disabled}
-                      className="w-4 h-4 text-blue-600 focus:ring-2 focus:ring-blue-500"
-                    />
-                    <span className="text-sm text-gray-700">{option}</span>
-                  </label>
-                ))}
-              </div>
-            )
+            // Radio buttons for options
+            <div className="space-y-2">
+              {question.options.map((option) => (
+                <label
+                  key={option}
+                  className="flex items-center gap-2 p-3 border rounded-lg hover:bg-gray-50 cursor-pointer"
+                >
+                  <input
+                    type="radio"
+                    name={question.field}
+                    checked={answers[question.field] === option}
+                    onChange={() => handleAnswerChange(question.field, option, false)}
+                    disabled={disabled}
+                    className="w-4 h-4 text-blue-600 focus:ring-2 focus:ring-blue-500"
+                  />
+                  <span className="text-sm text-gray-700">{option}</span>
+                </label>
+              ))}
+            </div>
           ) : (
             // Text input
             <textarea

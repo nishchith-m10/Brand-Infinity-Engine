@@ -8,13 +8,13 @@ import { logger } from '../monitoring/logger';
 export interface N8NWorkflowTrigger {
   workflow_id: string;
   webhook_url: string;
-  data: Record<string, any>;
+  data: Record<string, unknown>;
 }
 
 export interface N8NWorkflowStatus {
   execution_id: string;
   status: 'running' | 'completed' | 'failed' | 'waiting';
-  result?: any;
+  result?: unknown;
   error?: string;
 }
 
@@ -37,7 +37,7 @@ export class N8NClient {
   async triggerContentGeneration(params: {
     content_type: string;
     brief: string;
-    specifications: Record<string, any>;
+    specifications: Record<string, unknown>;
     brand_id: string;
     session_id: string;
   }): Promise<{ execution_id: string; webhook_url: string }> {
@@ -83,7 +83,7 @@ export class N8NClient {
    */
   async triggerVideoProduction(params: {
     script: string;
-    visual_specs: Record<string, any>;
+    visual_specs: Record<string, unknown>;
     brand_assets: string[];
     session_id: string;
   }): Promise<{ execution_id: string }> {
@@ -183,11 +183,33 @@ export class N8NClient {
   }
 
   /**
+   * Health check - verify n8n is reachable
+   */
+  async healthCheck(): Promise<boolean> {
+    if (!this.isConfigured()) {
+      return false;
+    }
+
+    try {
+      const response = await fetch(`${this.baseUrl}/health`, {
+        method: 'GET',
+        headers: {
+          ...(this.apiKey && { 'Authorization': `Bearer ${this.apiKey}` }),
+        },
+        signal: AbortSignal.timeout(5000),
+      });
+      return response.ok;
+    } catch {
+      return false;
+    }
+  }
+
+  /**
    * Generic workflow trigger (backward compatibility)
    */
   async triggerWorkflow(
     webhookPath: string,
-    data: Record<string, any>
+    data: Record<string, unknown>
   ): Promise<{ success: boolean; execution_id?: string; error?: string }> {
     if (!this.isConfigured()) {
       logger.warn('N8N', 'n8n not configured, skipping workflow trigger');
@@ -239,8 +261,13 @@ export class N8NClient {
  */
 export const N8N_WEBHOOKS = {
   STRATEGIST_CAMPAIGN: '/campaign-strategy',
+  STRATEGIST_BRIEF: '/strategist',
   CONTENT_GENERATION: '/content-generation',
+  COPYWRITER_SCRIPT: '/copywriter',
   VIDEO_PRODUCTION: '/video-production',
+  PRODUCTION_DISPATCH: '/production-dispatcher',
+  BROADCASTER_PUBLISH: '/broadcaster',
+  APPROVAL_HANDLE: '/approval-handler',
   REVIEW_CONTENT: '/content-review',
 } as const;
 

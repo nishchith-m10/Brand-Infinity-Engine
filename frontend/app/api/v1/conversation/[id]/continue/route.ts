@@ -15,6 +15,7 @@ import {
   clearCachedQuestions,
 } from "@/lib/redis/session-cache";
 import { createExecutiveAgent } from "@/lib/agents/executive";
+import type { ClarifyingQuestion } from "@/lib/agents/types";
 
 interface ContextPayload {
   campaign_id: string;
@@ -142,13 +143,10 @@ export async function POST(
     // Step 7: Use Executive Agent
     // Use provided model or default to premium preset
     const preset = body.provider && body.model_id 
-      ? undefined 
-      : 'premium';
+      ? 'budget' as const
+      : 'premium' as const;
     
-    const agent = createExecutiveAgent(preset as 'premium' | 'fast' | undefined, {
-      provider: body.provider as 'openai' | 'anthropic' | 'deepseek' | undefined,
-      model: body.model_id,
-    });
+    const agent = createExecutiveAgent(preset, user.id);
     
     // Build context from context payload
     let fullContext = '';
@@ -179,7 +177,6 @@ export async function POST(
       action = await agent.processAnswers({
         session,
         answers: body.answers,
-        brandKnowledge: fullContext,
       });
       
       // Clear pending questions
@@ -198,7 +195,7 @@ export async function POST(
     let responseType: 'message' | 'questions' | 'plan' = 'message';
 
     if (action.type === 'ask_questions') {
-      assistantContent = `I need a bit more information:\n\n${action.questions.map((q, i) => `${i + 1}. ${q.question}`).join('\n')}`;
+      assistantContent = `I need a bit more information:\n\n${action.questions.map((q: ClarifyingQuestion, i: number) => `${i + 1}. ${q.question}`).join('\n')}`;
       responseType = 'questions';
     } else if (action.type === 'create_plan') {
       assistantContent = await agent.explainPlan(action.parsedIntent);

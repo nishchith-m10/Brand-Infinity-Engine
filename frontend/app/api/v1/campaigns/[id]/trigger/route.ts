@@ -164,7 +164,7 @@ export async function POST(
         campaign_id: campaignId,
         action,
         new_status: newStatus,
-        execution_id: result.executionId,
+        execution_id: result.execution_id,
       },
       meta: { timestamp: new Date().toISOString() },
     });

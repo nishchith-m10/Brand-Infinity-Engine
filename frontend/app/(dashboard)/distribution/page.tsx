@@ -151,13 +151,13 @@ export default function DistributionPage() {
   let variants = apiVariants?.filter((v: Variant) => v.video_id === selectedVideo) || [];
   
   if (filterPlatform) {
-    variants = variants.filter(v => v.platform === filterPlatform);
+    variants = variants.filter((v: Variant) => v.platform === filterPlatform);
   }
   if (filterStatus) {
-    variants = variants.filter(v => v.status === filterStatus);
+    variants = variants.filter((v: Variant) => v.status === filterStatus);
   }
   if (filterAspectRatio) {
-    variants = variants.filter(v => v.aspect_ratio === filterAspectRatio);
+    variants = variants.filter((v: Variant) => v.aspect_ratio === filterAspectRatio);
   }
 
   return (

@@ -116,6 +116,17 @@ export interface QuestionAnswer {
   timestamp: string;
 }
 
+export type ExecutiveAction =
+  | {
+      type: 'ask_questions';
+      questions: ClarifyingQuestion[];
+      parsedIntent: Partial<ParsedIntent>;
+    }
+  | {
+      type: 'create_plan';
+      parsedIntent: Partial<ParsedIntent>;
+    };
+
 // ============================================================================
 // TASK & DELEGATION TYPES
 // ============================================================================
@@ -157,6 +168,8 @@ export interface Task {
   completed_at?: string;
   retry_count?: number;
   error?: TaskError;
+  estimated_duration?: number; // In seconds
+  priority?: number;
 }
 
 export interface TaskError {

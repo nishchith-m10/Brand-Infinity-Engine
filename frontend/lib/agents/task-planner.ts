@@ -7,8 +7,7 @@ import { getLLMService } from '@/lib/llm';
 import type {
   ParsedIntent,
   TaskPlan,
-  SubTask,
-  DelegationPlan,
+  Task,
 } from './types';
 import { AGENT_TEMPERATURES, AGENT_MAX_TOKENS } from './config';
 
@@ -51,12 +50,12 @@ Return ONLY valid JSON with this structure:
 
     const userPrompt = `Create task plan for:
 
-Content Types: ${intent.content_types.join(', ')}
-Goal: ${intent.campaign_goal}
+Content Types: ${intent.content_type || 'video'}
+Goal: general
 Target Audience: ${JSON.stringify(intent.target_audience)}
 Tone: ${intent.tone}
-Platforms: ${intent.platform.join(', ')}
-Key Messages: ${intent.key_messages.join(', ')}
+Platforms: ${intent.platform || 'social media'}
+Key Messages: ${intent.key_message || ''}
 
 Break this into specific tasks.`;
 
@@ -77,11 +76,15 @@ Break this into specific tasks.`;
       return {
         id: `plan_${Date.now()}`,
         session_id: '',
+        brand_id: '',
         tasks: parsed.tasks || [],
         status: 'pending',
         created_at: new Date().toISOString(),
-        estimated_completion: this.calculateEstimatedCompletion(parsed.estimated_total_time || 60),
-        complexity: parsed.complexity || 'moderate',
+        updated_at: new Date().toISOString(),
+        estimated_duration_seconds: (parsed.estimated_total_time || 60) * 60,
+        estimated_cost_usd: 0,
+        started_at: null,
+        completed_at: null,
       };
     } catch (error) {
       console.error('[TaskPlanner] Failed to parse plan:', error);
@@ -95,43 +98,47 @@ Break this into specific tasks.`;
    * Create default fallback plan
    */
   private createDefaultPlan(intent: ParsedIntent): TaskPlan {
-    const tasks: SubTask[] = [];
+    const tasks: Task[] = [];
     let taskId = 1;
 
     // Strategy task
     tasks.push({
       id: `task_${taskId++}`,
       type: 'strategy',
-      description: `Create strategic brief for ${intent.campaign_goal} campaign`,
-      agent: 'strategist',
+      name: `Create strategic brief for campaign`,
+      manager: 'strategist',
       status: 'pending',
       dependencies: [],
+      inputs: {},
       priority: 5,
       estimated_duration: 15,
     });
 
     // Copywriting tasks
-    if (intent.content_types.includes('script')) {
+    if (intent.content_type === 'video' || (intent.content_type as any) === 'script') {
       tasks.push({
         id: `task_${taskId++}`,
-        type: 'copywriting',
-        description: 'Write video script',
-        agent: 'copywriter',
+        type: 'copy',
+        name: 'Write video script',
+        manager: 'copywriter',
         status: 'pending',
         dependencies: ['task_1'],
+        inputs: {},
         priority: 4,
         estimated_duration: 30,
       });
     }
 
-    if (intent.content_types.includes('social_post')) {
+    const socialPlatforms = ['tiktok', 'instagram_reels', 'youtube_shorts', 'facebook', 'linkedin'];
+    if (socialPlatforms.includes(intent.platform as string) || (intent.content_type as any) === 'social_post') {
       tasks.push({
         id: `task_${taskId++}`,
-        type: 'copywriting',
-        description: 'Create social media posts',
-        agent: 'copywriter',
+        type: 'copy',
+        name: 'Create social media posts',
+        manager: 'copywriter',
         status: 'pending',
         dependencies: ['task_1'],
+        inputs: {},
         priority: 3,
         estimated_duration: 20,
       });
@@ -141,24 +148,29 @@ Break this into specific tasks.`;
     tasks.push({
       id: `task_${taskId++}`,
       type: 'production',
-      description: 'Coordinate content production',
-      agent: 'producer',
+      name: 'Coordinate content production',
+      manager: 'producer',
       status: 'pending',
-      dependencies: tasks.filter(t => t.type === 'copywriting').map(t => t.id),
+      dependencies: tasks.filter(t => t.type === 'copy').map(t => t.id),
+      inputs: {},
       priority: 2,
       estimated_duration: 45,
     });
 
-    const totalTime = tasks.reduce((sum, t) => sum + t.estimated_duration, 0);
+    const totalTime = tasks.reduce((sum, t) => sum + (t.estimated_duration || 0), 0);
 
     return {
       id: `plan_${Date.now()}`,
       session_id: '',
+      brand_id: '',
       tasks,
       status: 'pending',
       created_at: new Date().toISOString(),
-      estimated_completion: this.calculateEstimatedCompletion(totalTime),
-      complexity: tasks.length > 5 ? 'complex' : 'moderate',
+      updated_at: new Date().toISOString(),
+      estimated_duration_seconds: totalTime * 60,
+      estimated_cost_usd: 0,
+      started_at: null,
+      completed_at: null,
     };
   }
 
@@ -174,7 +186,7 @@ Break this into specific tasks.`;
   /**
    * Get next executable tasks (no pending dependencies)
    */
-  getNextTasks(plan: TaskPlan): SubTask[] {
+  getNextTasks(plan: TaskPlan): Task[] {
     const completedTaskIds = plan.tasks
       .filter(t => t.status === 'completed')
       .map(t => t.id);
@@ -192,17 +204,17 @@ Break this into specific tasks.`;
    * Create delegation plan for next batch of tasks
    */
   async createDelegationPlan(
-    tasks: SubTask[],
+    tasks: Task[],
     intent: ParsedIntent
-  ): Promise<DelegationPlan> {
+  ): Promise<any> {
     // Group tasks by agent
-    const tasksByAgent: Record<string, SubTask[]> = {};
+    const tasksByAgent: Record<string, Task[]> = {};
     
     for (const task of tasks) {
-      if (!tasksByAgent[task.agent]) {
-        tasksByAgent[task.agent] = [];
+      if (!tasksByAgent[task.manager]) {
+        tasksByAgent[task.manager] = [];
       }
-      tasksByAgent[task.agent].push(task);
+      tasksByAgent[task.manager].push(task);
     }
 
     // Create delegation instructions
@@ -210,7 +222,7 @@ Break this into specific tasks.`;
       agent: agent as any,
       tasks: agentTasks.map(t => t.id),
       instructions: this.generateAgentInstructions(agent, agentTasks, intent),
-      priority: Math.max(...agentTasks.map(t => t.priority)),
+      priority: Math.max(...agentTasks.map(t => t.priority || 0)),
     }));
 
     return {
@@ -225,17 +237,17 @@ Break this into specific tasks.`;
    */
   private generateAgentInstructions(
     agent: string,
-    tasks: SubTask[],
+    tasks: Task[],
     intent: ParsedIntent
   ): string {
-    const taskDescriptions = tasks.map(t => `- ${t.description}`).join('\n');
+    const taskDescriptions = tasks.map(t => `- ${t.name}`).join('\n');
 
     const context = `
-Goal: ${intent.campaign_goal}
+Goal: general
 Audience: ${JSON.stringify(intent.target_audience)}
 Tone: ${intent.tone}
-Platforms: ${intent.platform.join(', ')}
-Key Messages: ${intent.key_messages.join(', ')}
+Platforms: ${intent.platform || 'social media'}
+Key Messages: ${intent.key_message || ''}
 `;
 
     return `${agent.toUpperCase()} TASKS:\n${taskDescriptions}\n\nCONTEXT:${context}`;
@@ -247,7 +259,7 @@ Key Messages: ${intent.key_messages.join(', ')}
   updateTaskStatus(
     plan: TaskPlan,
     taskId: string,
-    status: SubTask['status'],
+    status: Task['status'],
     result?: any
   ): TaskPlan {
     return {
@@ -267,11 +279,11 @@ Key Messages: ${intent.key_messages.join(', ')}
   private calculatePlanStatus(plan: TaskPlan): TaskPlan['status'] {
     const allCompleted = plan.tasks.every(t => t.status === 'completed');
     const anyFailed = plan.tasks.some(t => t.status === 'failed');
-    const anyInProgress = plan.tasks.some(t => t.status === 'in_progress');
+    const anyInProgress = plan.tasks.some(t => t.status === 'running');
 
     if (allCompleted) return 'completed';
     if (anyFailed) return 'failed';
-    if (anyInProgress) return 'in_progress';
+    if (anyInProgress) return 'running';
     return 'pending';
   }
 

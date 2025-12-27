@@ -9,11 +9,9 @@ export { getLLMService, LLMService } from './service';
 // Types
 export type {
   LLMProvider,
-  LLMModel,
   LLMRequest,
   LLMResponse,
   LLMMessage,
-  LLMCostCalculation,
 } from './types';
 
 // Adapters (for testing/advanced usage)

@@ -5,7 +5,7 @@
 
 import { getLLMService } from '@/lib/llm';
 import { getN8NClient } from '@/lib/n8n/client';
-import type { SubTask, ParsedIntent } from '../types';
+import type { Task, ParsedIntent } from '../types';
 import { AGENT_TEMPERATURES, AGENT_MAX_TOKENS } from '../config';
 
 export class ProducerAgent {
@@ -20,7 +20,7 @@ export class ProducerAgent {
    * Execute production task
    */
   async executeTask(params: {
-    task: SubTask;
+    task: Task;
     intent: ParsedIntent;
     previousResults?: any[];
     brandContext?: string;
@@ -40,12 +40,12 @@ Output should be structured, actionable JSON.`;
 
       const userPrompt = `Coordinate production for:
 
-TASK: ${params.task.description}
+TASK: ${params.task.name}
 
 CAMPAIGN DETAILS:
-- Content Types: ${params.intent.content_types.join(', ')}
-- Platforms: ${params.intent.platform.join(', ')}
-- Goal: ${params.intent.campaign_goal}
+- Content Types: ${params.intent.content_type || 'video'}
+- Platforms: ${params.intent.platform || 'social media'}
+- Goal: general awareness
 
 ${params.previousResults ? `\nPREVIOUS WORK:\n${JSON.stringify(params.previousResults, null, 2)}` : ''}
 
@@ -80,8 +80,7 @@ Return as JSON.`;
           type: 'production_plan',
           plan: productionPlan,
           model: response.model,
-          tokens_used: response.tokensUsed,
-          cost_usd: response.costUsd,
+          tokens_used: response.usage.totalTokens,
         },
         success: true,
       };
@@ -196,12 +195,12 @@ Return as JSON with milestones and dates.`;
       return await n8n.triggerContentGeneration({
         ...params.data,
         session_id: params.sessionId,
-      });
+      } as any);
     } else {
       return await n8n.triggerVideoProduction({
         ...params.data,
         session_id: params.sessionId,
-      });
+      } as any);
     }
   }
 }

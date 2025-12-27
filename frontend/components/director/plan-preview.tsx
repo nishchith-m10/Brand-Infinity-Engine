@@ -6,7 +6,27 @@
  */
 
 import { CheckCircle2, Circle, Clock, AlertCircle } from 'lucide-react';
-import type { TaskPlan, SubTask } from '@/lib/agents/types';
+
+// Local type definitions since SubTask isn't exported from types
+interface SubTask {
+  id: string;
+  type: string;
+  description: string;
+  agent: string;
+  priority: number;
+  status: 'pending' | 'in_progress' | 'completed' | 'failed';
+  dependencies?: string[];
+  estimated_duration?: number;
+  result?: string;
+  error?: string;
+}
+
+interface TaskPlan {
+  id: string;
+  status: 'pending' | 'running' | 'completed' | 'failed';
+  complexity: 'low' | 'medium' | 'high';
+  tasks: SubTask[];
+}
 
 interface PlanPreviewProps {
   plan: TaskPlan;
@@ -32,7 +52,7 @@ export function PlanPreview({ plan, onApprove, onReject }: PlanPreviewProps) {
     switch (status) {
       case 'completed':
         return 'bg-green-100 text-green-800';
-      case 'in_progress':
+      case 'running':
         return 'bg-blue-100 text-blue-800';
       case 'failed':
         return 'bg-red-100 text-red-800';

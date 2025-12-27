@@ -4,7 +4,7 @@
  */
 
 import { getLLMService } from '@/lib/llm';
-import type { SubTask, ParsedIntent } from '../types';
+import type { Task, ParsedIntent } from '../types';
 import { AGENT_TEMPERATURES, AGENT_MAX_TOKENS } from '../config';
 
 export class StrategistAgent {
@@ -19,7 +19,7 @@ export class StrategistAgent {
    * Execute strategy task
    */
   async executeTask(params: {
-    task: SubTask;
+    task: Task;
     intent: ParsedIntent;
     brandContext?: string;
   }): Promise<{ result: any; success: boolean; error?: string }> {
@@ -39,15 +39,14 @@ Be specific, actionable, and aligned with brand goals.`;
 
       const userPrompt = `Create strategic brief for:
 
-TASK: ${params.task.description}
+TASK: ${params.task.name}
 
 CAMPAIGN DETAILS:
-- Goal: ${params.intent.campaign_goal}
-- Content Types: ${params.intent.content_types.join(', ')}
-- Target Audience: ${JSON.stringify(params.intent.target_audience)}
-- Tone: ${params.intent.tone}
-- Platforms: ${params.intent.platform.join(', ')}
-- Key Messages: ${params.intent.key_messages.join(', ')}
+- Goal: general
+- Content Types: ${params.intent.content_type || 'video'}
+- Target Audience: ${params.intent.target_audience || 'general audience'}
+- Tone: ${params.intent.tone || 'professional'}
+- Platforms: ${params.intent.platform || 'social media'}
 
 ${params.brandContext ? `\nBRAND CONTEXT:\n${params.brandContext}` : ''}
 
@@ -68,8 +67,7 @@ Provide a detailed strategic brief.`;
           type: 'strategic_brief',
           content: response.content,
           model: response.model,
-          tokens_used: response.tokensUsed,
-          cost_usd: response.costUsd,
+          tokens_used: response.usage.totalTokens,
         },
         success: true,
       };
