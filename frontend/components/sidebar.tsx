@@ -8,46 +8,91 @@ import {
   FileText, 
   Video, 
   Share2, 
-  Calendar,
+  Radio,
   BarChart3,
   Settings,
   Menu,
-  ChevronLeft
+  ChevronLeft,
+  Wand2,
+  Archive,
+  Lock
 } from 'lucide-react';
 import { useState, useRef, useEffect, useCallback } from 'react';
 import { motion } from 'framer-motion';
+import { useCampaignProgress } from '@/lib/hooks/use-campaign-progress';
+import { useSidebar } from '@/lib/context/sidebar-context';
 
-const navigation = [
-  { name: 'Dashboard', href: '/dashboard', icon: LayoutDashboard },
-  { name: 'Campaigns', href: '/campaigns', icon: Megaphone },
-  { name: 'Content Review', href: '/review', icon: FileText },
-  { name: 'Videos', href: '/videos', icon: Video },
-  { name: 'Distribution', href: '/distribution', icon: Share2 },
-  { name: 'Publishing', href: '/publishing', icon: Calendar },
+// Workflow navigation items in order
+const workflowItems = [
+  { 
+    number: 1, 
+    name: 'Campaigns', 
+    href: '/campaigns', 
+    icon: Megaphone,
+    accessKey: 'canAccessCampaigns' as const
+  },
+  { 
+    number: 2, 
+    name: 'Brand Vault', 
+    href: '/brand-vault', 
+    icon: Archive,
+    accessKey: 'canAccessBrandVault' as const
+  },
+  { 
+    number: 3, 
+    name: 'Creative Director', 
+    href: '/director', 
+    icon: Wand2,
+    accessKey: 'canAccessDirector' as const
+  },
+  { 
+    number: 4, 
+    name: 'Content Review', 
+    href: '/review', 
+    icon: FileText,
+    accessKey: 'canAccessReview' as const
+  },
+  { 
+    number: 5, 
+    name: 'Videos', 
+    href: '/videos', 
+    icon: Video,
+    accessKey: 'canAccessVideos' as const
+  },
+  { 
+    number: 6, 
+    name: 'Distribution', 
+    href: '/distribution', 
+    icon: Share2,
+    accessKey: 'canAccessDistribution' as const
+  },
+  { 
+    number: 7, 
+    name: 'Publishing', 
+    href: '/publishing', 
+    icon: Radio,
+    accessKey: 'canAccessPublishing' as const
+  },
+];
+
+const insightItems = [
   { name: 'Analytics', href: '/analytics', icon: BarChart3 },
+];
+
+const systemItems = [
   { name: 'Settings', href: '/settings', icon: Settings },
 ];
 
-const MIN_WIDTH = 80; 
-const MAX_WIDTH = 280;
-const DEFAULT_WIDTH = 256;
+const MIN_WIDTH = 80;
 
 export function Sidebar() {
   const pathname = usePathname();
-  const [isCollapsed, setIsCollapsed] = useState(false);
-  const [sidebarWidth, setSidebarWidth] = useState(DEFAULT_WIDTH);
+  const { sidebarWidth, toggleCollapse, setSidebarWidth } = useSidebar();
   const [isDragging, setIsDragging] = useState(false);
   const sidebarRef = useRef<HTMLDivElement>(null);
-
-  const toggleCollapse = () => {
-    if (isCollapsed) {
-      setSidebarWidth(DEFAULT_WIDTH);
-      setIsCollapsed(false);
-    } else {
-      setSidebarWidth(MIN_WIDTH);
-      setIsCollapsed(true);
-    }
-  };
+  
+  // Get access permissions
+  const progress = useCampaignProgress();
 
   const handleMouseDown = useCallback(() => {
     setIsDragging(true);
@@ -57,10 +102,8 @@ export function Sidebar() {
 
   const handleMouseMove = useCallback((e: MouseEvent) => {
     if (!isDragging) return;
-    const newWidth = Math.min(MAX_WIDTH, Math.max(MIN_WIDTH, e.clientX));
-    setSidebarWidth(newWidth);
-    setIsCollapsed(newWidth <= MIN_WIDTH + 20);
-  }, [isDragging]);
+    setSidebarWidth(e.clientX);
+  }, [isDragging, setSidebarWidth]);
 
   const handleMouseUp = useCallback(() => {
     setIsDragging(false);
@@ -81,6 +124,97 @@ export function Sidebar() {
 
   const showLabels = sidebarWidth > MIN_WIDTH + 20;
 
+  // Render a nav item
+  const renderNavItem = (
+    item: { name: string; href: string; icon: React.ElementType; number?: number },
+    isLocked: boolean = false
+  ) => {
+    const isActive = pathname.startsWith(item.href);
+    const Icon = item.icon;
+    
+    return (
+      <Link
+        key={item.name}
+        href={isLocked ? '#' : item.href}
+        onClick={(e) => isLocked && e.preventDefault()}
+        className={`group flex items-center rounded-2xl transition-all duration-200 ${
+          showLabels ? 'px-4 py-3' : 'px-2 py-3 justify-center'
+        } ${
+          isLocked 
+            ? 'opacity-50 cursor-not-allowed text-slate-400'
+            : isActive 
+              ? 'bg-lamaPurpleLight text-lamaPurple shadow-sm' 
+              : 'text-slate-500 hover:bg-slate-50 hover:text-slate-900'
+        }`}
+      >
+        {/* Step number with lock overlay */}
+        {showLabels && item.number && (
+          <div className={`relative w-6 h-6 rounded-full flex items-center justify-center text-[11px] font-bold mr-2 shrink-0 ${
+            isLocked
+              ? 'bg-slate-200 text-slate-400'
+              : isActive
+                ? 'bg-lamaPurple text-white'
+                : 'bg-slate-100 text-slate-500'
+          }`}>
+            {item.number}
+            {isLocked && (
+              <Lock size={12} className="absolute -top-0.5 -right-0.5 text-slate-400 bg-white rounded-full p-0.5" />
+            )}
+          </div>
+        )}
+        
+        {/* Icon */}
+        <motion.div 
+          whileHover={!isLocked ? { scale: 1.1, rotate: 2 } : {}}
+          className={`flex items-center justify-center shrink-0 ${showLabels ? 'min-w-[22px]' : 'w-[22px]'} transition-colors ${
+            isLocked 
+              ? 'text-slate-300'
+              : isActive 
+                ? 'text-lamaPurple' 
+                : 'text-slate-400 group-hover:text-slate-600'
+          }`}
+        >
+          <Icon size={20} strokeWidth={isActive ? 2.5 : 2} />
+        </motion.div>
+        
+        {/* Label */}
+        <motion.span 
+          animate={{ 
+            opacity: showLabels ? 1 : 0,
+            x: showLabels ? 0 : -10,
+            display: showLabels ? 'block' : 'none'
+          }}
+          transition={{ duration: 0.2 }}
+          className={`ml-3 text-sm font-medium whitespace-nowrap ${isActive ? 'font-semibold' : ''}`}
+        >
+          {item.name}
+        </motion.span>
+        
+        {/* Locked tooltip */}
+        {isLocked && (
+          <div className="absolute left-full ml-2 px-2 py-1 bg-slate-800 text-white text-xs rounded opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none whitespace-nowrap z-50">
+            Complete previous step first
+          </div>
+        )}
+      </Link>
+    );
+  };
+
+  // Section header
+  const renderSectionHeader = (title: string) => (
+    <motion.div 
+      animate={{ 
+        opacity: showLabels ? 1 : 0,
+        display: showLabels ? 'block' : 'none'
+      }}
+      className="px-4 pt-4 pb-2"
+    >
+      <span className="text-[10px] font-semibold uppercase tracking-wider text-slate-400">
+        {title}
+      </span>
+    </motion.div>
+  );
+
   return (
     <div 
       ref={sidebarRef}
@@ -89,7 +223,6 @@ export function Sidebar() {
     >
       {/* Header */}
       <div className="flex h-20 items-center justify-between px-6 pt-4 overflow-hidden whitespace-nowrap">
-        {/* Brand Infinity Link - Smoother Animation */}
         <Link href="/dashboard" className="flex items-center gap-2 outline-none">
           <motion.div
             animate={{ 
@@ -106,7 +239,6 @@ export function Sidebar() {
           </motion.div>
         </Link>
         
-        {/* Toggle Button */}
         <button 
           onClick={toggleCollapse}
           className={`flex h-8 w-8 items-center justify-center rounded-lg hover:bg-slate-100 text-slate-400 hover:text-slate-600 transition-colors ${!showLabels ? 'mx-auto' : ''}`}
@@ -116,39 +248,24 @@ export function Sidebar() {
       </div>
 
       {/* Navigation */}
-      <nav className="flex-1 space-y-2 px-4 py-8 overflow-y-auto overflow-x-hidden custom-scrollbar">
-        {navigation.map((item) => {
-          const isActive = pathname.startsWith(item.href);
-          return (
-            <Link
-              key={item.name}
-              href={item.href}
-              className={`group flex items-center rounded-2xl transition-all duration-200 ${
-                showLabels ? 'px-4 py-3.5' : 'px-2 py-3.5 justify-center'
-              } ${
-                isActive 
-                  ? 'bg-lamaPurpleLight text-lamaPurple shadow-sm' 
-                  : 'text-slate-500 hover:bg-slate-50 hover:text-slate-900'
-              }`}
-            >
-              <div className={`flex items-center justify-center shrink-0 ${showLabels ? 'min-w-[24px]' : 'w-[24px]'} transition-colors ${isActive ? 'text-lamaPurple' : 'text-slate-400 group-hover:text-slate-600'}`}>
-                <item.icon size={22} strokeWidth={isActive ? 2.5 : 2} />
-              </div>
-              
-              <motion.span 
-                animate={{ 
-                  opacity: showLabels ? 1 : 0,
-                  x: showLabels ? 0 : -10,
-                  display: showLabels ? 'block' : 'none'
-                }}
-                transition={{ duration: 0.2 }}
-                className={`ml-4 font-medium whitespace-nowrap ${isActive ? 'font-semibold' : ''}`}
-              >
-                {item.name}
-              </motion.span>
-            </Link>
-          );
+      <nav className="flex-1 space-y-1 px-3 py-4 overflow-y-auto overflow-x-hidden custom-scrollbar">
+        {/* Dashboard - always at top */}
+        {renderNavItem({ name: 'Dashboard', href: '/dashboard', icon: LayoutDashboard })}
+        
+        {/* Workflow Section */}
+        {renderSectionHeader('Workflow')}
+        {workflowItems.map((item) => {
+          const isLocked = !progress[item.accessKey];
+          return renderNavItem(item, isLocked);
         })}
+        
+        {/* Insights Section */}
+        {renderSectionHeader('Insights')}
+        {insightItems.map((item) => renderNavItem(item))}
+        
+        {/* System Section */}
+        {renderSectionHeader('System')}
+        {systemItems.map((item) => renderNavItem(item))}
       </nav>
 
       {/* Resize Handle */}

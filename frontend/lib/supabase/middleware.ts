@@ -38,6 +38,9 @@ export async function updateSession(request: NextRequest) {
   // Auth pages (no protection needed)
   const authPaths = ['/login', '/signup', '/verify-passcode'];
   const isAuthPage = authPaths.some(path => request.nextUrl.pathname.startsWith(path));
+  
+  // Exclude API routes from UI redirects - APIs handle their own auth
+  const isApiRoute = request.nextUrl.pathname.startsWith('/api/');
 
   // Root path - redirect to login if not authenticated, dashboard if authenticated
   if (request.nextUrl.pathname === '/') {
@@ -56,8 +59,8 @@ export async function updateSession(request: NextRequest) {
     return NextResponse.redirect(url);
   }
 
-  // Protected routes (everything except auth pages)
-  const isProtectedRoute = !isAuthPage;
+  // Protected routes (everything except auth pages and APIs)
+  const isProtectedRoute = !isAuthPage && !isApiRoute;
 
   // Redirect to login if not authenticated
   if (isProtectedRoute && !user) {

@@ -41,11 +41,11 @@ export async function invalidateCachePattern(pattern: string): Promise<void> {
   }
 }
 
-// Cache keys enum for consistency
+// Cache keys enum for consistency (all keys scoped by userId)
 export const CacheKeys = {
-  // Dashboard
-  dashboardStats: 'dashboard:stats',
-  dashboardActivity: 'dashboard:activity',
+  // Dashboard (scoped by user)
+  dashboardStats: (userId: string) => `dashboard:stats:${userId}`,
+  dashboardActivity: (userId: string) => `dashboard:activity:${userId}`,
   
   // Campaigns
   campaigns: (userId: string) => `campaigns:${userId}`,

@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import { useMutation } from '@tanstack/react-query';
 import {
   Clock,
@@ -23,6 +23,8 @@ import { publisherApi, type Publication, type Variant, type ScheduleRequest } fr
 import { formatDate, getPlatformColor } from '@/lib/utils';
 import { getPlatformIcon } from '@/lib/platform-icons';
 import { useV1Publications } from '@/lib/hooks/use-api';
+import { useCampaignProgress } from '@/lib/hooks/use-campaign-progress';
+import { LockedState } from '@/components/LockedState';
 
 // Mock variants data
 const mockVariants: Variant[] = [
@@ -32,7 +34,7 @@ const mockVariants: Variant[] = [
     platform: 'tiktok',
     aspect_ratio: '9:16',
     duration_seconds: 30,
-    caption: 'The future is here 🚀 #tech #innovation',
+    caption: 'The future is here #tech #innovation',
     hashtags: ['tech', 'innovation'],
     status: 'ready',
     created_at: new Date().toISOString(),
@@ -141,20 +143,29 @@ const getBadgeVariant = (status: string) => {
   }
 };
 
+import { useToast } from '@/lib/hooks/use-toast';
+
+// ... (existing imports)
+
 export default function PublishingPage() {
   const [currentDate, setCurrentDate] = useState(new Date());
   const [selectedDate, setSelectedDate] = useState<Date | null>(null);
   const [showScheduleModal, setShowScheduleModal] = useState(false);
   const [showPostDetail, setShowPostDetail] = useState(false);
   const [selectedPost, setSelectedPost] = useState<(Publication & { variant?: Variant }) | null>(null);
+  const [isScheduling, setIsScheduling] = useState(false);
+  const { showToast } = useToast();
   
-  // Fetch from API with fallback to mock data
-  const { data: apiPublications } = useV1Publications();
-  const [scheduledPosts, setScheduledPosts] = useState<(Publication & { variant?: Variant })[]>(() => 
-    apiPublications?.length > 0 ? apiPublications : mockScheduledPosts
+  // Check prerequisites
+  const { canAccessPublishing, steps, isLoading: progressLoading } = useCampaignProgress();
+  
+  // Fetch from API - MUST be called before any conditional returns
+  const { data: apiPublications, mutate } = useV1Publications();
+  const [scheduledPosts, setScheduledPosts] = useState<(Publication & { variant?: Variant })[]>(
+    []
   );
-
-  // Schedule form state
+  
+  // Schedule form state - MUST be before conditional returns
   const [scheduleForm, setScheduleForm] = useState({
     variantId: '',
     date: '',
@@ -162,13 +173,15 @@ export default function PublishingPage() {
     caption: '',
     hashtags: '',
   });
-
-  const currentMonth = currentDate.getMonth();
-  const currentYear = currentDate.getFullYear();
-  const daysInMonth = getDaysInMonth(currentYear, currentMonth);
-  const firstDayOfMonth = getFirstDayOfMonth(currentYear, currentMonth);
-
-  // Group posts by date
+  
+  // Update scheduled posts when API data changes - use useEffect to avoid setState during render
+  useEffect(() => {
+    if (apiPublications) {
+      setScheduledPosts(apiPublications);
+    }
+  }, [apiPublications]);
+  
+  // Group posts by date - MUST be before conditional returns
   const postsByDate = useMemo(() => {
     const grouped: Record<string, Publication[]> = {};
     scheduledPosts.forEach((post: Publication) => {
@@ -179,28 +192,7 @@ export default function PublishingPage() {
     return grouped;
   }, [scheduledPosts]);
 
-  // Navigation
-  const goToPreviousMonth = () => {
-    setCurrentDate(new Date(currentYear, currentMonth - 1, 1));
-  };
-
-  const goToNextMonth = () => {
-    setCurrentDate(new Date(currentYear, currentMonth + 1, 1));
-  };
-
-  // Schedule mutation
-  const scheduleMutation = useMutation({
-    mutationFn: async (data: { variantId: string; request: ScheduleRequest }) => {
-      const response = await publisherApi.schedulePost(data.variantId, data.request);
-      return response.data;
-    },
-    onSuccess: () => {
-      setShowScheduleModal(false);
-      setScheduleForm({ variantId: '', date: '', time: '10:00', caption: '', hashtags: '' });
-    },
-  });
-
-  // Publish now mutation
+  // Publish now mutation - MUST be before conditional returns
   const publishNowMutation = useMutation({
     mutationFn: async (variantId: string) => {
       const response = await publisherApi.publishNow(variantId);
@@ -209,31 +201,94 @@ export default function PublishingPage() {
   });
 
   // Cancel scheduled post
-  const handleCancelPost = (postId: string) => {
-    setScheduledPosts((prev: (Publication & { variant?: Variant })[]) => prev.filter((p) => p.publication_id !== postId));
-    setShowPostDetail(false);
-    setSelectedPost(null);
+  const handleCancelPost = async (postId: string) => {
+    try {
+      const response = await fetch(`/api/v1/publications/${postId}`, {
+        method: 'DELETE',
+      });
+
+      if (!response.ok) {
+        const data = await response.json();
+        throw new Error(data.error?.message || 'Failed to cancel post');
+      }
+
+      showToast({ type: 'success', message: 'Post cancelled successfully' });
+      setShowPostDetail(false);
+      setSelectedPost(null);
+      mutate(); // Refresh list
+    } catch (error) {
+      showToast({ 
+        type: 'error', 
+        message: error instanceof Error ? error.message : 'Failed to cancel post' 
+      });
+    }
   };
 
-  const handleSchedule = () => {
+  const handleSchedule = async () => {
     if (!scheduleForm.variantId || !scheduleForm.date || !scheduleForm.time) return;
 
-    const scheduledTime = new Date(`${scheduleForm.date}T${scheduleForm.time}`);
-    
-    // For demo, add to local state
-    const variant = mockVariants.find((v) => v.variant_id === scheduleForm.variantId);
-    const newPost: Publication & { variant?: Variant } = {
-      publication_id: `pub_${Date.now()}`,
-      variant_id: scheduleForm.variantId,
-      platform: variant?.platform || 'unknown',
-      status: 'scheduled',
-      scheduled_time: scheduledTime.toISOString(),
-      variant,
-    };
-    
-    setScheduledPosts((prev: (Publication & { variant?: Variant })[]) => [...prev, newPost]);
-    setShowScheduleModal(false);
-    setScheduleForm({ variantId: '', date: '', time: '10:00', caption: '', hashtags: '' });
+    setIsScheduling(true);
+    try {
+      const scheduledTime = new Date(`${scheduleForm.date}T${scheduleForm.time}`).toISOString();
+      
+      const response = await fetch('/api/v1/publications', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          variant_id: scheduleForm.variantId,
+          scheduled_time: scheduledTime,
+          caption: scheduleForm.caption,
+          hashtags: scheduleForm.hashtags ? scheduleForm.hashtags.split(',').map(t => t.trim()) : [],
+        }),
+      });
+
+      if (!response.ok) {
+        const data = await response.json();
+        throw new Error(data.error?.message || 'Failed to schedule post');
+      }
+      
+      showToast({ type: 'success', message: 'Post scheduled successfully' });
+      setShowScheduleModal(false);
+      setScheduleForm({ variantId: '', date: '', time: '10:00', caption: '', hashtags: '' });
+      mutate(); // Refresh list
+    } catch (error) {
+      showToast({ 
+        type: 'error', 
+        message: error instanceof Error ? error.message : 'Failed to schedule post' 
+      });
+    } finally {
+      setIsScheduling(false);
+    }
+  };
+
+  // Show locked state if prerequisites not met - AFTER all hooks
+  if (!progressLoading && !canAccessPublishing) {
+    return (
+      <LockedState
+        title="Publishing is Locked"
+        description="Create platform variants before publishing"
+        steps={[
+          { label: 'Videos ready', completed: steps?.videosReady || false },
+          { label: 'Create platform variants in Distribution', completed: steps?.variantsCreated || false },
+        ]}
+        nextAction={{ label: 'Go to Distribution', href: '/distribution' }}
+        explanation="Create variants for different platforms, then schedule or publish them here."
+      />
+    );
+  }
+
+  const currentMonth = currentDate.getMonth();
+  const currentYear = currentDate.getFullYear();
+  const daysInMonth = getDaysInMonth(currentYear, currentMonth);
+  const firstDayOfMonth = getFirstDayOfMonth(currentYear, currentMonth);
+
+  // Navigation
+  const goToPreviousMonth = () => {
+    setCurrentDate(new Date(currentYear, currentMonth - 1, 1));
+  };
+
+  const goToNextMonth = () => {
+    setCurrentDate(new Date(currentYear, currentMonth + 1, 1));
   };
 
   const monthNames = [
@@ -537,8 +592,8 @@ export default function PublishingPage() {
             </Button>
             <Button
               onClick={handleSchedule}
-              disabled={!scheduleForm.variantId || !scheduleForm.date}
-              isLoading={scheduleMutation.isPending}
+              disabled={!scheduleForm.variantId || !scheduleForm.date || isScheduling}
+              isLoading={isScheduling}
             >
               Schedule
             </Button>

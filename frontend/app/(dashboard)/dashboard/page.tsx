@@ -14,7 +14,7 @@ import {
 } from 'lucide-react';
 import Link from 'next/link';
 import { Card, CardContent } from '@/components/ui/card';
-import { useDashboardStats, useDashboardActivity } from '@/lib/hooks/use-data';
+import { useDashboardStats, useCampaigns } from '@/lib/hooks/use-api';
 
 const iconMap: Record<string, React.ComponentType<{ className?: string }>> = {
   campaigns: Megaphone,
@@ -25,14 +25,14 @@ const iconMap: Record<string, React.ComponentType<{ className?: string }>> = {
 
 export default function DashboardPage() {
   const { data: stats, isLoading: statsLoading } = useDashboardStats();
-  const { data: activity, isLoading: activityLoading } = useDashboardActivity();
+  const { data: campaigns } = useCampaigns();
 
   // Default stats structure
   const defaultStats = [
-    { name: 'Active Campaigns', value: '0', icon: 'campaigns', change: '+0%', changeType: 'positive' },
-    { name: 'Videos Generated', value: '0', icon: 'videos', change: '+0%', changeType: 'positive' },
-    { name: 'Published Content', value: '0', icon: 'content', change: '+0%', changeType: 'positive' },
-    { name: 'Total Views', value: '0', icon: 'views', change: '+0%', changeType: 'positive' },
+    { name: 'Active Campaigns', value: '0', icon: 'campaigns', change: '0 active', changeType: 'positive' },
+    { name: 'Videos Generated', value: '0', icon: 'videos', change: '0 processing', changeType: 'positive' },
+    { name: 'Published Content', value: '0', icon: 'content', change: '', changeType: 'positive' },
+    { name: 'Cost (This Month)', value: '$0.00', icon: 'views', change: 'Usage', changeType: 'positive' },
   ];
 
   // Format large numbers
@@ -42,26 +42,26 @@ export default function DashboardPage() {
     return value.toString();
   };
 
-  // Merge API data with default structure
+  // Merge API data with default structure - using v1 API field names
   const displayStats = stats ? [
-    { name: 'Active Campaigns', value: formatValue(stats.totalCampaigns || 0), icon: 'campaigns', change: '+2.5%', changeType: 'positive' },
-    { name: 'Videos Generated', value: formatValue(stats.activeVideos || 0), icon: 'videos', change: '+12%', changeType: 'positive' },
-    { name: 'Published Content', value: formatValue(stats.contentPieces || 0), icon: 'content', change: '+8.2%', changeType: 'positive' },
-    { name: 'Total Views', value: formatValue(stats.totalViews || 0), icon: 'views', change: `+${stats.engagementRate || 0}%`, changeType: 'positive' },
+    { name: 'Total Campaigns', value: formatValue(stats.campaigns?.total || 0), icon: 'campaigns', change: `${stats.campaigns?.active || 0} active`, changeType: 'positive' },
+    { name: 'Videos Produced', value: formatValue(stats.videos?.completed || 0), icon: 'videos', change: `${stats.videos?.processing || 0} processing`, changeType: 'positive' },
+    { name: 'Published', value: formatValue(stats.publications?.total_published || 0), icon: 'content', change: '', changeType: 'positive' },
+    { name: 'Cost (This Month)', value: `$${stats.cost?.this_month_usd || '0.00'}`, icon: 'views', change: 'Usage', changeType: 'positive' },
   ] : defaultStats;
 
-  // Format activity data
-  const displayActivity = activity || [];
+  // Format activity data from recent campaigns
+  const displayActivity = stats?.recent_activity || [];
 
   return (
-    <div className="p-8">
+    <div className="p-4 sm:p-6 lg:p-8">
       <div className="mb-8">
         <h1 className="text-3xl font-bold text-slate-800">Dashboard</h1>
         <p className="mt-2 text-slate-500">Welcome back! Here&apos;s an overview of your content engine.</p>
       </div>
 
       {/* Stats Grid */}
-      <div className="mb-8 grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-4">
+      <div className="mb-8 grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4 sm:gap-6">
         {statsLoading ? (
           // Loading skeleton
           Array(4).fill(0).map((_, i) => (
@@ -87,8 +87,8 @@ export default function DashboardPage() {
             
             return (
               <Link 
-                href={linkMap[stat.icon] || '#'} 
                 key={stat.name}
+                href={linkMap[stat.icon] || '#'} 
                 className="block transition-transform hover:-translate-y-1 duration-200"
               >
                 <Card className="h-full hover:shadow-md transition-shadow cursor-pointer border-slate-200">
@@ -125,18 +125,24 @@ export default function DashboardPage() {
       <Card>
         <CardContent className="p-6">
           <h2 className="mb-4 text-lg font-semibold text-slate-800">Recent Activity</h2>
-          {activityLoading ? (
+          {statsLoading ? (
             <div className="flex items-center justify-center py-8">
               <Loader2 className="h-6 w-6 animate-spin text-slate-400" />
             </div>
           ) : displayActivity.length === 0 ? (
-            <p className="text-center py-8 text-slate-500">No recent activity</p>
+            <div className="text-center py-12">
+              <div className="w-12 h-12 rounded-full bg-slate-100 mx-auto mb-3 flex items-center justify-center">
+                <Clock className="h-6 w-6 text-slate-400" />
+              </div>
+              <p className="text-slate-500 font-medium">No recent activity</p>
+              <p className="text-sm text-slate-400 mt-1">Start a campaign to see activity here</p>
+            </div>
           ) : (
             <div className="space-y-4">
-              {displayActivity.map((item: { id: string; type: string; title: string; timestamp: string }) => {
-                const isSuccess = item.type !== 'pending_review';
+              {displayActivity.map((item: { campaign_id: string; campaign_name: string; status: string; created_at: string; updated_at: string }, i: number) => {
+                const isSuccess = item.status === 'active' || item.status === 'completed';
                 return (
-                  <div key={item.id} className="flex items-center gap-4 rounded-lg bg-slate-50 p-4">
+                  <div key={item.campaign_id || i} className="flex items-center gap-4 rounded-lg bg-slate-50 p-4">
                     <div className={`rounded-full p-2 ${isSuccess ? 'bg-green-100' : 'bg-lamaYellowLight'}`}>
                       {isSuccess ? (
                         <CheckCircle className="h-5 w-5 text-green-600" />
@@ -145,10 +151,10 @@ export default function DashboardPage() {
                       )}
                     </div>
                     <div className="flex-1">
-                      <p className="font-medium text-slate-800">{item.title}</p>
+                      <p className="font-medium text-slate-800">{item.campaign_name || 'Campaign'}</p>
                       <div className="flex items-center gap-1 text-sm text-slate-500">
                         <Clock className="h-3 w-3" />
-                        {new Date(item.timestamp).toLocaleString()}
+                        {new Date(item.updated_at || item.created_at).toLocaleString()}
                       </div>
                     </div>
                   </div>

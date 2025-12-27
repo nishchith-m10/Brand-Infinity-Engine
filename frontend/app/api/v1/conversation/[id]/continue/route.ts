@@ -1,0 +1,269 @@
+/**
+ * Continue Conversation - Answer Questions or Send Follow-up
+ * POST /api/v1/conversation/[id]/continue
+ * Slice 5: Executive Agent Integration
+ */
+
+import { NextRequest, NextResponse } from "next/server";
+import { createClient } from "@/lib/supabase/server";
+import { createMessage, userOwnsSession } from "@/lib/conversation/queries";
+import {
+  getCachedSession,
+  invalidateMessageCache,
+  invalidateStatsCache,
+  getCachedQuestions,
+  clearCachedQuestions,
+} from "@/lib/redis/session-cache";
+import { createExecutiveAgent } from "@/lib/agents/executive";
+
+interface ContextPayload {
+  campaign_id: string;
+  campaign_name: string;
+  kb_ids: string[];
+  identity_mode: 'isolated' | 'shared' | 'inherited';
+  identity: {
+    brand_name?: string;
+    brand_voice?: string;
+    tagline?: string;
+    target_audience?: string;
+    tone_style?: string;
+    personality_traits?: string[];
+    content_pillars?: string[];
+  } | null;
+}
+
+interface ContinueRequest {
+  message: string;
+  answers?: Record<string, unknown>;
+  context?: ContextPayload;
+  provider?: string;
+  model_id?: string;
+}
+
+interface ContinueResponse {
+  success: boolean;
+  response?: {
+    type: "message" | "questions" | "plan";
+    content: string;
+    questions?: any[];
+    plan?: any;
+  };
+  state?: string;
+  error?: {
+    code: string;
+    message: string;
+  };
+}
+
+export async function POST(
+  request: NextRequest,
+  { params }: { params: Promise<{ id: string }> }
+): Promise<NextResponse<ContinueResponse>> {
+  try {
+    const { id: sessionId } = await params;
+
+    // Step 1: Authenticate user
+    const supabase = await createClient();
+    const {
+      data: { user },
+      error: authError,
+    } = await supabase.auth.getUser();
+
+    if (authError || !user) {
+      return NextResponse.json(
+        {
+          success: false,
+          error: {
+            code: "UNAUTHORIZED",
+            message: "Authentication required",
+          },
+        },
+        { status: 401 }
+      );
+    }
+
+    // Step 2: Verify ownership
+    const ownsSession = await userOwnsSession(sessionId, user.id);
+    if (!ownsSession) {
+      return NextResponse.json(
+        {
+          success: false,
+          error: {
+            code: "SESSION_NOT_FOUND",
+            message: "Session not found or access denied",
+          },
+        },
+        { status: 404 }
+      );
+    }
+
+    // Step 3: Get session
+    const { session, error: sessionError } = await getCachedSession(sessionId);
+    if (sessionError || !session) {
+      return NextResponse.json(
+        {
+          success: false,
+          error: {
+            code: "SESSION_FETCH_FAILED",
+            message: sessionError || "Failed to fetch session",
+          },
+        },
+        { status: 500 }
+      );
+    }
+
+    // Step 4: Parse request
+    const body: ContinueRequest = await request.json();
+    if (!body.message) {
+      return NextResponse.json(
+        {
+          success: false,
+          error: {
+            code: "MISSING_MESSAGE",
+            message: "message is required",
+          },
+        },
+        { status: 400 }
+      );
+    }
+
+    // Step 5: Store user message
+    await createMessage({
+      sessionId: session.id,
+      brandId: session.brand_id,
+      userId: user.id,
+      role: "user",
+      content: body.message,
+    });
+
+    // Step 6: Get pending questions if any
+    const pendingQuestions = await getCachedQuestions(sessionId);
+
+    // Step 7: Use Executive Agent
+    // Use provided model or default to premium preset
+    const preset = body.provider && body.model_id 
+      ? undefined 
+      : 'premium';
+    
+    const agent = createExecutiveAgent(preset as 'premium' | 'fast' | undefined, {
+      provider: body.provider as 'openai' | 'anthropic' | 'deepseek' | undefined,
+      model: body.model_id,
+    });
+    
+    // Build context from context payload
+    let fullContext = '';
+    if (body.context) {
+      const { identity, campaign_name } = body.context;
+      const parts: string[] = [];
+      
+      if (campaign_name) parts.push(`Campaign: ${campaign_name}`);
+      
+      if (identity) {
+        const identityParts: string[] = [];
+        if (identity.brand_name) identityParts.push(`Brand: ${identity.brand_name}`);
+        if (identity.brand_voice) identityParts.push(`Voice: ${identity.brand_voice}`);
+        if (identity.target_audience) identityParts.push(`Audience: ${identity.target_audience}`);
+        if (identity.tone_style) identityParts.push(`Tone: ${identity.tone_style}`);
+        if (identityParts.length > 0) {
+          parts.push(`--- Brand Identity ---\n${identityParts.join('\n')}`);
+        }
+      }
+      
+      fullContext = parts.join('\n');
+    }
+    
+    let action;
+
+    if (pendingQuestions.length > 0 && body.answers) {
+      // Processing answers to questions
+      action = await agent.processAnswers({
+        session,
+        answers: body.answers,
+        brandKnowledge: fullContext,
+      });
+      
+      // Clear pending questions
+      await clearCachedQuestions(sessionId);
+    } else {
+      // Regular follow-up message
+      action = await agent.processMessage({
+        session,
+        userMessage: body.message,
+        brandKnowledge: fullContext,
+      });
+    }
+
+    // Step 8: Generate response
+    let assistantContent = '';
+    let responseType: 'message' | 'questions' | 'plan' = 'message';
+
+    if (action.type === 'ask_questions') {
+      assistantContent = `I need a bit more information:\n\n${action.questions.map((q, i) => `${i + 1}. ${q.question}`).join('\n')}`;
+      responseType = 'questions';
+    } else if (action.type === 'create_plan') {
+      assistantContent = await agent.explainPlan(action.parsedIntent);
+      responseType = 'plan';
+    }
+
+    // Step 9: Store assistant response
+    await createMessage({
+      sessionId: session.id,
+      brandId: session.brand_id,
+      userId: user.id,
+      role: "assistant",
+      content: assistantContent,
+      metadata: {
+        actionTaken: action.type,
+        modelUsed: agent['agentModel'],
+        provider: 'openai',
+      },
+    });
+
+    // Invalidate caches
+    await invalidateMessageCache(session.id);
+    await invalidateStatsCache(session.id);
+
+    // Step 10: Return response
+    return NextResponse.json(
+      {
+        success: true,
+        response: {
+          type: responseType,
+          content: assistantContent,
+          questions: action.type === 'ask_questions' ? action.questions : undefined,
+        },
+        state: session.state,
+      },
+      { status: 200 }
+    );
+  } catch (error) {
+    console.error("[continue] Unexpected error:", error);
+
+    return NextResponse.json(
+      {
+        success: false,
+        error: {
+          code: "INTERNAL_ERROR",
+          message:
+            error instanceof Error ? error.message : "An unexpected error occurred",
+        },
+      },
+      { status: 500 }
+    );
+  }
+}
+
+export async function OPTIONS() {
+  return NextResponse.json(
+    {},
+    {
+      status: 200,
+      headers: {
+        "Access-Control-Allow-Origin": "*",
+        "Access-Control-Allow-Methods": "POST, OPTIONS",
+        "Access-Control-Allow-Headers": "Content-Type, Authorization",
+      },
+    }
+  );
+}
+

@@ -3,7 +3,8 @@
 import { role } from "@/lib/data";
 import { 
   Video, Megaphone, BarChart3, Settings, 
-  Share2, Radio, PenTool, LayoutDashboard
+  Share2, Radio, PenTool, LayoutDashboard,
+  Wand2, Archive
 } from "lucide-react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
@@ -18,6 +19,18 @@ const menuItems = [
         label: "Dashboard",
         href: "/",
         visible: ["admin", "strategist", "copywriter", "producer"],
+      },
+      {
+        icon: Wand2,
+        label: "Creative Director",
+        href: "/director",
+        visible: ["admin", "strategist"],
+      },
+      {
+        icon: Archive,
+        label: "Brand Vault",
+        href: "/brand-vault",
+        visible: ["admin", "strategist"],
       },
       {
         icon: Megaphone,

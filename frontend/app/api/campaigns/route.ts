@@ -63,7 +63,9 @@ export async function GET() {
 
 export async function POST(request: NextRequest) {
   try {
-    const supabase = await createClient();
+    const supabase = await createClient(); // Use RLS safe client in future if needed (currently seems to use server client)
+          // Note: The original code used createClient from @/lib/supabase/server which is RLS safe.
+          // We will stick to it.
     const { data: { user } } = await supabase.auth.getUser();
     
     if (!user) {
@@ -72,25 +74,40 @@ export async function POST(request: NextRequest) {
 
     const body = await request.json();
     
+    // Use the same schema for validation consistency, or a simplified one?
+    // Using the same CreateCampaignSchema but maybe being more lenient if this is a "simple" endpoint.
+    // However, for security, using the strict schema is better.
+    // We import it dynamically if needed or just use loose check if this is a "legacy" or "demo" endpoint.
+    // Given the prompt "campaigns via backend", let's leave it mostly as proxy but validating basics.
+    
+    // Ideally we should import CreateCampaignSchema. 
+    // But since this calls a "backendUrl", we can just validate before forwarding.
+    const { CreateCampaignSchema } = await import('@/lib/validations/campaign');
+    // Allow partial validation or just check common fields? 
+    // Since this acts as a proxy, we should probably validate the payload we are about to sign/forward.
+    const validated = CreateCampaignSchema.partial().parse(body);
+
     // Create campaign via backend
     const backendUrl = process.env.BACKEND_URL || 'http://localhost:3001';
     const res = await fetch(`${backendUrl}/api/v1/campaigns`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ ...body, user_id: user.id }),
+      body: JSON.stringify({ ...validated, user_id: user.id }),
     });
 
     if (!res.ok) {
-      return NextResponse.json({ error: 'Failed to create campaign' }, { status: 500 });
+       // Avoid leaking backend error if possible, or parse carefully
+       return NextResponse.json({ error: 'Failed to create campaign' }, { status: res.status });
     }
 
     // Invalidate cache
     const { invalidateCache } = await import('@/lib/redis');
+    const { CacheKeys } = await import('@/lib/redis'); // Import cache keys
     await invalidateCache(CacheKeys.campaigns(user.id));
 
     return NextResponse.json(await res.json());
   } catch (error) {
-    console.error('Create campaign error:', error);
-    return NextResponse.json({ error: 'Server error' }, { status: 500 });
+    const { handleApiError } = await import('@/lib/api-utils');
+    return handleApiError(error);
   }
 }

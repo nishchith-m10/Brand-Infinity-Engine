@@ -1,6 +1,9 @@
 import { NextResponse } from 'next/server';
 import { createAdminClient } from '@/lib/supabase/admin';
 
+// Statuses that should NOT be counted in "Total Campaigns" on dashboard
+const EXCLUDED_STATUSES = ['archived', 'pending_deletion'];
+
 // =============================================================================
 // GET /api/v1/dashboard/stats - Dashboard metrics
 // =============================================================================
@@ -20,10 +23,11 @@ export async function GET() {
       publishedResult,
       recentCampaignsResult,
     ] = await Promise.all([
-      // Campaign counts by status
+      // Campaign counts by status (exclude archived/deleted)
       supabase
         .from('campaigns')
-        .select('status'),
+        .select('status')
+        .not('status', 'in', `(${EXCLUDED_STATUSES.join(',')})`),
 
       // Video generation job counts by status
       supabase
@@ -42,10 +46,11 @@ export async function GET() {
         .select('*', { count: 'exact' })
         .eq('status', 'published'),
 
-      // Recent campaigns for activity feed
+      // Recent campaigns for activity feed (exclude archived/deleted)
       supabase
         .from('campaigns')
         .select('campaign_id, campaign_name, status, created_at, updated_at')
+        .not('status', 'in', `(${EXCLUDED_STATUSES.join(',')})`)
         .order('updated_at', { ascending: false })
         .limit(5),
     ]);
@@ -68,16 +73,16 @@ export async function GET() {
       0
     );
 
-    // Count active campaigns (not draft or archived)
+    // Count active campaigns (not draft or completed)
     const activeCampaigns = Object.entries(campaignsByStatus)
-      .filter(([status]) => !['draft', 'archived', 'completed'].includes(status))
+      .filter(([status]) => !['draft', 'completed'].includes(status))
       .reduce((sum, [, count]) => sum + count, 0);
 
     return NextResponse.json({
       success: true,
       data: {
         campaigns: {
-          total: campaignsResult.data?.length || 0,
+          total: campaignsResult.data?.length || 0, // Now excludes archived/deleted
           active: activeCampaigns,
           by_status: campaignsByStatus,
         },
@@ -105,3 +110,4 @@ export async function GET() {
     );
   }
 }
+

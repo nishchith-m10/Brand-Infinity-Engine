@@ -2,7 +2,7 @@
 
 import { useState } from 'react';
 import { MotionRow } from "@/components/ui/motion-row";
-import { Search, SlidersHorizontal, Plus, Edit, Trash2, X, Loader2 } from "lucide-react";
+import { Search, SlidersHorizontal, Plus, Edit, Trash2, X, Loader2, Megaphone, RotateCcw } from "lucide-react";
 import { AnimatePresence } from "framer-motion";
 import { Modal } from "@/components/ui/modal";
 import { Input } from "@/components/ui/input";
@@ -17,13 +17,15 @@ import { useV1Campaigns } from "@/lib/hooks/use-api";
 
 // Campaign type from API
 interface Campaign {
-  campaign_id: string;
+  campaign_id?: string;
+  id?: string;
   campaign_name: string;
   status: string;
   budget_limit_usd: number;
   current_cost_usd: number;
   created_at: string;
   updated_at: string;
+  deleted_at?: string | null;
   metadata?: {
     target_demographic?: string;
     campaign_objective?: string;
@@ -71,12 +73,13 @@ export default function CampaignsPage() {
   // Local state
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedCampaign, setSelectedCampaign] = useState<Campaign | null>(null);
-  const [createForm, setCreateForm] = useState({ name: '', brand_id: 'brand_001', budget_tier: 'medium' });
-  const [editForm, setEditForm] = useState<{ name: string; status: string }>({ name: '', status: 'draft' });
+  // Generate a default brand_id - in production this would come from user's brand selection
+  const defaultBrandId = typeof window !== 'undefined' ? crypto.randomUUID() : '00000000-0000-0000-0000-000000000001';
+  const [createForm, setCreateForm] = useState({ name: '', brand_id: defaultBrandId, budget_tier: 'medium', custom_budget: '150' });
+  const [editForm, setEditForm] = useState<{ name: string; status: string; budget_limit_usd: number }>({ name: '', status: 'draft', budget_limit_usd: 0 });
   
-  // Use mock data if API returns empty or is still loading
-  const showMockData = !apiCampaigns || apiCampaigns.length === 0;
-  const rawCampaigns: Campaign[] = showMockData ? MOCK_CAMPAIGNS as unknown as Campaign[] : apiCampaigns;
+  // Use real API data only - no mock fallback
+  const rawCampaigns: Campaign[] = apiCampaigns || [];
   
   // Filter campaigns
   const campaigns = rawCampaigns.filter(campaign => {
@@ -116,14 +119,29 @@ export default function CampaignsPage() {
           campaign_name: createForm.name,
           brand_id: createForm.brand_id,
           budget_tier: createForm.budget_tier,
+          budget_limit_usd: createForm.budget_tier === 'custom' ? Number(createForm.custom_budget) : undefined,
         }),
       });
-      
-      if (!response.ok) throw new Error('Failed to create campaign');
+
+      if (!response.ok) {
+        let errorMessage = 'Failed to create campaign';
+        try {
+          const contentType = response.headers.get('content-type');
+          if (contentType && contentType.includes('application/json')) {
+            const errorData = await response.json();
+            errorMessage = errorData.error?.message || errorMessage;
+          } else {
+            errorMessage = await response.text();
+          }
+        } catch (e) {
+          // Fallback to generic error if parsing fails
+        }
+        throw new Error(errorMessage);
+      }
       
       showToast({ type: 'success', message: `Campaign "${createForm.name}" created successfully` });
       createModal.close();
-      setCreateForm({ name: '', brand_id: 'brand_001', budget_tier: 'medium' });
+      setCreateForm({ name: '', brand_id: crypto.randomUUID(), budget_tier: 'medium', custom_budget: '150' });
       mutate(); // Refresh campaigns list
     } catch (error: unknown) {
       showToast({ 
@@ -135,7 +153,7 @@ export default function CampaignsPage() {
 
   const handleEditClick = (campaign: Campaign) => {
     setSelectedCampaign(campaign);
-    setEditForm({ name: campaign.campaign_name, status: campaign.status });
+    setEditForm({ name: campaign.campaign_name, status: campaign.status, budget_limit_usd: campaign.budget_limit_usd });
     editModal.open();
   };
 
@@ -143,16 +161,34 @@ export default function CampaignsPage() {
     if (!selectedCampaign) return;
 
     try {
-      const response = await fetch(`/api/v1/campaigns/${selectedCampaign.campaign_id}`, {
+      const campaignId = selectedCampaign.campaign_id || selectedCampaign.id;
+      if (!campaignId) throw new Error('Missing campaign ID');
+      
+      const response = await fetch(`/api/v1/campaigns/${campaignId}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           campaign_name: editForm.name,
           status: editForm.status,
+          budget_limit_usd: editForm.budget_limit_usd,
         }),
       });
-      
-      if (!response.ok) throw new Error('Failed to update campaign');
+
+      if (!response.ok) {
+        let errorMessage = 'Failed to update campaign';
+        try {
+          const contentType = response.headers.get('content-type');
+          if (contentType && contentType.includes('application/json')) {
+            const errorData = await response.json();
+            errorMessage = errorData.error?.message || errorMessage;
+          } else {
+            errorMessage = await response.text();
+          }
+        } catch (e) {
+          // Fallback to generic error if parsing fails
+        }
+        throw new Error(errorMessage);
+      }
       
       showToast({ type: 'success', message: 'Campaign updated successfully' });
       editModal.close();
@@ -175,13 +211,25 @@ export default function CampaignsPage() {
     if (!selectedCampaign) return;
 
     try {
-      const response = await fetch(`/api/v1/campaigns/${selectedCampaign.campaign_id}`, {
+      const campaignId = selectedCampaign.campaign_id || selectedCampaign.id;
+      if (!campaignId) throw new Error('Missing campaign ID');
+
+      const response = await fetch(`/api/v1/campaigns/${campaignId}`, {
         method: 'DELETE',
       });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.error?.message || 'Failed to delete campaign');
+      }
       
-      if (!response.ok) throw new Error('Failed to delete campaign');
+      // Show appropriate message based on action taken
+      const message = selectedCampaign.status === 'archived'
+        ? `Campaign "${selectedCampaign.campaign_name}" scheduled for permanent deletion in 7 days`
+        : `Campaign "${selectedCampaign.campaign_name}" archived successfully`;
       
-      showToast({ type: 'success', message: `Campaign "${selectedCampaign.campaign_name}" deleted successfully` });
+      showToast({ type: 'success', message });
       deleteModal.close();
       setSelectedCampaign(null);
       mutate(); // Refresh campaigns list
@@ -193,30 +241,43 @@ export default function CampaignsPage() {
     }
   };
 
+  const handleRestore = async (campaign: Campaign) => {
+    try {
+      const campaignId = campaign.campaign_id || campaign.id;
+      if (!campaignId) throw new Error('Missing campaign ID');
+
+      const response = await fetch(`/api/v1/campaigns/${campaignId}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'restore' }),
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.error?.message || 'Failed to restore campaign');
+      }
+
+      showToast({ 
+        type: 'success', 
+        message: data.message || `Campaign "${campaign.campaign_name}" restored successfully` 
+      });
+      mutate(); // Refresh campaigns list
+    } catch (error: unknown) {
+      showToast({
+        type: 'error',
+        message: error instanceof Error ? error.message : 'Failed to restore campaign. Please try again.'
+      });
+    }
+  };
+
   return (
     <div className="bg-white p-4 rounded-3xl m-4 flex-1 shadow-sm border border-slate-100/50">
        
        {/* TOP SECTION */}
        <div className="flex items-center justify-between mb-8">
           <h1 className="hidden md:block text-2xl font-bold text-slate-800">Campaigns</h1>
-          <div className="flex flex-col md:flex-row items-center gap-4 w-full md:w-auto">
-             {/* SEARCH */}
-             <div className="flex items-center gap-2 text-xs rounded-full ring-[1.5px] ring-slate-200 px-3 py-2 w-full md:w-[240px] bg-white">
-                <Search size={16} className="text-slate-500" />
-                <input 
-                  type="text" 
-                  placeholder="Search campaigns..." 
-                  className="w-full bg-transparent outline-none text-slate-700" 
-                  value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
-                />
-                {searchQuery && (
-                  <button onClick={() => setSearchQuery('')} className="text-slate-400 hover:text-slate-600">
-                    <X size={14} />
-                  </button>
-                )}
-             </div>
-             <div className="flex items-center gap-4 self-end">
+          <div className="flex items-center gap-4">
                  <button 
                    onClick={handleFilter}
                    className="w-9 h-9 flex items-center justify-center rounded-full bg-amber-100 text-amber-700 hover:bg-amber-500 hover:text-white transition-colors relative"
@@ -233,7 +294,6 @@ export default function CampaignsPage() {
                  >
                     <Plus size={18} />
                  </button>
-             </div>
           </div>
        </div>
 
@@ -269,12 +329,35 @@ export default function CampaignsPage() {
              </thead>
              <tbody>
                 <AnimatePresence>
-                   {campaigns.map((campaign, index) => (
-                      <MotionRow key={campaign.campaign_id} index={index}>
+                   {campaigns.length === 0 ? (
+                     <tr>
+                       <td colSpan={5} className="py-16 text-center">
+                         <div className="flex flex-col items-center gap-4">
+                           <div className="w-16 h-16 rounded-full bg-lamaSkyLight flex items-center justify-center">
+                             <Megaphone size={28} className="text-lamaSky" />
+                           </div>
+                           <div>
+                             <p className="text-slate-700 font-semibold">No campaigns yet</p>
+                             <p className="text-slate-500 text-sm mt-1">Create your first campaign to get started</p>
+                           </div>
+                           <button
+                             onClick={() => createModal.open()}
+                             className="px-4 py-2 bg-lamaPurple text-white rounded-lg hover:bg-lamaPurple/90 transition-colors flex items-center gap-2"
+                           >
+                             <Plus size={16} />
+                             Create Campaign
+                           </button>
+                         </div>
+                       </td>
+                     </tr>
+                   ) : campaigns.map((campaign, index) => {
+                      const campaignId = campaign.campaign_id || campaign.id || '';
+                      return (
+                      <MotionRow key={campaignId || index} index={index}>
                          <td className="py-2 pl-4 rounded-l-xl bg-slate-50 border-y border-l border-slate-100">
                             <div className="flex flex-col">
                                <span className="font-semibold text-slate-800 text-sm">{campaign.campaign_name}</span>
-                               <span className="text-[10px] text-slate-400">ID: {campaign.campaign_id.slice(0, 8)}...</span>
+                               <span className="text-[10px] text-slate-400">ID: {campaignId.slice(0, 8)}...</span>
                             </div>
                          </td>
                          <td className="py-2 bg-slate-50 border-y border-slate-100">
@@ -286,9 +369,10 @@ export default function CampaignsPage() {
                                 ${campaign.status === "completed" || campaign.status === "published" ? "bg-emerald-100 text-emerald-600" : ""}
                                 ${campaign.status === "draft" ? "bg-lamaYellowLight text-amber-600" : ""}
                                 ${campaign.status === "paused" || campaign.status === "archived" ? "bg-slate-200 text-slate-600" : ""}
+                                ${campaign.status === "pending_deletion" ? "bg-red-100 text-red-600" : ""}
                                 ${campaign.status === "failed" ? "bg-red-100 text-red-600" : ""}
                              `}>
-                                {campaign.status}
+                                {campaign.status === "pending_deletion" ? "Deleting in 7 days" : campaign.status}
                              </div>
                          </td>
                          <td className="py-2 bg-slate-50 border-y border-slate-100">
@@ -297,27 +381,49 @@ export default function CampaignsPage() {
                             </div>
                          </td>
                          <td className="py-2 pr-4 rounded-r-xl bg-slate-50 border-y border-r border-slate-100 text-right">
-                            <div className="flex items-center justify-end gap-2">
-                               <button 
-                                 onClick={() => handleEditClick(campaign)}
-                                 className="p-2 hover:bg-lamaSkyLight rounded-full text-slate-400 hover:text-lamaSky transition-colors"
-                                 title="Edit campaign"
-                                 disabled={isUpdating}
-                               >
-                                  <Edit size={16} />
-                               </button>
-                               <button 
-                                 onClick={() => handleDeleteClick(campaign)}
-                                 className="p-2 hover:bg-red-50 rounded-full text-slate-400 hover:text-red-500 transition-colors"
-                                 title="Delete campaign"
-                                 disabled={isDeleting}
-                               >
-                                  <Trash2 size={16} />
-                               </button>
-                            </div>
-                         </td>
+                             <div className="flex items-center justify-end gap-2">
+                                {/* Restore button - for pending_deletion AND archived */}
+                                {(campaign.status === 'pending_deletion' || campaign.status === 'archived') && (
+                                  <button 
+                                    onClick={() => handleRestore(campaign)}
+                                    className="p-2 hover:bg-emerald-50 rounded-full text-emerald-500 hover:text-emerald-600 transition-colors"
+                                    title={campaign.status === 'pending_deletion' ? "Restore from deletion" : "Unarchive campaign"}
+                                  >
+                                     <RotateCcw size={16} />
+                                  </button>
+                                )}
+                                {/* Edit button - disabled for archived/pending_deletion */}
+                                <button 
+                                  onClick={() => handleEditClick(campaign)}
+                                  className={`p-2 rounded-full transition-colors ${
+                                    campaign.status === 'archived' || campaign.status === 'pending_deletion'
+                                      ? 'text-slate-300 cursor-not-allowed'
+                                      : 'text-slate-400 hover:bg-lamaSkyLight hover:text-lamaSky'
+                                  }`}
+                                  title={campaign.status === 'archived' || campaign.status === 'pending_deletion' 
+                                    ? 'Cannot edit archived campaigns' 
+                                    : 'Edit campaign'}
+                                  disabled={isUpdating || campaign.status === 'archived' || campaign.status === 'pending_deletion'}
+                                >
+                                   <Edit size={16} />
+                                </button>
+                                {/* Delete button - hide for pending_deletion (they need to restore or wait) */}
+                                {campaign.status !== 'pending_deletion' && (
+                                  <button 
+                                    onClick={() => handleDeleteClick(campaign)}
+                                    className="p-2 hover:bg-red-50 rounded-full text-slate-400 hover:text-red-500 transition-colors"
+                                    title={campaign.status === 'archived' 
+                                      ? 'Schedule permanent deletion (7-day grace period)' 
+                                      : 'Archive campaign'}
+                                    disabled={isDeleting}
+                                  >
+                                     <Trash2 size={16} />
+                                  </button>
+                                )}
+                             </div>
+                          </td>
                       </MotionRow>
-                   ))}
+                   ); })}
                 </AnimatePresence>
              </tbody>
           </table>
@@ -379,13 +485,34 @@ export default function CampaignsPage() {
          size="md"
        >
          <div className="space-y-4">
-           <Input
-             label="Campaign Name"
-             placeholder="Enter campaign name..."
-             value={createForm.name}
-             onChange={(e) => setCreateForm({ ...createForm, name: e.target.value })}
-             autoFocus
-           />
+            <Input
+              label="Campaign Name"
+              placeholder="Enter campaign name..."
+              value={createForm.name}
+              onChange={(e) => setCreateForm({ ...createForm, name: e.target.value })}
+              autoFocus
+            />
+            <Select
+              label="Budget Tier"
+              value={createForm.budget_tier}
+              onChange={(e) => setCreateForm({ ...createForm, budget_tier: e.target.value })}
+              options={[
+                { value: 'low', label: 'Low ($50)' },
+                { value: 'medium', label: 'Medium ($150)' },
+                { value: 'high', label: 'High ($500)' },
+                { value: 'premium', label: 'Premium ($2,000)' },
+                { value: 'custom', label: 'Custom Amount' },
+              ]}
+            />
+            {createForm.budget_tier === 'custom' && (
+              <Input
+                label="Custom Budget ($)"
+                type="number"
+                placeholder="Enter amount"
+                value={createForm.custom_budget}
+                onChange={(e) => setCreateForm({ ...createForm, custom_budget: e.target.value })}
+              />
+            )}
            <div className="flex justify-end gap-3 pt-4">
              <Button variant="outline" onClick={createModal.close} disabled={isCreating}>
                Cancel
@@ -405,11 +532,17 @@ export default function CampaignsPage() {
          size="md"
        >
          <div className="space-y-4">
-           <Input
-             label="Campaign Name"
-             value={editForm.name}
-             onChange={(e) => setEditForm({ ...editForm, name: e.target.value })}
-           />
+            <Input
+              label="Campaign Name"
+              value={editForm.name}
+              onChange={(e) => setEditForm({ ...editForm, name: e.target.value })}
+            />
+            <Input
+              label="Budget Limit ($)"
+              type="number"
+              value={editForm.budget_limit_usd.toString()}
+              onChange={(e) => setEditForm({ ...editForm, budget_limit_usd: parseFloat(e.target.value) || 0 })}
+            />
            <Select
              label="Status"
              value={editForm.status}
@@ -433,16 +566,18 @@ export default function CampaignsPage() {
        </Modal>
 
        {/* Delete Confirmation Modal */}
-       <ConfirmationModal
-         isOpen={deleteModal.isOpen}
-         onClose={deleteModal.close}
-         onConfirm={handleConfirmDelete}
-         title="Delete Campaign"
-         message={`Are you sure you want to delete "${selectedCampaign?.campaign_name}"? This action cannot be undone.`}
-         confirmText="Delete Campaign"
-         variant="danger"
-         isLoading={isDeleting}
-       />
+        <ConfirmationModal
+          isOpen={deleteModal.isOpen}
+          onClose={deleteModal.close}
+          onConfirm={handleConfirmDelete}
+          title={selectedCampaign?.status === 'archived' ? 'Permanently Delete Campaign' : 'Archive Campaign'}
+          message={selectedCampaign?.status === 'archived' 
+            ? `Are you sure you want to permanently delete "${selectedCampaign?.campaign_name}"? The campaign will be deleted after 7 days. You can restore it during this period.`
+            : `Are you sure you want to archive "${selectedCampaign?.campaign_name}"? You can restore it later from the archived campaigns.`}
+          confirmText={selectedCampaign?.status === 'archived' ? 'Schedule Deletion' : 'Archive Campaign'}
+          variant="danger"
+          isLoading={isDeleting}
+        />
 
        {/* Toast Notifications */}
        <ToastContainer toasts={toasts} onDismiss={dismissToast} />

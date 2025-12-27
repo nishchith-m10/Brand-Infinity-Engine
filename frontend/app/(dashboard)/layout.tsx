@@ -1,5 +1,6 @@
 import { Sidebar } from "@/components/sidebar";
 import Navbar from "@/components/Navbar";
+import { UnlockKeyToolbar } from "@/components/dev/unlock-key-toolbar";
 
 export default function DashboardLayout({
   children,
@@ -18,6 +19,9 @@ export default function DashboardLayout({
            {children}
         </main>
       </div>
+
+      {/* Dev Tools */}
+      <UnlockKeyToolbar />
     </div>
   );
 }

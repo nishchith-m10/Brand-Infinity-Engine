@@ -2,11 +2,21 @@ import { createClient } from '@supabase/supabase-js';
 
 /**
  * Creates a Supabase admin client with service role key.
- * USE ONLY IN API ROUTES - Never expose to browser!
  * 
- * This client bypasses Row Level Security and has full database access.
+ * ⚠️ SECURITY WARNING ⚠️
+ * - USE ONLY IN API ROUTES (server-side)
+ * - NEVER import in client components
+ * - This client bypasses ALL Row Level Security policies
+ * - Has full database access (use with extreme caution)
+ * 
+ * Use createClient() from @/lib/supabase/server instead for RLS-enabled access.
  */
 export function createAdminClient() {
+  // Prevent usage in browser
+  if (typeof window !== 'undefined') {
+    throw new Error('[Security] Admin client must only be used server-side. Use createClient() from @/lib/supabase/server instead.');
+  }
+
   const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
   const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
 

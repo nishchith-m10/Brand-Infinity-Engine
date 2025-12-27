@@ -173,10 +173,11 @@ export default function AnalyticsPage() {
   // Use SWR for analytics data with caching
   const { data: analyticsData, isLoading } = useV1Analytics({ range: timeRange as '7d' | '30d' | '90d' | 'year' });
   
-  // Use API data if available, fallback to mock data
-  const overview = analyticsData?.overview || mockOverviewData;
-  const dailyStats = analyticsData?.dailyStats || mockDailyStats;
-  const platformStats = analyticsData?.platformStats || mockPlatformStats;
+  // Use API data with defaults for empty state (no mock fallback)
+  const defaultOverview = { totalViews: 0, totalLikes: 0, totalComments: 0, totalShares: 0, viewsChange: 0, likesChange: 0, commentsChange: 0, sharesChange: 0, engagementRate: 0 };
+  const overview = analyticsData?.overview || defaultOverview;
+  const dailyStats = analyticsData?.dailyStats || [];
+  const platformStats = analyticsData?.platformStats || [];
 
   // Calculate chart data
   const chartMax = Math.max(...dailyStats.map((d: Record<string, number>) => d[selectedMetric as keyof typeof d] as number));
@@ -390,44 +391,55 @@ export default function AnalyticsPage() {
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-100">
-                {platformStats.map((platform: { platform: string; views: number; likes: number; comments: number; shares: number; engagementRate: number; posts: number }) => (
-                  <tr key={platform.platform} className="group hover:bg-gray-50">
-                    <td className="py-4">
-                      <div className="flex items-center gap-3">
-                        <span
-                          className={`flex h-10 w-10 items-center justify-center rounded-lg ${getPlatformColor(
-                            platform.platform
-                          )}`}
-                        >
-                          {getPlatformIcon(platform.platform)}
-                        </span>
-                        <span className="font-medium text-gray-900">
-                          {PLATFORM_NAMES[platform.platform] || platform.platform}
-                        </span>
+                {platformStats.length === 0 ? (
+                  <tr>
+                    <td colSpan={7} className="py-12 text-center">
+                      <div className="flex flex-col items-center gap-2">
+                        <p className="text-gray-500">No platform data available</p>
+                        <p className="text-sm text-gray-400">Connect your social accounts to see analytics</p>
                       </div>
                     </td>
-                    <td className="py-4 text-right text-gray-900">
-                      {formatNumber(platform.views)}
-                    </td>
-                    <td className="py-4 text-right text-gray-900">
-                      {formatNumber(platform.likes)}
-                    </td>
-                    <td className="py-4 text-right text-gray-900">
-                      {formatNumber(platform.comments)}
-                    </td>
-                    <td className="py-4 text-right text-gray-900">
-                      {formatNumber(platform.shares)}
-                    </td>
-                    <td className="py-4 text-right">
-                      <span className="font-medium text-green-600">
-                        {platform.engagementRate}%
-                      </span>
-                    </td>
-                    <td className="py-4 text-right text-gray-500">
-                      {platform.posts}
-                    </td>
                   </tr>
-                ))}
+                ) : (
+                  platformStats.map((platform: { platform: string; views: number; likes: number; comments: number; shares: number; engagementRate: number; posts: number }) => (
+                    <tr key={platform.platform} className="group hover:bg-gray-50">
+                      <td className="py-4">
+                        <div className="flex items-center gap-3">
+                          <span
+                            className={`flex h-10 w-10 items-center justify-center rounded-lg ${getPlatformColor(
+                              platform.platform
+                            )}`}
+                          >
+                            {getPlatformIcon(platform.platform)}
+                          </span>
+                          <span className="font-medium text-gray-900">
+                            {PLATFORM_NAMES[platform.platform] || platform.platform}
+                          </span>
+                        </div>
+                      </td>
+                      <td className="py-4 text-right text-gray-900">
+                        {formatNumber(platform.views)}
+                      </td>
+                      <td className="py-4 text-right text-gray-900">
+                        {formatNumber(platform.likes)}
+                      </td>
+                      <td className="py-4 text-right text-gray-900">
+                        {formatNumber(platform.comments)}
+                      </td>
+                      <td className="py-4 text-right text-gray-900">
+                        {formatNumber(platform.shares)}
+                      </td>
+                      <td className="py-4 text-right">
+                        <span className="font-medium text-green-600">
+                          {platform.engagementRate}%
+                        </span>
+                      </td>
+                      <td className="py-4 text-right text-gray-500">
+                        {platform.posts}
+                      </td>
+                    </tr>
+                  ))
+                )}
               </tbody>
             </table>
           </div>

@@ -5,9 +5,7 @@ import {
   Settings as SettingsIcon,
   Key,
   Bell,
-  Palette,
   Shield,
-  Database,
   Save,
   Eye,
   EyeOff,
@@ -16,29 +14,18 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Select } from '@/components/ui/select';
-import { Textarea } from '@/components/ui/textarea';
 import { Badge } from '@/components/ui/badge';
+import { useApiKeys } from '@/contexts/api-keys-context';
+import { MultiKeyProviderCard } from '@/components/settings/multi-key-provider-card';
 
 export default function SettingsPage() {
   const [activeSection, setActiveSection] = useState('api-keys');
   const [showKeys, setShowKeys] = useState<Record<string, boolean>>({});
-  const [isSaving, setIsSaving] = useState(false);
+  const { apiKeys, setSimpleKey, saveKeys, isSaving } = useApiKeys();
 
-  // API Keys state
-  const [apiKeys, setApiKeys] = useState<Record<string, string>>({
-    openai: '',
-    anthropic: '',
-    elevenlabs: '',
-    sora: '',
-    veo: '',
-    tiktok: '',
-    instagram: '',
-    youtube: '',
-  });
-
-  // Settings state
+  // Settings state (separate from API keys)
   const [settings, setSettings] = useState({
-    defaultModel: 'gpt-4o-mini',
+    defaultModel: 'claude-opus-4.5',
     defaultVideoModel: 'veo3',
     defaultQuality: 'high',
     defaultBudget: 'medium',
@@ -51,35 +38,36 @@ export default function SettingsPage() {
     targetAudience: 'Gen Z and Millennials',
   });
 
-  const apiKeyConfigs: { key: keyof typeof apiKeys; name: string; description: string; category: string }[] = [
-    { key: 'openai', name: 'OpenAI', description: 'For GPT models and script generation', category: 'AI' },
-    { key: 'anthropic', name: 'Anthropic', description: 'For Claude models', category: 'AI' },
-    { key: 'elevenlabs', name: 'ElevenLabs', description: 'For voice synthesis', category: 'AI' },
-    { key: 'sora', name: 'OpenAI Sora', description: 'For video generation', category: 'Video' },
-    { key: 'veo', name: 'Google Veo', description: 'For video generation', category: 'Video' },
+  // Multi-key providers (OpenAI, Gemini) - handled by MultiKeyProviderCard
+  const multiKeyProviders = [
+    { provider: 'openai' as const, name: 'OpenAI', description: 'GPT-5.2 variants, DALL-E 3 image generation, o3 reasoning' },
+    { provider: 'gemini' as const, name: 'Google Gemini', description: 'Gemini 3 Flash, Gemini 3 Pro, Veo video generation' },
+  ];
+
+  // Single-key providers
+  const singleKeyConfigs = [
+    { key: 'anthropic', name: 'Anthropic', description: 'Claude Opus 4.5, Sonnet 4.5, Haiku 4.5', category: 'AI' },
+    { key: 'deepseek', name: 'DeepSeek', description: 'DeepSeek V3.2 Speciale, V3.2, V3 - affordable coding AI', category: 'AI' },
+    { key: 'kimi', name: 'Kimi (Moonshot)', description: 'Kimi K2 Thinking - 2M context window', category: 'AI' },
+    { key: 'openrouter', name: 'Open Router', description: 'Access to 100+ models from all providers in one API', category: 'AI' },
+    { key: 'elevenlabs', name: 'ElevenLabs', description: 'Voice synthesis for video narration', category: 'Media' },
     { key: 'tiktok', name: 'TikTok', description: 'For publishing to TikTok', category: 'Social' },
     { key: 'instagram', name: 'Instagram/Meta', description: 'For publishing to Instagram & Facebook', category: 'Social' },
     { key: 'youtube', name: 'YouTube', description: 'For publishing to YouTube', category: 'Social' },
-  ];
+  ] as const;
 
-  const getKeyStatus = (key: string): 'connected' | 'error' | 'not_configured' => {
-    if (!apiKeys[key]) return 'not_configured';
-    if (apiKeys[key].length > 10) return 'connected';
+  type SimpleKeyType = typeof singleKeyConfigs[number]['key'];
+
+  const getKeyStatus = (key: SimpleKeyType): 'connected' | 'error' | 'not_configured' => {
+    const value = apiKeys[key];
+    if (!value) return 'not_configured';
+    if (value.length > 10) return 'connected';
     return 'error';
   };
 
-  // Load saved data from localStorage on mount
+  // Load saved settings from localStorage on mount (API keys loaded by context)
   useEffect(() => {
-    const savedApiKeys = localStorage.getItem('dashboard_api_keys');
     const savedSettings = localStorage.getItem('dashboard_settings');
-    
-    if (savedApiKeys) {
-      try {
-        setApiKeys(JSON.parse(savedApiKeys));
-      } catch (e) {
-        console.error('Failed to load API keys:', e);
-      }
-    }
     
     if (savedSettings) {
       try {
@@ -95,21 +83,15 @@ export default function SettingsPage() {
   };
 
   const handleSave = async () => {
-    setIsSaving(true);
-    
     try {
-      // Save to localStorage
-      localStorage.setItem('dashboard_api_keys', JSON.stringify(apiKeys));
+      // Save API keys via context
+      await saveKeys();
+      // Save settings to localStorage
       localStorage.setItem('dashboard_settings', JSON.stringify(settings));
-      
-      // Simulate API call (replace with actual API call when backend is ready)
-      await new Promise((resolve) => setTimeout(resolve, 1000));
       
       // TODO: Add toast notification for success
     } catch {
       // TODO: Add toast notification for error
-    } finally {
-      setIsSaving(false);
     }
   };
 
@@ -140,7 +122,6 @@ export default function SettingsPage() {
 
   const sections = [
     { id: 'api-keys', label: 'API Keys', icon: Key },
-    { id: 'brand', label: 'Brand Settings', icon: Palette },
     { id: 'preferences', label: 'Preferences', icon: SettingsIcon },
     { id: 'notifications', label: 'Notifications', icon: Bell },
     { id: 'security', label: 'Security', icon: Shield },
@@ -186,173 +167,182 @@ export default function SettingsPage() {
                 <CardHeader>
                   <CardTitle>API Configuration</CardTitle>
                   <CardDescription>
-                    Connect your API keys to enable AI generation and social media publishing
+                    Connect your API keys to enable AI generation and media synthesis.
+                    OpenAI and Gemini support multiple keys for cost tracking by feature.
                   </CardDescription>
                 </CardHeader>
                 <CardContent className="space-y-6">
-                  {['AI', 'Video', 'Social'].map((category) => (
-                    <div key={category}>
-                      <h3 className="mb-4 text-sm font-medium text-gray-500">{category} APIs</h3>
-                      <div className="space-y-4">
-                        {apiKeyConfigs
-                          .filter((config) => config.category === category)
-                          .map((config) => {
-                            const status = getKeyStatus(config.key);
-                            return (
-                              <div
-                                key={config.key}
-                                className="flex items-start gap-4 rounded-lg border border-slate-200 p-4"
-                              >
-                                <div className="flex-1">
-                                  <div className="flex items-center gap-2">
-                                    <span className="font-medium text-gray-900">
-                                      {config.name}
-                                    </span>
-                                    <Badge
-                                      variant={getBadgeVariant(
-                                        status === 'connected'
-                                          ? 'connected'
-                                          : status === 'error'
-                                          ? 'error'
-                                          : 'not_configured'
-                                      )}
-                                    >
-                                      {status === 'connected'
-                                        ? 'Connected'
-                                        : status === 'error'
-                                        ? 'Error'
-                                        : 'Not configured'}
-                                    </Badge>
-                                  </div>
-                                  <p className="mt-1 text-sm text-gray-500">
-                                    {config.description}
-                                  </p>
-                                  <div className="mt-3 flex items-center gap-2">
-                                    <div className="relative flex-1">
-                                      <Input
-                                        type={showKeys[config.key] ? 'text' : 'password'}
-                                        placeholder="Enter API key..."
-                                        value={apiKeys[config.key]}
-                                        onChange={(e) =>
-                                          setApiKeys((prev) => ({
-                                            ...prev,
-                                            [config.key]: e.target.value,
-                                          }))
-                                        }
-                                        className="pr-10"
-                                      />
-                                      <button
-                                        type="button"
-                                        onClick={() => toggleShowKey(config.key)}
-                                        className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
-                                      >
-                                        {showKeys[config.key] ? (
-                                          <EyeOff className="h-4 w-4" />
-                                        ) : (
-                                          <Eye className="h-4 w-4" />
-                                        )}
-                                      </button>
-                                    </div>
-                                    <Button variant="outline" size="sm">
-                                      Test
-                                    </Button>
-                                  </div>
-                                </div>
-                              </div>
-                            );
-                          })}
-                      </div>
-                    </div>
-                  ))}
-                </CardContent>
-              </Card>
-            </div>
-          )}
-
-          {/* Brand Settings Section */}
-          {activeSection === 'brand' && (
-            <div className="space-y-6">
-              <Card>
-                <CardHeader>
-                  <CardTitle>Brand Identity</CardTitle>
-                  <CardDescription>
-                    Configure your brand settings for consistent content generation
-                  </CardDescription>
-                </CardHeader>
-                <CardContent className="space-y-6">
-                  <Input
-                    label="Brand Name"
-                    value={settings.brandName}
-                    onChange={(e) =>
-                      setSettings((prev) => ({ ...prev, brandName: e.target.value }))
-                    }
-                    placeholder="Your brand name"
-                  />
-
-                  <Textarea
-                    label="Brand Voice"
-                    value={settings.brandVoice}
-                    onChange={(e) =>
-                      setSettings((prev) => ({ ...prev, brandVoice: e.target.value }))
-                    }
-                    placeholder="Describe your brand voice and tone..."
-                    helperText="This helps AI generate content that matches your brand personality"
-                  />
-
-                  <Input
-                    label="Target Audience"
-                    value={settings.targetAudience}
-                    onChange={(e) =>
-                      setSettings((prev) => ({ ...prev, targetAudience: e.target.value }))
-                    }
-                    placeholder="e.g., Gen Z, millennials, professionals"
-                  />
-
+                  {/* Multi-Key Providers Section */}
                   <div>
-                    <label className="mb-1.5 block text-sm font-medium text-gray-700">
-                      Brand Color
-                    </label>
-                    <div className="flex items-center gap-3">
-                      <input
-                        type="color"
-                        value={settings.brandColors}
-                        onChange={(e) =>
-                          setSettings((prev) => ({ ...prev, brandColors: e.target.value }))
-                        }
-                        className="h-10 w-20 cursor-pointer rounded border border-slate-200"
-                      />
-                      <Input
-                        value={settings.brandColors}
-                        onChange={(e) =>
-                          setSettings((prev) => ({ ...prev, brandColors: e.target.value }))
-                        }
-                        placeholder="#3B82F6"
-                        className="w-32"
-                      />
+                    <h3 className="mb-4 text-sm font-medium text-gray-500 flex items-center gap-2">
+                      Multi-Key Providers
+                      <span className="text-xs text-slate-400 font-normal">(separate keys for cost tracking)</span>
+                    </h3>
+                    <div className="space-y-4">
+                      {multiKeyProviders.map((config) => (
+                        <MultiKeyProviderCard
+                          key={config.provider}
+                          provider={config.provider}
+                          name={config.name}
+                          description={config.description}
+                        />
+                      ))}
                     </div>
                   </div>
-                </CardContent>
-              </Card>
 
-              <Card>
-                <CardHeader>
-                  <CardTitle>Brand Guidelines</CardTitle>
-                  <CardDescription>
-                    Upload or configure your brand guidelines for RAG-powered content
-                  </CardDescription>
-                </CardHeader>
-                <CardContent>
-                  <div className="rounded-lg border-2 border-dashed border-slate-200 p-8 text-center">
-                    <Database className="mx-auto h-12 w-12 text-gray-400" />
-                    <p className="mt-2 text-sm font-medium text-gray-900">
-                      Upload Brand Guidelines
-                    </p>
-                    <p className="mt-1 text-xs text-gray-500">
-                      PDF, DOCX, or TXT files up to 10MB
-                    </p>
-                    <Button variant="outline" className="mt-4">
-                      Choose Files
-                    </Button>
+                  {/* Single-Key AI Providers */}
+                  <div>
+                    <h3 className="mb-4 text-sm font-medium text-gray-500">Other AI Providers</h3>
+                    <div className="space-y-4">
+                      {singleKeyConfigs
+                        .filter((config) => config.category === 'AI')
+                        .map((config) => {
+                          const status = getKeyStatus(config.key);
+                          return (
+                            <div
+                              key={config.key}
+                              className="flex items-start gap-4 rounded-lg border border-slate-200 p-4"
+                            >
+                              <div className="flex-1">
+                                <div className="flex items-center gap-2">
+                                  <span className="font-medium text-gray-900">
+                                    {config.name}
+                                  </span>
+                                  <Badge
+                                    variant={getBadgeVariant(
+                                      status === 'connected'
+                                        ? 'connected'
+                                        : status === 'error'
+                                        ? 'error'
+                                        : 'not_configured'
+                                    )}
+                                  >
+                                    {status === 'connected'
+                                      ? 'Connected'
+                                      : status === 'error'
+                                      ? 'Error'
+                                      : 'Not configured'}
+                                  </Badge>
+                                </div>
+                                <p className="mt-1 text-sm text-gray-500">
+                                  {config.description}
+                                </p>
+                                <div className="mt-3 flex items-center gap-2">
+                                  <div className="relative flex-1">
+                                    <Input
+                                      type={showKeys[config.key] ? 'text' : 'password'}
+                                      placeholder="Enter API key..."
+                                      value={apiKeys[config.key] || ''}
+                                      onChange={(e) => setSimpleKey(config.key, e.target.value)}
+                                      className="pr-10"
+                                    />
+                                    <button
+                                      type="button"
+                                      onClick={() => toggleShowKey(config.key)}
+                                      className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
+                                    >
+                                      {showKeys[config.key] ? (
+                                        <EyeOff className="h-4 w-4" />
+                                      ) : (
+                                        <Eye className="h-4 w-4" />
+                                      )}
+                                    </button>
+                                  </div>
+                                  <Button variant="outline" size="sm">
+                                    Test
+                                  </Button>
+                                </div>
+                              </div>
+                            </div>
+                          );
+                        })}
+                    </div>
+                  </div>
+
+                  {/* Media Providers */}
+                  <div>
+                    <h3 className="mb-4 text-sm font-medium text-gray-500">Media APIs</h3>
+                    <div className="space-y-4">
+                      {singleKeyConfigs
+                        .filter((config) => config.category === 'Media')
+                        .map((config) => {
+                          const status = getKeyStatus(config.key);
+                          return (
+                            <div
+                              key={config.key}
+                              className="flex items-start gap-4 rounded-lg border border-slate-200 p-4"
+                            >
+                              <div className="flex-1">
+                                <div className="flex items-center gap-2">
+                                  <span className="font-medium text-gray-900">{config.name}</span>
+                                  <Badge variant={getBadgeVariant(status === 'connected' ? 'connected' : 'not_configured')}>
+                                    {status === 'connected' ? 'Connected' : 'Not configured'}
+                                  </Badge>
+                                </div>
+                                <p className="mt-1 text-sm text-gray-500">{config.description}</p>
+                                <div className="mt-3 flex items-center gap-2">
+                                  <div className="relative flex-1">
+                                    <Input
+                                      type={showKeys[config.key] ? 'text' : 'password'}
+                                      placeholder="Enter API key..."
+                                      value={apiKeys[config.key] || ''}
+                                      onChange={(e) => setSimpleKey(config.key, e.target.value)}
+                                      className="pr-10"
+                                    />
+                                    <button type="button" onClick={() => toggleShowKey(config.key)} className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600">
+                                      {showKeys[config.key] ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                                    </button>
+                                  </div>
+                                  <Button variant="outline" size="sm">Test</Button>
+                                </div>
+                              </div>
+                            </div>
+                          );
+                        })}
+                    </div>
+                  </div>
+
+                  {/* Social Providers */}
+                  <div>
+                    <h3 className="mb-4 text-sm font-medium text-gray-500">Social APIs</h3>
+                    <div className="space-y-4">
+                      {singleKeyConfigs
+                        .filter((config) => config.category === 'Social')
+                        .map((config) => {
+                          const status = getKeyStatus(config.key);
+                          return (
+                            <div
+                              key={config.key}
+                              className="flex items-start gap-4 rounded-lg border border-slate-200 p-4"
+                            >
+                              <div className="flex-1">
+                                <div className="flex items-center gap-2">
+                                  <span className="font-medium text-gray-900">{config.name}</span>
+                                  <Badge variant={getBadgeVariant(status === 'connected' ? 'connected' : 'not_configured')}>
+                                    {status === 'connected' ? 'Connected' : 'Not configured'}
+                                  </Badge>
+                                </div>
+                                <p className="mt-1 text-sm text-gray-500">{config.description}</p>
+                                <div className="mt-3 flex items-center gap-2">
+                                  <div className="relative flex-1">
+                                    <Input
+                                      type={showKeys[config.key] ? 'text' : 'password'}
+                                      placeholder="Enter API key..."
+                                      value={apiKeys[config.key] || ''}
+                                      onChange={(e) => setSimpleKey(config.key, e.target.value)}
+                                      className="pr-10"
+                                    />
+                                    <button type="button" onClick={() => toggleShowKey(config.key)} className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600">
+                                      {showKeys[config.key] ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                                    </button>
+                                  </div>
+                                  <Button variant="outline" size="sm">Test</Button>
+                                </div>
+                              </div>
+                            </div>
+                          );
+                        })}
+                    </div>
                   </div>
                 </CardContent>
               </Card>
@@ -373,10 +363,13 @@ export default function SettingsPage() {
                   <Select
                     label="Default AI Model"
                     options={[
-                      { value: 'gpt-4o-mini', label: 'GPT-4o Mini (Fast & Affordable)' },
-                      { value: 'gpt-4o', label: 'GPT-4o (High Quality)' },
-                      { value: 'claude-3-5-sonnet', label: 'Claude 3.5 Sonnet' },
-                      { value: 'claude-3-opus', label: 'Claude 3 Opus (Premium)' },
+                      { value: 'claude-opus-4.5', label: 'Claude Opus 4.5 (Premium - Best)' },
+                      { value: 'claude-sonnet-4.5', label: 'Claude Sonnet 4.5 (Balanced)' },
+                      { value: 'gpt-5.2-pro', label: 'GPT-5.2 Pro (Enterprise)' },
+                      { value: 'gpt-5.2-thinking', label: 'GPT-5.2 Thinking (Reasoning)' },
+                      { value: 'gpt-5.2-instant', label: 'GPT-5.2 Instant (Fast)' },
+                      { value: 'deepseek-chat-v3.2', label: 'DeepSeek V3.2 (Affordable)' },
+                      { value: 'gemini-3-flash', label: 'Gemini 3 Flash (Fast)' },
                     ]}
                     value={settings.defaultModel}
                     onChange={(e) =>

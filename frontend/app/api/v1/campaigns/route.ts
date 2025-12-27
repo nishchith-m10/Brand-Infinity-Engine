@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { createAdminClient } from '@/lib/supabase/admin';
+import { createClient } from '@/lib/supabase/server';
 import { n8nClient, N8N_WEBHOOKS } from '@/lib/n8n/client';
 
 // =============================================================================
@@ -7,7 +7,13 @@ import { n8nClient, N8N_WEBHOOKS } from '@/lib/n8n/client';
 // =============================================================================
 export async function GET(request: NextRequest) {
   try {
-    const supabase = createAdminClient();
+    const supabase = await createClient(); // Use RLS-enabled client
+    const { data: { user } } = await supabase.auth.getUser();
+
+    if (!user) {
+       return NextResponse.json({ success: false, error: { code: 'UNAUTHORIZED', message: 'Not authenticated' } }, { status: 401 });
+    }
+
     const searchParams = request.nextUrl.searchParams;
 
     // Parse query parameters
@@ -16,7 +22,7 @@ export async function GET(request: NextRequest) {
     const offset = parseInt(searchParams.get('offset') || '0');
     const brandId = searchParams.get('brand_id');
 
-    // Build query
+    // Build query - RLS will automatically filter by user's access rights
     let query = supabase
       .from('campaigns')
       .select('*', { count: 'exact' })
@@ -34,11 +40,7 @@ export async function GET(request: NextRequest) {
     const { data, count, error } = await query;
 
     if (error) {
-      console.error('[API] Campaigns GET error:', error);
-      return NextResponse.json(
-        { success: false, error: { code: 'DB_ERROR', message: error.message } },
-        { status: 500 }
-      );
+       throw error;
     }
 
     return NextResponse.json({
@@ -52,11 +54,9 @@ export async function GET(request: NextRequest) {
       },
     });
   } catch (error) {
-    console.error('[API] Campaigns GET unexpected error:', error);
-    return NextResponse.json(
-      { success: false, error: { code: 'INTERNAL_ERROR', message: 'Internal server error' } },
-      { status: 500 }
-    );
+    // Dynamic import to avoid circular dep issues
+    const { handleApiError } = await import('@/lib/api-utils');
+    return handleApiError(error);
   }
 }
 
@@ -65,39 +65,42 @@ export async function GET(request: NextRequest) {
 // =============================================================================
 export async function POST(request: NextRequest) {
   try {
-    const supabase = createAdminClient();
-    const body = await request.json();
+    const supabase = await createClient(); // Use RLS-enabled client
+    const { data: { user } } = await supabase.auth.getUser();
 
-    // Basic validation
-    if (!body.campaign_name || !body.brand_id) {
-      return NextResponse.json(
-        { success: false, error: { code: 'VALIDATION_ERROR', message: 'campaign_name and brand_id are required' } },
-        { status: 400 }
-      );
+    if (!user) {
+       return NextResponse.json({ success: false, error: { code: 'UNAUTHORIZED', message: 'Not authenticated' } }, { status: 401 });
     }
 
+    const body = await request.json();
+    
+    // Validate request body using Zod
+    const { CreateCampaignSchema } = await import('@/lib/validations/campaign');
+    const validatedData = CreateCampaignSchema.parse(body);
+
     // Determine budget limit based on tier
+    // Use simple logic or validated logic
     const budgetLimits: Record<string, number> = {
       low: 50,
       medium: 150,
       high: 500,
       premium: 2000,
     };
-    const budgetTier = body.budget_tier || 'medium';
+    const budgetTier = validatedData.budget_tier || 'medium';
     const budgetLimit = budgetLimits[budgetTier] || 150;
 
     // Create campaign record
     const { data: campaign, error } = await supabase
       .from('campaigns')
       .insert({
-        campaign_name: body.campaign_name,
-        brand_id: body.brand_id,
+        campaign_name: validatedData.campaign_name,
+        brand_id: validatedData.brand_id,
         status: 'draft',
         budget_limit_usd: budgetLimit,
         current_cost_usd: 0,
         metadata: {
-          target_demographic: body.target_demographic,
-          campaign_objective: body.campaign_objective,
+          target_demographic: validatedData.target_demographic,
+          campaign_objective: validatedData.campaign_objective,
           budget_tier: budgetTier,
         },
       })
@@ -105,21 +108,15 @@ export async function POST(request: NextRequest) {
       .single();
 
     if (error) {
-      console.error('[API] Campaigns POST error:', error);
-      return NextResponse.json(
-        { success: false, error: { code: 'DB_ERROR', message: error.message } },
-        { status: 500 }
-      );
+      throw error;
     }
 
     // Optionally trigger n8n workflow to start strategizing
     let workflowTriggered = false;
-    if (body.auto_start) {
+    if (validatedData.auto_start) {
       const result = await n8nClient.triggerWorkflow(N8N_WEBHOOKS.STRATEGIST_CAMPAIGN, {
         campaign_id: campaign.campaign_id,
-        brand_id: campaign.brand_id,
-        campaign_name: campaign.campaign_name,
-        ...body,
+        ...validatedData,
       });
       workflowTriggered = result.success;
 
@@ -147,10 +144,8 @@ export async function POST(request: NextRequest) {
       { status: 201 }
     );
   } catch (error) {
-    console.error('[API] Campaigns POST unexpected error:', error);
-    return NextResponse.json(
-      { success: false, error: { code: 'INTERNAL_ERROR', message: 'Internal server error' } },
-      { status: 500 }
-    );
+    // Dynamic import to avoid circular dep issues if any, though not expected here
+    const { handleApiError } = await import('@/lib/api-utils');
+    return handleApiError(error);
   }
 }
