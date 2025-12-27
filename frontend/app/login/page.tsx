@@ -96,7 +96,7 @@ export default function LoginPage() {
             </motion.div>
             <h1 className="text-2xl font-bold text-slate-800">Welcome Back</h1>
             <p className="mt-2 text-sm text-slate-500">
-              Sign in to Brand Infinity Engine
+              Sign in to Brand Infinity
             </p>
           </div>
 

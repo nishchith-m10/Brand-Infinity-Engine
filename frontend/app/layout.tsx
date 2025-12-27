@@ -6,7 +6,7 @@ import { Providers } from "@/components/providers";
 const inter = Inter({ subsets: ["latin"] });
 
 export const metadata: Metadata = {
-  title: "Brand Infinity Engine",
+  title: "Brand Infinity",
   description: "AI-Powered Marketing Content Automation Platform",
 };
 
