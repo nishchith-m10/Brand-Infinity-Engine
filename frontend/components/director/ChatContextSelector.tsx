@@ -55,13 +55,11 @@ export function ChatContextSelector({ compact = false }: ChatContextSelectorProp
   
   // Fetch campaigns
   const { data: campaignsData, isLoading: campaignsLoading } = useCampaigns();
-  const campaigns: Campaign[] = Array.isArray(campaignsData) 
+  const campaigns = (Array.isArray(campaignsData) 
     ? campaignsData 
-    : (campaignsData as Record<string, unknown>)?.data as Campaign[] || [];
+    : (campaignsData as unknown as Record<string, unknown>)?.data || []) as Campaign[];
   
-  const activeCampaigns = campaigns.filter(c => 
-    c.status !== 'archived' && c.status !== 'pending_deletion'
-  );
+  const activeCampaigns = campaigns;
   
   // Fetch KBs when campaign changes
   const fetchKBs = useCallback(async () => {

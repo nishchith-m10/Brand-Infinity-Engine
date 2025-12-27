@@ -24,13 +24,17 @@ apiClient.interceptors.response.use(
   (response) => response,
   (error: AxiosError) => {
     if (process.env.NODE_ENV === 'development') {
-      console.error('[API Error Detail]:', {
+      const errorDetails = {
         message: error.message,
+        code: error.code,
         status: error.response?.status,
         data: error.response?.data,
         url: error.config?.url,
         method: error.config?.method,
-      });
+      };
+      console.error('[API Error Detail]:', JSON.stringify(errorDetails, null, 2));
+      // Log raw error for browser inspection
+      console.error('[API Error Raw]:', error);
     }
     return Promise.reject(error);
   }

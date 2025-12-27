@@ -68,8 +68,9 @@ export interface AgentModelConfig {
 // ============================================================================
 
 export interface LLMRequest {
-  userId: string;
-  agentType: AgentType;
+  // Tracking (optional for backward compatibility)
+  userId?: string;
+  agentType?: AgentType;
   messages: LLMMessage[];
   
   // Optional overrides
@@ -257,3 +258,9 @@ export interface PresetConfig {
   }>;
 }
 
+
+export interface LLMCostCalculation {
+  inputCost: number;
+  outputCost: number;
+  totalCost: number;
+}

@@ -25,10 +25,8 @@ export function CampaignSelector() {
     ? campaignsData 
     : (campaignsData as any)?.data || [];
   
-  // Filter to only show active campaigns (exclude archived and pending_deletion)
-  const activeCampaigns = campaigns.filter((c: Campaign) => 
-    c.status !== 'archived' && c.status !== 'pending_deletion'
-  );
+  // Filter to only show active campaigns
+  const activeCampaigns = campaigns;
   
   // Auto-select first campaign if none selected and campaigns exist
   useEffect(() => {

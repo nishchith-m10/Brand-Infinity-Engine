@@ -17,9 +17,11 @@ import { createTaskPlanner } from './task-planner';
 export class ExecutiveAgent {
   private llmService = getLLMService();
   private agentModel: string;
+  private userId: string;
 
-  constructor(tier: 'premium' | 'budget' = 'premium') {
+  constructor(tier: 'premium' | 'budget' = 'premium', userId?: string) {
     this.agentModel = this.llmService.selectModel('executive', tier);
+    this.userId = userId || 'system'; // Fallback to 'system' for testing
   }
 
   /**
@@ -75,11 +77,13 @@ ${brandKnowledge ? `\nBrand Context:\n${brandKnowledge}` : ''}
 Return ONLY valid JSON matching this structure.`;
 
     const response = await this.llmService.generateCompletion({
-      model: this.agentModel,
+      userId: this.userId,
+      agentType: 'executive',
       messages: [
         { role: 'system', content: systemPrompt },
         { role: 'user', content: userMessage },
       ],
+      model: this.agentModel,
       temperature: AGENT_TEMPERATURES.executive,
       maxTokens: AGENT_MAX_TOKENS.executive,
       responseFormat: 'json',
@@ -88,29 +92,23 @@ Return ONLY valid JSON matching this structure.`;
     try {
       const parsed = JSON.parse(response.content);
       return {
-        content_types: parsed.content_types || [],
-        campaign_goal: parsed.campaign_goal || 'general',
-        target_audience: parsed.target_audience || {},
-        key_messages: parsed.key_messages || [],
-        tone: parsed.tone || 'professional',
-        platform: parsed.platform || [],
-        constraints: parsed.constraints || {},
+        content_type: parsed.content_type || parsed.content_types?.[0],
+        platform: parsed.platform || parsed.platforms?.[0],
+        product: parsed.product,
+        target_audience: parsed.target_audience,
+        key_message: parsed.key_message || parsed.key_messages?.[0],
+        tone: parsed.tone,
+        duration: parsed.duration,
+        call_to_action: parsed.call_to_action,
         confidence: 0.8,
-        raw_request: userMessage,
+        raw_message: userMessage,
       };
     } catch (error) {
       console.error('[ExecutiveAgent] Failed to parse intent:', error);
       // Return default intent on parse failure
       return {
-        content_types: ['campaign'],
-        campaign_goal: 'general',
-        target_audience: {},
-        key_messages: [],
-        tone: 'professional',
-        platform: [],
-        constraints: {},
         confidence: 0.3,
-        raw_request: userMessage,
+        raw_message: userMessage,
       };
     }
   }
@@ -122,47 +120,35 @@ Return ONLY valid JSON matching this structure.`;
     const questions: ClarifyingQuestion[] = [];
 
     // Check for missing critical information
-    if (!intent.content_types || intent.content_types.length === 0) {
+    if (!intent.content_type) {
       questions.push({
-        id: 'content_types',
+        id: 'content_type',
         question: 'What type of content would you like to create?',
-        field: 'content_types',
+        field: 'content_type',
+        type: 'choice',
         required: true,
-        options: ['script', 'visual', 'video', 'social_post', 'full_campaign'],
-        multiple: true,
+        options: ['video', 'image', 'carousel', 'story'],
       });
     }
 
-    if (!intent.campaign_goal || intent.campaign_goal === 'general') {
+    if (!intent.platform) {
       questions.push({
-        id: 'campaign_goal',
-        question: 'What is the primary goal of this campaign?',
-        field: 'campaign_goal',
+        id: 'platform',
+        question: 'Which platform will you use?',
+        field: 'platform',
+        type: 'choice',
         required: true,
-        options: ['awareness', 'conversion', 'engagement', 'retention', 'education'],
-        multiple: false,
+        options: ['tiktok', 'instagram_reels', 'youtube_shorts', 'facebook', 'linkedin'],
       });
     }
 
-    if (!intent.target_audience || Object.keys(intent.target_audience).length === 0) {
+    if (!intent.target_audience) {
       questions.push({
         id: 'target_audience',
         question: 'Who is your target audience?',
         field: 'target_audience',
+        type: 'text',
         required: true,
-        options: undefined,
-        multiple: false,
-      });
-    }
-
-    if (!intent.platform || intent.platform.length === 0) {
-      questions.push({
-        id: 'platform',
-        question: 'Which platforms will you use?',
-        field: 'platform',
-        required: false,
-        options: ['instagram', 'facebook', 'youtube', 'tiktok', 'twitter', 'linkedin'],
-        multiple: true,
       });
     }
 
@@ -179,7 +165,7 @@ Return ONLY valid JSON matching this structure.`;
     // Merge answers into intent
     const updatedIntent = {
       ...params.session.parsed_intent,
-      ...answers,
+      ...params.answers,
     } as ParsedIntent;
 
     // Check if we still need more info
@@ -209,20 +195,21 @@ Be clear, concise, and friendly. Summarize what will be created based on the par
 
     const userPrompt = `Explain this content plan to the user in 2-3 sentences:
 
-Content Types: ${intent.content_types.join(', ')}
-Goal: ${intent.campaign_goal}
-Target Audience: ${JSON.stringify(intent.target_audience)}
-Tone: ${intent.tone}
-Platforms: ${intent.platform.join(', ')}
+Content Type: ${intent.content_type || 'video'}
+Target Audience: ${intent.target_audience || 'general audience'}
+Tone: ${intent.tone || 'professional'}
+Platform: ${intent.platform || 'social media'}
 
 Be encouraging and specific about what they'll receive.`;
 
     const response = await this.llmService.generateCompletion({
-      model: this.agentModel,
+      userId: this.userId,
+      agentType: 'executive',
       messages: [
         { role: 'system', content: systemPrompt },
         { role: 'user', content: userPrompt },
       ],
+      model: this.agentModel,
       temperature: 0.7,
       maxTokens: 500,
     });
@@ -242,7 +229,7 @@ Be encouraging and specific about what they'll receive.`;
 /**
  * Create Executive Agent instance
  */
-export function createExecutiveAgent(tier: 'premium' | 'budget' = 'premium'): ExecutiveAgent {
-  return new ExecutiveAgent(tier);
+export function createExecutiveAgent(tier: 'premium' | 'budget' = 'premium', userId?: string): ExecutiveAgent {
+  return new ExecutiveAgent(tier, userId);
 }
 

@@ -59,12 +59,14 @@ export class GeminiAdapter extends BaseLLMAdapter {
       
       return {
         content: candidate.content.parts[0].text,
-        tokensUsed: {
-          input: data.usageMetadata?.promptTokenCount || 0,
-          output: data.usageMetadata?.candidatesTokenCount || 0,
+        usage: {
+          inputTokens: data.usageMetadata?.promptTokenCount || 0,
+          outputTokens: data.usageMetadata?.candidatesTokenCount || 0,
+          totalTokens: (data.usageMetadata?.promptTokenCount || 0) + (data.usageMetadata?.candidatesTokenCount || 0),
+          totalCost: 0,
         },
-        finishReason: candidate.finishReason,
-        model: request.model,
+        finish_reason: candidate.finishReason,
+        model: request.model || 'gemini-pro',
         provider: 'gemini',
       };
     } catch (error) {

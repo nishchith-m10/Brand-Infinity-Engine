@@ -1,15 +1,16 @@
 import { createClient } from '@/lib/supabase/server';
 import OpenAI from 'openai';
 
-// Validate OpenAI API key on module load
-if (!process.env.OPENAI_API_KEY) {
-  throw new Error('[OpenAI] OPENAI_API_KEY environment variable is required');
-}
-
-// Initialize OpenAI client once
-const _openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
+// Lazy initialize OpenAI client
+let _openai: OpenAI | null = null;
 
 function getOpenAI(): OpenAI {
+  if (!_openai) {
+    if (!process.env.OPENAI_API_KEY) {
+      throw new Error('[OpenAI] OPENAI_API_KEY environment variable is required');
+    }
+    _openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
+  }
   return _openai;
 }
 

@@ -5,7 +5,6 @@
 
 import type {
   LLMProvider,
-  LLMModel,
   LLMRequest,
   LLMResponse,
   LLMCostCalculation,
@@ -42,7 +41,7 @@ export class LLMService {
     
     try {
       // Get provider from model
-      const provider = this.getProviderFromModel(request.model);
+      const provider = this.getProviderFromModel(request.model || '');
       if (!provider) {
         throw new Error(`Unsupported model: ${request.model}`);
       }
@@ -59,7 +58,7 @@ export class LLMService {
       // Calculate cost
       const cost = this.calculateCost(
         provider,
-        request.model,
+        request.model || '',
         response.tokensUsed
       );
 
@@ -202,7 +201,7 @@ export class LLMService {
    */
   selectModel(agentRole: string, tier: 'premium' | 'budget'): string {
     // Use the primary provider's model for the given tier
-    const primaryProvider = this.provider;
+    const primaryProvider = 'openai'; // Default provider since this.provider is undefined
     const providerConfig = PROVIDER_CONFIGS[primaryProvider];
     
     if (!providerConfig || !providerConfig.models) {

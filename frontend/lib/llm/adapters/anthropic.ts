@@ -58,11 +58,13 @@ export class AnthropicAdapter extends BaseLLMAdapter {
       
       return {
         content: data.content[0].text,
-        tokensUsed: {
-          input: data.usage?.input_tokens || 0,
-          output: data.usage?.output_tokens || 0,
+        usage: {
+          inputTokens: data.usage?.input_tokens || 0,
+          outputTokens: data.usage?.output_tokens || 0,
+          totalTokens: (data.usage?.input_tokens || 0) + (data.usage?.output_tokens || 0),
+          totalCost: 0,
         },
-        finishReason: data.stop_reason,
+        finish_reason: data.stop_reason,
         model: data.model,
         provider: 'anthropic',
       };

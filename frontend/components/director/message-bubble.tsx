@@ -50,9 +50,6 @@ export function MessageBubble({ message }: MessageBubbleProps) {
               {message.tokens_used && (
                 <span>• {message.tokens_used.toLocaleString()} tokens</span>
               )}
-              {message.cost_usd && message.cost_usd > 0 && (
-                <span>• ${message.cost_usd.toFixed(4)}</span>
-              )}
             </div>
           )}
         </div>
