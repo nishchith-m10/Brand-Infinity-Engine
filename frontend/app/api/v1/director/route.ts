@@ -63,13 +63,14 @@ export async function POST(request: NextRequest) {
       brandContext = await getBrandContext(prompt, brand_id);
     }
 
-    // Use GPT to parse the prompt into structured data
-    const parseResponse = await getOpenAI().chat.completions.create({
-      model: 'gpt-4o-mini',
-      messages: [
-        {
-          role: 'system',
-          content: `You are a creative brief parser. Extract structured campaign parameters from natural language prompts.
+    // Build messages array - use vision if images are available
+    const hasImages = brandContext?.image_urls && brandContext.image_urls.length > 0;
+    const model = hasImages ? 'gpt-4o' : 'gpt-4o-mini'; // Use vision-capable model if images present
+
+    const systemPrompt = `You are a creative brief parser. Extract structured campaign parameters from natural language prompts.
+${hasImages ? '\nYou have access to brand images - analyze them and incorporate visual context into your understanding.' : ''}
+${brandContext?.assets?.length ? `\nAvailable brand assets:\n${brandContext.assets.map(a => `- ${a.file_name} (${a.asset_type}): ${a.content.substring(0, 200)}...`).join('\n')}` : ''}
+
 Return a JSON object with these fields:
 - platform: string (e.g., "instagram_stories", "tiktok", "youtube_shorts", "facebook", "twitter", "thumbnail")
 - duration_seconds: number (for video content, default 15)
@@ -79,16 +80,40 @@ Return a JSON object with these fields:
 - target_audience: string (if mentioned)
 - product: string (if mentioned)
 - confidence: number (0-1, how confident you are in the parsing)
+${hasImages ? '- image_context: brief description of what you observe in the brand images' : ''}
 
-Only return valid JSON, no markdown.`,
+Only return valid JSON, no markdown.`;
+
+    // Build user message content
+    const userContent: any = hasImages
+      ? [
+          { type: 'text', text: prompt },
+          ...brandContext.image_urls!.map((img) => ({
+            type: 'image_url',
+            image_url: {
+              url: img.url,
+              detail: 'auto',
+            },
+          })),
+        ]
+      : prompt;
+
+    // Use GPT to parse the prompt (with vision if images available)
+    const parseResponse = await getOpenAI().chat.completions.create({
+      model,
+      messages: [
+        {
+          role: 'system',
+          content: systemPrompt,
         },
         {
           role: 'user',
-          content: prompt,
+          content: userContent,
         },
       ],
       response_format: { type: 'json_object' },
       temperature: 0.3,
+      max_tokens: hasImages ? 2000 : 1000,
     });
 
     const parsedContent = parseResponse.choices[0]?.message?.content;
