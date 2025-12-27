@@ -1,10 +1,17 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { Lock, Loader2, LogOut } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { useAuth } from '@/lib/auth/auth-provider';
+import { createClient } from '@supabase/supabase-js';
+
+// Client-side Supabase helper (used to complete OAuth callback on the client)
+const supabase = createClient(
+  process.env.NEXT_PUBLIC_SUPABASE_URL!,
+  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+);
 
 export default function VerifyPasscodePage() {
   const [passcode, setPasscode] = useState('');
@@ -12,6 +19,33 @@ export default function VerifyPasscodePage() {
   const [loading, setLoading] = useState(false);
   const router = useRouter();
   const { user, signOut } = useAuth();
+
+  // Attempt to exchange OAuth callback for a Supabase session and store it
+  useEffect(() => {
+    const tryExchange = async () => {
+      try {
+        const { data, error } = await supabase.auth.getSessionFromUrl({ storeSession: true });
+        if (error) {
+          console.debug('[VerifyPasscode] getSessionFromUrl error:', error);
+          return;
+        }
+        if (data?.session) {
+          console.log('[VerifyPasscode] Session obtained via OAuth callback, redirecting to dashboard');
+          // force full reload so middleware sees the cookie/session
+          window.location.href = '/dashboard';
+        }
+      } catch (err) {
+        console.error('[VerifyPasscode] unexpected error while exchanging session', err);
+      }
+    };
+
+    // Only attempt exchange when auth callback params are present
+    const url = new URL(window.location.href);
+    if (url.searchParams.has('code') || window.location.hash.includes('access_token')) {
+      tryExchange();
+    }
+  }, []);
+
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -23,13 +57,15 @@ export default function VerifyPasscodePage() {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ passcode }),
+        credentials: 'include', // Ensure cookies are sent/received
       });
 
       const data = await response.json();
 
       if (response.ok) {
-        router.push('/dashboard');
-        router.refresh();
+        console.log('[Passcode] Verification successful, redirecting to dashboard');
+        // Use window.location instead of router.push to ensure middleware sees the new cookie
+        window.location.href = '/dashboard';
       } else {
         setError(data.error || 'Invalid passcode');
       }
