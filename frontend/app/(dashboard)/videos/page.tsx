@@ -7,6 +7,7 @@ import { Play, MoreVertical, Download, Share2, Search, SlidersHorizontal, Plus, 
 import { cn } from "@/lib/utils";
 import { useV1Videos } from "@/lib/hooks/use-api";
 import { useToast } from "@/lib/hooks/use-toast";
+import { ToastContainer } from '@/components/ui/toast-container';
 import { useCampaignProgress } from "@/lib/hooks/use-campaign-progress";
 import { LockedState } from "@/components/LockedState";
 import { EmptyState } from "@/components/ui/empty-state";
@@ -41,7 +42,7 @@ export default function VideosPage() {
   const [filterDuration, setFilterDuration] = useState("");
   const [filterDate, setFilterDate] = useState("");
   const [filterQuality, setFilterQuality] = useState("");
-  const { showToast: toast } = useToast();
+  const { toasts, showToast: toast, dismissToast } = useToast();
   
   // Check prerequisites
   const { canAccessVideos, steps, isLoading: progressLoading } = useCampaignProgress();
@@ -336,6 +337,9 @@ export default function VideosPage() {
             </AnimatePresence>
           </motion.div>
         )}
+
+      {/* Toast notifications */}
+      <ToastContainer toasts={toasts} onDismiss={dismissToast} />
     </div>
   );
 }

@@ -1,6 +1,7 @@
 /**
  * Agent Orchestrator - Coordinate all agents
  * Slice 6: Task Planning & Delegation
+ * V1 Update: Added Supabase persistence for task plans
  */
 
 import type { ParsedIntent, TaskPlan, Task } from './types';
@@ -9,6 +10,30 @@ import { createStrategistAgent } from './managers/strategist';
 import { createCopywriterAgent } from './managers/copywriter';
 import { createProducerAgent } from './managers/producer';
 import { createVerifierAgent } from './verifier';
+import { createClient } from '@/lib/supabase/client';
+
+// Supabase task plan record type
+interface TaskPlanRecord {
+  id: string;
+  user_id: string;
+  campaign_id?: string;
+  conversation_id?: string;
+  intent_type: string;
+  intent_raw?: string;
+  status: 'pending' | 'running' | 'completed' | 'failed' | 'cancelled';
+  plan_data: TaskPlan;
+  context_data: Record<string, any>;
+  total_tasks: number;
+  completed_tasks: number;
+  current_task_id?: string;
+  progress_percentage: number;
+  results: any[];
+  errors: string[];
+  created_at: string;
+  started_at?: string;
+  completed_at?: string;
+  updated_at: string;
+}
 
 export class AgentOrchestrator {
   private taskPlanner = createTaskPlanner('premium');
@@ -16,17 +41,154 @@ export class AgentOrchestrator {
   private copywriter = createCopywriterAgent('budget');
   private producer = createProducerAgent('budget');
   private verifier = createVerifierAgent('budget');
+  private supabase = createClient();
+
+  // Current persisted plan ID
+  private currentPlanId: string | null = null;
 
   /**
-   * Execute entire task plan
+   * Save task plan to Supabase
+   */
+  private async persistPlan(params: {
+    plan: TaskPlan;
+    intent: ParsedIntent;
+    results: any[];
+    errors: string[];
+    status: 'pending' | 'running' | 'completed' | 'failed';
+    brandContext?: string;
+    campaignId?: string;
+    conversationId?: string;
+  }): Promise<void> {
+    const { data: user } = await this.supabase.auth.getUser();
+    if (!user?.user?.id) {
+      console.warn('[Orchestrator] No authenticated user, skipping persistence');
+      return;
+    }
+
+    const completedTasks = params.plan.tasks.filter(t => t.status === 'completed').length;
+    const totalTasks = params.plan.tasks.length;
+    const currentTask = params.plan.tasks.find(t => t.status === 'running');
+
+    const record = {
+      user_id: user.user.id,
+      campaign_id: params.campaignId || null,
+      conversation_id: params.conversationId || null,
+      intent_type: params.intent.primaryIntent || 'unknown',
+      intent_raw: params.intent.rawInput || null,
+      status: params.status,
+      plan_data: params.plan,
+      context_data: { brandContext: params.brandContext },
+      total_tasks: totalTasks,
+      completed_tasks: completedTasks,
+      current_task_id: currentTask?.id || null,
+      progress_percentage: Math.round((completedTasks / totalTasks) * 100),
+      results: params.results,
+      errors: params.errors,
+      started_at: params.status === 'running' ? new Date().toISOString() : undefined,
+      completed_at: ['completed', 'failed'].includes(params.status) ? new Date().toISOString() : undefined,
+    };
+
+    try {
+      if (this.currentPlanId) {
+        // Update existing plan
+        await this.supabase
+          .from('task_plans')
+          .update(record)
+          .eq('id', this.currentPlanId);
+      } else {
+        // Insert new plan
+        const { data, error } = await this.supabase
+          .from('task_plans')
+          .insert(record)
+          .select('id')
+          .single();
+
+        if (error) throw error;
+        this.currentPlanId = data.id;
+      }
+    } catch (error) {
+      console.error('[Orchestrator] Failed to persist plan:', error);
+    }
+  }
+
+  /**
+   * Resume an in-progress task plan
+   */
+  async resumePlan(planId: string): Promise<{
+    plan: TaskPlan;
+    intent: ParsedIntent;
+    brandContext?: string;
+    results: any[];
+  } | null> {
+    try {
+      const { data, error } = await this.supabase
+        .from('task_plans')
+        .select('*')
+        .eq('id', planId)
+        .single();
+
+      if (error || !data) return null;
+
+      this.currentPlanId = planId;
+      
+      return {
+        plan: data.plan_data as TaskPlan,
+        intent: {
+          primaryIntent: data.intent_type,
+          rawInput: data.intent_raw,
+        } as ParsedIntent,
+        brandContext: data.context_data?.brandContext,
+        results: data.results || [],
+      };
+    } catch (error) {
+      console.error('[Orchestrator] Failed to resume plan:', error);
+      return null;
+    }
+  }
+
+  /**
+   * Get all in-progress plans for the current user
+   */
+  async getInProgressPlans(): Promise<TaskPlanRecord[]> {
+    try {
+      const { data, error } = await this.supabase
+        .from('task_plans')
+        .select('*')
+        .in('status', ['pending', 'running'])
+        .order('updated_at', { ascending: false });
+
+      if (error) throw error;
+      return data || [];
+    } catch (error) {
+      console.error('[Orchestrator] Failed to get in-progress plans:', error);
+      return [];
+    }
+  }
+
+  /**
+   * Execute entire task plan with persistence
    */
   async executePlan(params: {
     plan: TaskPlan;
     intent: ParsedIntent;
     brandContext?: string;
-  }): Promise<{ success: boolean; results: any[]; errors: string[] }> {
+    campaignId?: string;
+    conversationId?: string;
+  }): Promise<{ success: boolean; results: any[]; errors: string[]; planId?: string }> {
     const results: any[] = [];
     const errors: string[] = [];
+
+    // Persist initial plan state
+    await this.persistPlan({
+      plan: params.plan,
+      intent: params.intent,
+      results,
+      errors,
+      status: 'running',
+      brandContext: params.brandContext,
+      campaignId: params.campaignId,
+      conversationId: params.conversationId,
+    });
 
     // Execute tasks in dependency order
     while (true) {
@@ -72,12 +234,38 @@ export class AgentOrchestrator {
           errors.push(`Task ${task.id} failed: ${result.error}`);
         }
       }
+
+      // Persist after each batch (enables resume on failure)
+      await this.persistPlan({
+        plan: params.plan,
+        intent: params.intent,
+        results,
+        errors,
+        status: 'running',
+        brandContext: params.brandContext,
+        campaignId: params.campaignId,
+        conversationId: params.conversationId,
+      });
     }
+
+    // Persist final state
+    const finalStatus = errors.length === 0 ? 'completed' : 'failed';
+    await this.persistPlan({
+      plan: params.plan,
+      intent: params.intent,
+      results,
+      errors,
+      status: finalStatus,
+      brandContext: params.brandContext,
+      campaignId: params.campaignId,
+      conversationId: params.conversationId,
+    });
 
     return {
       success: errors.length === 0,
       results,
       errors,
+      planId: this.currentPlanId || undefined,
     };
   }
 

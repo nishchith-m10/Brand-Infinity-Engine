@@ -85,11 +85,13 @@ services:
       # Encryption
       - N8N_ENCRYPTION_KEY=${N8N_ENCRYPTION_KEY}
       
-      # Execution
+      # Execution - Optimized for production (prevents DB bloat)
       - EXECUTIONS_DATA_SAVE_ON_ERROR=all
-      - EXECUTIONS_DATA_SAVE_ON_SUCCESS=all
-      - EXECUTIONS_DATA_SAVE_ON_PROGRESS=true
+      - EXECUTIONS_DATA_SAVE_ON_SUCCESS=none
+      - EXECUTIONS_DATA_SAVE_ON_PROGRESS=false
       - EXECUTIONS_DATA_SAVE_MANUAL_EXECUTIONS=true
+      - EXECUTIONS_DATA_PRUNE=true
+      - EXECUTIONS_DATA_MAX_AGE=168
       
       # Timezone
       - GENERIC_TIMEZONE=America/New_York

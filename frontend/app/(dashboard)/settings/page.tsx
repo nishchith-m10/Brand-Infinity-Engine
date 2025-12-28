@@ -9,6 +9,7 @@ import {
   Save,
   Eye,
   EyeOff,
+  Loader2,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
@@ -17,11 +18,14 @@ import { Select } from '@/components/ui/select';
 import { Badge } from '@/components/ui/badge';
 import { useApiKeys } from '@/contexts/api-keys-context';
 import { MultiKeyProviderCard } from '@/components/settings/multi-key-provider-card';
+import { useToast } from '@/lib/hooks/use-toast';
+import { ToastContainer } from '@/components/ui/toast-container';
 
 export default function SettingsPage() {
   const [activeSection, setActiveSection] = useState('api-keys');
   const [showKeys, setShowKeys] = useState<Record<string, boolean>>({});
   const { apiKeys, setSimpleKey, saveKeys, isSaving } = useApiKeys();
+  const { toasts, showToast, dismissToast } = useToast();
 
   // Settings state (separate from API keys)
   const [settings, setSettings] = useState({
@@ -89,9 +93,9 @@ export default function SettingsPage() {
       // Save settings to localStorage
       localStorage.setItem('dashboard_settings', JSON.stringify(settings));
       
-      // TODO: Add toast notification for success
-    } catch {
-      // TODO: Add toast notification for error
+      showToast({ type: 'success', message: 'Settings saved successfully' });
+    } catch (error) {
+      showToast({ type: 'error', message: 'Failed to save settings. Please try again.' });
     }
   };
 
@@ -566,13 +570,20 @@ export default function SettingsPage() {
 
           {/* Save Button */}
           <div className="mt-8 flex justify-end">
-            <Button onClick={handleSave} isLoading={isSaving}>
-              <Save className="h-4 w-4 mr-2" />
-              Save Changes
+            <Button onClick={handleSave} disabled={isSaving}>
+              {isSaving ? (
+                <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+              ) : (
+                <Save className="h-4 w-4 mr-2" />
+              )}
+              {isSaving ? 'Saving...' : 'Save Changes'}
             </Button>
           </div>
         </div>
       </div>
+
+      {/* Toast notifications */}
+      <ToastContainer toasts={toasts} onDismiss={dismissToast} />
     </div>
   );
 }

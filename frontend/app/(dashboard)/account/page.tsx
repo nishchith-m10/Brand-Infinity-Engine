@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useAuth } from "@/lib/auth/auth-provider";
 import { createClient } from '@/lib/supabase/client';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -8,12 +8,26 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { User, Lock, Trash2, Eye, EyeOff } from "lucide-react";
+import { User, Lock, Trash2, Eye, EyeOff, Loader2 } from "lucide-react";
 import { motion } from "framer-motion";
+import { useToast } from '@/lib/hooks/use-toast';
+import { ToastContainer } from '@/components/ui/toast-container';
 
 export default function AccountPage() {
   const { user } = useAuth();
   const supabase = createClient();
+  const { toasts, showToast, dismissToast } = useToast();
+
+  // Profile state
+  const [fullName, setFullName] = useState('');
+  const [isSavingProfile, setIsSavingProfile] = useState(false);
+
+  // Initialize fullName from user metadata
+  useEffect(() => {
+    if (user?.user_metadata?.full_name) {
+      setFullName(user.user_metadata.full_name);
+    }
+  }, [user]);
 
   // Password state
   const [currentPassword, setCurrentPassword] = useState('');
@@ -24,19 +38,68 @@ export default function AccountPage() {
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [loading, setLoading] = useState(false);
 
+  // Delete account state
+  const [isDeleting, setIsDeleting] = useState(false);
+
+  const handleProfileSave = async () => {
+    if (!fullName.trim()) {
+      showToast({ type: 'error', message: 'Please enter your full name' });
+      return;
+    }
+
+    setIsSavingProfile(true);
+    try {
+      const { error } = await supabase.auth.updateUser({
+        data: { full_name: fullName.trim() }
+      });
+      
+      if (error) throw error;
+      
+      showToast({ type: 'success', message: 'Profile updated successfully' });
+    } catch (error) {
+      console.error('Profile save error:', error);
+      showToast({ type: 'error', message: 'Failed to update profile. Please try again.' });
+    } finally {
+      setIsSavingProfile(false);
+    }
+  };
+
+  const handleDeleteAccount = async () => {
+    const confirmed = window.confirm('Are you sure you want to delete your account? This action cannot be undone.');
+    if (!confirmed) return;
+
+    setIsDeleting(true);
+    try {
+      // Call backend to delete account
+      const response = await fetch('/api/v1/auth/delete-account', {
+        method: 'DELETE',
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to delete account');
+      }
+
+      await supabase.auth.signOut();
+      window.location.href = '/login';
+    } catch (error) {
+      showToast({ type: 'error', message: 'Failed to delete account' });
+      setIsDeleting(false);
+    }
+  };
+
   const handlePasswordUpdate = async () => {
     if (!currentPassword || !newPassword || !confirmPassword) {
-      alert('Please fill in all password fields');
+      showToast({ type: 'error', message: 'Please fill in all password fields' });
       return;
     }
 
     if (newPassword !== confirmPassword) {
-      alert('New passwords do not match');
+      showToast({ type: 'error', message: 'New passwords do not match' });
       return;
     }
 
     if (newPassword.length < 6) {
-      alert('Password must be at least 6 characters');
+      showToast({ type: 'error', message: 'Password must be at least 6 characters' });
       return;
     }
 
@@ -50,7 +113,7 @@ export default function AccountPage() {
       });
 
       if (signInError) {
-        alert('Current password is incorrect');
+        showToast({ type: 'error', message: 'Current password is incorrect' });
         setLoading(false);
         return;
       }
@@ -60,12 +123,12 @@ export default function AccountPage() {
       
       if (error) throw error;
       
-      alert('Password updated successfully');
+      showToast({ type: 'success', message: 'Password updated successfully' });
       setCurrentPassword('');
       setNewPassword('');
       setConfirmPassword('');
     } catch (error) {
-      alert('Failed to update password');
+      showToast({ type: 'error', message: 'Failed to update password' });
     } finally {
       setLoading(false);
     }
@@ -111,11 +174,22 @@ export default function AccountPage() {
                 </div>
                 <div className="space-y-2">
                   <Label htmlFor="fullName">Full Name</Label>
-                  <Input id="fullName" placeholder="Enter your full name" defaultValue={user?.user_metadata?.full_name || ''} />
+                  <Input 
+                    id="fullName" 
+                    placeholder="Enter your full name" 
+                    value={fullName}
+                    onChange={(e) => setFullName(e.target.value)}
+                  />
                 </div>
               </div>
               <div className="flex justify-end pt-4">
-                <Button>Save Changes</Button>
+                <Button onClick={handleProfileSave} disabled={isSavingProfile}>
+                  {isSavingProfile ? (
+                    <><Loader2 className="h-4 w-4 mr-2 animate-spin" />Saving...</>
+                  ) : (
+                    'Save Changes'
+                  )}
+                </Button>
               </div>
             </CardContent>
           </Card>
@@ -193,7 +267,11 @@ export default function AccountPage() {
               </div>
               <div className="flex justify-end pt-4">
                  <Button variant="outline" onClick={handlePasswordUpdate} disabled={loading}>
-                   {loading ? 'Updating...' : 'Update Password'}
+                   {loading ? (
+                     <><Loader2 className="h-4 w-4 mr-2 animate-spin" />Updating...</>
+                   ) : (
+                     'Update Password'
+                   )}
                  </Button>
               </div>
             </CardContent>
@@ -213,11 +291,20 @@ export default function AccountPage() {
               <p className="text-sm text-slate-600 mb-4">
                 Once you delete your account, there is no going back. Please be certain.
               </p>
-              <Button variant="destructive">Delete Account</Button>
+              <Button variant="destructive" onClick={handleDeleteAccount} disabled={isDeleting}>
+                {isDeleting ? (
+                  <><Loader2 className="h-4 w-4 mr-2 animate-spin" />Deleting...</>
+                ) : (
+                  'Delete Account'
+                )}
+              </Button>
             </CardContent>
           </Card>
         </TabsContent>
       </Tabs>
+
+      {/* Toast notifications */}
+      <ToastContainer toasts={toasts} onDismiss={dismissToast} />
     </div>
   );
 }

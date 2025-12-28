@@ -15,6 +15,7 @@ import {
   Sparkles,
   Search,
   SlidersHorizontal,
+  Loader2,
 } from 'lucide-react';
 import { AnimatePresence, motion } from 'framer-motion';
 import { Modal } from '@/components/ui/modal';
@@ -24,6 +25,7 @@ import { formatDate, getPlatformColor, cn } from '@/lib/utils';
 import { getPlatformIcon } from '@/lib/platform-icons';
 import { useV1Variants } from '@/lib/hooks/use-api';
 import { useToast } from '@/lib/hooks/use-toast';
+import { ToastContainer } from '@/components/ui/toast-container';
 import { useCampaignProgress } from '@/lib/hooks/use-campaign-progress';
 import { LockedState } from '@/components/LockedState';
 import { CustomSelect } from '@/components/ui/custom-select';
@@ -55,7 +57,7 @@ const mockVariants: Variant[] = [
 export default function DistributionPage() {
   const [selectedVideo] = useState<string | null>(mockVideos[0]?.video_id);
   const [selectedPlatforms, setSelectedPlatforms] = useState<string[]>([]);
-  const { showToast: toast } = useToast();
+  const { toasts, showToast: toast, dismissToast } = useToast();
   const [showGenerateModal, setShowGenerateModal] = useState(false);
   const [showVariantDetail, setShowVariantDetail] = useState(false);
   const [selectedVariant, setSelectedVariant] = useState<Variant | null>(null);
@@ -414,12 +416,13 @@ export default function DistributionPage() {
           )}
 
           <div className="flex justify-end gap-3 pt-4">
-            <button onClick={() => setShowGenerateModal(false)} className="px-4 py-2 rounded-xl border border-slate-200 text-slate-700 hover:bg-slate-50 transition-colors">Cancel</button>
+            <button onClick={() => setShowGenerateModal(false)} disabled={generateMutation.isPending} className="px-4 py-2 rounded-xl border border-slate-200 text-slate-700 hover:bg-slate-50 disabled:opacity-50 transition-colors">Cancel</button>
             <button
               onClick={() => selectedVideo && generateMutation.mutate({ videoId: selectedVideo, platforms: selectedPlatforms })}
-              disabled={selectedPlatforms.length === 0}
-              className="px-4 py-2 rounded-xl bg-lamaPurple text-white font-medium hover:bg-lamaPurple/90 disabled:opacity-50 transition-colors"
+              disabled={selectedPlatforms.length === 0 || generateMutation.isPending}
+              className="flex items-center gap-2 px-4 py-2 rounded-xl bg-lamaPurple text-white font-medium hover:bg-lamaPurple/90 disabled:opacity-50 transition-colors"
             >
+              {generateMutation.isPending && <Loader2 className="h-4 w-4 animate-spin" />}
               {generateMutation.isPending ? 'Generating...' : `Generate ${selectedPlatforms.length > 0 ? `(${selectedPlatforms.length})` : ''}`}
             </button>
           </div>
@@ -483,6 +486,9 @@ export default function DistributionPage() {
           </div>
         )}
       </Modal>
+
+      {/* Toast notifications */}
+      <ToastContainer toasts={toasts} onDismiss={dismissToast} />
     </div>
   );
 }

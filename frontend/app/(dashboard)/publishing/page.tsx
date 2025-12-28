@@ -11,6 +11,7 @@ import {
   Plus,
   CheckCircle,
   AlertCircle,
+  Loader2,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -144,6 +145,7 @@ const getBadgeVariant = (status: string) => {
 };
 
 import { useToast } from '@/lib/hooks/use-toast';
+import { ToastContainer } from '@/components/ui/toast-container';
 
 // ... (existing imports)
 
@@ -154,7 +156,8 @@ export default function PublishingPage() {
   const [showPostDetail, setShowPostDetail] = useState(false);
   const [selectedPost, setSelectedPost] = useState<(Publication & { variant?: Variant }) | null>(null);
   const [isScheduling, setIsScheduling] = useState(false);
-  const { showToast } = useToast();
+  const [isCancelling, setIsCancelling] = useState(false);
+  const { toasts, showToast, dismissToast } = useToast();
   
   // Check prerequisites
   const { canAccessPublishing, steps, isLoading: progressLoading } = useCampaignProgress();
@@ -202,6 +205,7 @@ export default function PublishingPage() {
 
   // Cancel scheduled post
   const handleCancelPost = async (postId: string) => {
+    setIsCancelling(true);
     try {
       const response = await fetch(`/api/v1/publications/${postId}`, {
         method: 'DELETE',
@@ -221,6 +225,8 @@ export default function PublishingPage() {
         type: 'error', 
         message: error instanceof Error ? error.message : 'Failed to cancel post' 
       });
+    } finally {
+      setIsCancelling(false);
     }
   };
 
@@ -710,15 +716,20 @@ export default function PublishingPage() {
                   <Button
                     variant="destructive"
                     onClick={() => handleCancelPost(selectedPost.publication_id)}
+                    disabled={isCancelling}
                   >
-                    <Trash2 className="h-4 w-4 mr-2" />
-                    Cancel
+                    {isCancelling ? (
+                      <><Loader2 className="h-4 w-4 mr-2 animate-spin" />Cancelling...</>
+                    ) : (
+                      <><Trash2 className="h-4 w-4 mr-2" />Cancel</>
+                    )}
                   </Button>
                   <Button
                     onClick={() =>
                       publishNowMutation.mutate(selectedPost.variant_id)
                     }
                     isLoading={publishNowMutation.isPending}
+                    disabled={isCancelling}
                   >
                     <Send className="h-4 w-4 mr-2" />
                     Publish Now
@@ -734,6 +745,9 @@ export default function PublishingPage() {
           </div>
         )}
       </Modal>
+
+      {/* Toast notifications */}
+      <ToastContainer toasts={toasts} onDismiss={dismissToast} />
     </div>
   );
 }
