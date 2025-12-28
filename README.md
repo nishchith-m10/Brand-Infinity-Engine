@@ -410,9 +410,10 @@ flowchart LR
 ### Prerequisites
 
 - **Node.js 18+**
-- **Docker & Docker Compose**
-- **Supabase Account** (free tier works)
+- **Supabase Account** (free tier works) — Database, Auth, Storage
+- **n8n Instance** (cloud or self-hosted) — Workflow automation
 - **OpenAI API Key** (required)
+- **Docker** (optional) — Only needed for local video processing
 
 ### 1. Clone & Install
 
@@ -448,7 +449,17 @@ OPENAI_API_KEY=sk-...
 ANTHROPIC_API_KEY=sk-ant-...
 DEEPSEEK_API_KEY=sk-...
 ELEVENLABS_API_KEY=...
+
+# Video Concat Service (if running locally)
+VIDEO_SERVICE_URL=http://localhost:8080
+VIDEO_SERVICE_API_KEY=your-secure-api-key
+VIDEO_STORAGE_BUCKET=videos
 ```
+
+> **☁️ Cloud-First Architecture**: This project uses cloud-hosted services by default:
+> - **Database/Auth/Storage** → Supabase Cloud
+> - **Workflow Automation** → n8n Cloud or DigitalOcean
+> - **No Docker required** for standard development
 
 ### 2.5. Configure MCP Servers (Optional)
 

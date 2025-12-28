@@ -27,6 +27,7 @@ import { type Brief, type Script, type Video as VideoType } from '@/lib/api-clie
 import { formatDate } from '@/lib/utils';
 import { useV1Reviews } from '@/lib/hooks/use-api';
 import { useToast } from '@/lib/hooks/use-toast';
+import { ToastContainer } from '@/components/ui/toast-container';
 import { useCampaignProgress } from '@/lib/hooks/use-campaign-progress';
 import { LockedState } from '@/components/LockedState';
 
@@ -120,7 +121,11 @@ export default function ContentReviewPage() {
   const [isRegenerating, setIsRegenerating] = useState<string | null>(null);
   const [editingField, setEditingField] = useState<{ id: string; field: string } | null>(null);
   const [editValue, setEditValue] = useState('');
-  const { showToast } = useToast();
+  const [isBatchApproving, setIsBatchApproving] = useState(false);
+  const [isApproving, setIsApproving] = useState(false);
+  const [isRejecting, setIsRejecting] = useState(false);
+  const [isSavingEdit, setIsSavingEdit] = useState(false);
+  const { toasts, showToast, dismissToast } = useToast();
   
   // Check prerequisites
   const { canAccessReview, steps, isLoading: progressLoading } = useCampaignProgress();
@@ -216,12 +221,17 @@ export default function ContentReviewPage() {
 
   // Batch actions
   const handleBatchApprove = async () => {
-    for (const id of selectedItems) {
-      const item = reviewItems.find(i => i.id === id);
-      if (item) await handleApprove(item, true);
+    setIsBatchApproving(true);
+    try {
+      for (const id of selectedItems) {
+        const item = reviewItems.find(i => i.id === id);
+        if (item) await handleApprove(item, true);
+      }
+      setSelectedItems(new Set());
+      showToast({ type: 'success', message: `Approved ${selectedItems.size} items` });
+    } finally {
+      setIsBatchApproving(false);
     }
-    setSelectedItems(new Set());
-    showToast({ type: 'success', message: `Approved ${selectedItems.size} items` });
   };
 
   const handleBatchReject = async () => {
@@ -267,6 +277,7 @@ export default function ContentReviewPage() {
 
   const saveEdit = async () => {
     if (!editingField) return;
+    setIsSavingEdit(true);
     try {
       const endpoint = `/api/v1/reviews/${editingField.id}`;
       await fetch(endpoint, {
@@ -283,6 +294,7 @@ export default function ContentReviewPage() {
     } catch (error) {
       showToast({ type: 'error', message: 'Failed to update' });
     } finally {
+      setIsSavingEdit(false);
       setEditingField(null);
       setEditValue('');
     }
@@ -294,6 +306,7 @@ export default function ContentReviewPage() {
   };
 
   const handleApprove = async (item: ReviewItem, silent = false) => {
+    if (!silent) setIsApproving(true);
     try {
       const endpoint = item.type === 'brief' 
         ? `/api/v1/briefs/${item.id}/approve`
@@ -321,6 +334,8 @@ export default function ContentReviewPage() {
           message: error instanceof Error ? error.message : 'Failed to approve'
         });
       }
+    } finally {
+      if (!silent) setIsApproving(false);
     }
   };
 
@@ -329,6 +344,7 @@ export default function ContentReviewPage() {
       showToast({ type: 'error', message: 'Please provide a rejection reason' });
       return;
     }
+    setIsRejecting(true);
     try {
       const endpoint = item.type === 'brief' 
         ? `/api/v1/briefs/${item.id}/reject`
@@ -357,6 +373,8 @@ export default function ContentReviewPage() {
         type: 'error', 
         message: error instanceof Error ? error.message : 'Failed to reject'
       });
+    } finally {
+      setIsRejecting(false);
     }
   };
 
@@ -412,11 +430,15 @@ export default function ContentReviewPage() {
         {selectedItems.size > 0 && (
           <div className="flex items-center gap-2">
             <span className="text-sm text-slate-500">{selectedItems.size} selected</span>
-            <Button variant="outline" size="sm" onClick={handleBatchApprove}>
-              <CheckCircle className="h-4 w-4 mr-1" />
-              Approve All
+            <Button variant="outline" size="sm" onClick={handleBatchApprove} disabled={isBatchApproving}>
+              {isBatchApproving ? (
+                <RefreshCw className="h-4 w-4 mr-1 animate-spin" />
+              ) : (
+                <CheckCircle className="h-4 w-4 mr-1" />
+              )}
+              {isBatchApproving ? 'Approving...' : 'Approve All'}
             </Button>
-            <Button variant="outline" size="sm" onClick={handleBatchReject}>
+            <Button variant="outline" size="sm" onClick={handleBatchReject} disabled={isBatchApproving}>
               <XCircle className="h-4 w-4 mr-1" />
               Reject
             </Button>
@@ -694,8 +716,14 @@ export default function ContentReviewPage() {
                         className="w-full h-48 p-2 border rounded text-sm text-slate-900"
                       />
                       <div className="flex gap-2 mt-2">
-                        <Button size="sm" onClick={saveEdit}><Check className="h-3 w-3 mr-1" />Save</Button>
-                        <Button size="sm" variant="ghost" onClick={cancelEdit}><X className="h-3 w-3 mr-1" />Cancel</Button>
+                        <Button size="sm" onClick={saveEdit} disabled={isSavingEdit}>
+                          {isSavingEdit ? (
+                            <><Loader2 className="h-3 w-3 mr-1 animate-spin" />Saving...</>
+                          ) : (
+                            <><Check className="h-3 w-3 mr-1" />Save</>
+                          )}
+                        </Button>
+                        <Button size="sm" variant="ghost" onClick={cancelEdit} disabled={isSavingEdit}><X className="h-3 w-3 mr-1" />Cancel</Button>
                       </div>
                     </div>
                   ) : (
@@ -729,8 +757,14 @@ export default function ContentReviewPage() {
                         rows={3}
                       />
                       <div className="flex gap-2 mt-2">
-                        <Button size="sm" onClick={saveEdit}><Check className="h-3 w-3 mr-1" />Save</Button>
-                        <Button size="sm" variant="ghost" onClick={cancelEdit}><X className="h-3 w-3 mr-1" />Cancel</Button>
+                        <Button size="sm" onClick={saveEdit} disabled={isSavingEdit}>
+                          {isSavingEdit ? (
+                            <><Loader2 className="h-3 w-3 mr-1 animate-spin" />Saving...</>
+                          ) : (
+                            <><Check className="h-3 w-3 mr-1" />Save</>
+                          )}
+                        </Button>
+                        <Button size="sm" variant="ghost" onClick={cancelEdit} disabled={isSavingEdit}><X className="h-3 w-3 mr-1" />Cancel</Button>
                       </div>
                     </div>
                   ) : (
@@ -768,8 +802,13 @@ export default function ContentReviewPage() {
                       className="w-full h-64 p-2 border rounded text-sm text-slate-900 font-mono"
                     />
                     <div className="flex gap-2 mt-2">
-                      <Button size="sm" onClick={saveEdit}><Check className="h-3 w-3 mr-1" />Save</Button>
-                      <Button size="sm" variant="ghost" onClick={cancelEdit}><X className="h-3 w-3 mr-1" />Cancel</Button>
+                      <Button size="sm" onClick={saveEdit} disabled={isSavingEdit}>
+                        {isSavingEdit ? <RefreshCw className="h-3 w-3 mr-1 animate-spin" /> : <Check className="h-3 w-3 mr-1" />}
+                        {isSavingEdit ? 'Saving...' : 'Save'}
+                      </Button>
+                      <Button size="sm" variant="ghost" onClick={cancelEdit} disabled={isSavingEdit}>
+                        <X className="h-3 w-3 mr-1" />Cancel
+                      </Button>
                     </div>
                   </div>
                 ) : (
@@ -818,13 +857,22 @@ export default function ContentReviewPage() {
                     <Button
                       variant="destructive"
                       onClick={() => handleReject(selectedItem)}
+                      disabled={isRejecting || isApproving}
                     >
-                      <XCircle className="h-4 w-4 mr-2" />
-                      Reject
+                      {isRejecting ? (
+                        <RefreshCw className="h-4 w-4 mr-2 animate-spin" />
+                      ) : (
+                        <XCircle className="h-4 w-4 mr-2" />
+                      )}
+                      {isRejecting ? 'Rejecting...' : 'Reject'}
                     </Button>
-                    <Button onClick={() => handleApprove(selectedItem)}>
-                      <CheckCircle className="h-4 w-4 mr-2" />
-                      Approve
+                    <Button onClick={() => handleApprove(selectedItem)} disabled={isApproving || isRejecting}>
+                      {isApproving ? (
+                        <RefreshCw className="h-4 w-4 mr-2 animate-spin" />
+                      ) : (
+                        <CheckCircle className="h-4 w-4 mr-2" />
+                      )}
+                      {isApproving ? 'Approving...' : 'Approve'}
                     </Button>
                   </>
                 )}
@@ -833,6 +881,9 @@ export default function ContentReviewPage() {
           </div>
         )}
       </Modal>
+
+      {/* Toast notifications */}
+      <ToastContainer toasts={toasts} onDismiss={dismissToast} />
     </div>
   );
 }

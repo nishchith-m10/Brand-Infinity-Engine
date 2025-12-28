@@ -1,0 +1,94 @@
+[
+  {
+    "src": "CHAT_INTERFACE_IMPLEMENTATION_COMPLETE.md",
+    "dst": "docs/CHAT_INTERFACE_IMPLEMENTATION_COMPLETE.md"
+  },
+  {
+    "src": "CREDENTIALS_MANIFEST.md",
+    "dst": "docs/CREDENTIALS_MANIFEST.md"
+  },
+  {
+    "src": "CURSOR_HANDOFF_PHASE_6_PART_2.md",
+    "dst": "docs/CURSOR_HANDOFF_PHASE_6_PART_2.md"
+  },
+  {
+    "src": "ECONOMIC_ANALYSIS_DEC_2024.md",
+    "dst": "docs/ECONOMIC_ANALYSIS_DEC_2024.md"
+  },
+  {
+    "src": "ECONOMIC_ANALYSIS_DEC_2025.md",
+    "dst": "docs/ECONOMIC_ANALYSIS_DEC_2025.md"
+  },
+  {
+    "src": "ENV_TEMPLATE.md",
+    "dst": "docs/ENV_TEMPLATE.md"
+  },
+  {
+    "src": "IMPLEMENTATION_SUMMARY.md",
+    "dst": "docs/IMPLEMENTATION_SUMMARY.md"
+  },
+  {
+    "src": "N8N_INTEGRATION_STATUS.md",
+    "dst": "docs/N8N_INTEGRATION_STATUS.md"
+  },
+  {
+    "src": "REALTIME_SYNC_STRATEGY.md",
+    "dst": "docs/REALTIME_SYNC_STRATEGY.md"
+  },
+  {
+    "src": "UNLOCK_KEY_TESTING.md",
+    "dst": "docs/UNLOCK_KEY_TESTING.md"
+  },
+  {
+    "src": "brand-infinity-workflows/MASTER_NODE_CONFIGURATION.md",
+    "dst": "docs/brand-infinity-workflows/MASTER_NODE_CONFIGURATION.md"
+  },
+  {
+    "src": "brand-infinity-workflows/README.md",
+    "dst": "docs/brand-infinity-workflows/README.md"
+  },
+  {
+    "src": "brand-infinity-workflows/main-workflows/n8n_cred_setup.md",
+    "dst": "docs/brand-infinity-workflows/main-workflows/n8n_cred_setup.md"
+  },
+  {
+    "src": "frontend/AUTH_SETUP.md",
+    "dst": "docs/frontend/AUTH_SETUP.md"
+  },
+  {
+    "src": "frontend/README.md",
+    "dst": "docs/frontend/README.md"
+  },
+  {
+    "src": "frontend/app/api/v1/conversation/README.md",
+    "dst": "docs/frontend/app/api/v1/conversation/README.md"
+  },
+  {
+    "src": "frontend/lib/agents/README.md",
+    "dst": "docs/frontend/lib/agents/README.md"
+  },
+  {
+    "src": "rules/README.md",
+    "dst": "docs/rules/README.md"
+  },
+  {
+    "src": "rules/conventions.md",
+    "dst": "docs/rules/conventions.md"
+  },
+  {
+    "src": "rules/project_context.md",
+    "dst": "docs/rules/project_context.md"
+  },
+  {
+    "src": "rules/system_prompt.md",
+    "dst": "docs/rules/system_prompt.md"
+  },
+  {
+    "src": "rules/user_prompt.md",
+    "dst": "docs/rules/user_prompt.md"
+  },
+  {
+    "src": "supabase/migrations/README_PHASE_6_PART_2.md",
+    "dst": "docs/supabase/migrations/README_PHASE_6_PART_2.md"
+  }
+]
