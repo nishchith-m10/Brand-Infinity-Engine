@@ -394,6 +394,8 @@ export default function SettingsPage() {
                       { value: 'gpt-5.2-instant', label: 'GPT-5.2 Instant (Fast)' },
                       { value: 'deepseek-chat-v3.2', label: 'DeepSeek V3.2 (Affordable)' },
                       { value: 'gemini-3-flash', label: 'Gemini 3 Flash (Fast)' },
+                      { value: 'kimi-k2-thinking', label: 'Kimi K2 Thinking (2M Context)' },
+                      { value: 'kimi-k2-chat', label: 'Kimi K2 Chat' },
                       // OpenRouter models (dynamically fetched)
                       ...openRouterModels.map(model => ({
                         value: model.id,
