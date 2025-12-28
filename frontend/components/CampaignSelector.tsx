@@ -23,7 +23,7 @@ export function CampaignSelector() {
   // Handle nested response structure: could be direct array or { data: campaigns }
   const campaigns: Campaign[] = Array.isArray(campaignsData) 
     ? campaignsData 
-    : (campaignsData as any)?.data || [];
+    : (campaignsData as unknown as { data?: Campaign[] })?.data || [];
   
   // Filter to only show active campaigns
   const activeCampaigns = campaigns;

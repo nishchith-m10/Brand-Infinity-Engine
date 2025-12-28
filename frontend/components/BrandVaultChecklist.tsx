@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { Check, ChevronDown, ChevronUp, ClipboardList, X } from "lucide-react";
+import { Check, ChevronDown, ChevronUp, ClipboardList } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Tooltip } from "@/components/ui/tooltip";
 
@@ -24,7 +24,7 @@ const STORAGE_KEY = 'brand_vault_checklist_minimized';
  * Floating chat-style checklist for Brand Vault setup.
  * Shows as a minimized badge or expanded panel in the bottom-right corner.
  */
-export function BrandVaultChecklist({ steps, onComplete }: BrandVaultChecklistProps) {
+export function BrandVaultChecklist({ steps }: BrandVaultChecklistProps) {
   const completedCount = steps.filter(s => s.completed).length;
   const progress = Math.round((completedCount / steps.length) * 100);
   const currentStepIndex = steps.findIndex(s => !s.completed);
@@ -32,23 +32,26 @@ export function BrandVaultChecklist({ steps, onComplete }: BrandVaultChecklistPr
   
   // Start with expanded (false) to match server render, then hydrate from localStorage
   const [isMinimized, setIsMinimized] = useState(false);
-  const [hasMounted, setHasMounted] = useState(false);
+  const [isMounted, setIsMounted] = useState(false);
 
-  // Load minimized state from localStorage AFTER mount to avoid hydration mismatch
+  // Hydrate on mount
   useEffect(() => {
     const stored = localStorage.getItem(STORAGE_KEY);
     if (stored === 'true') {
-      setIsMinimized(true);
+      setTimeout(() => setIsMinimized(true), 0);
     }
-    setHasMounted(true);
+    setTimeout(() => setIsMounted(true), 0);
   }, []);
 
-  // Persist minimized state (only after initial mount)
+  // Update localStorage
   useEffect(() => {
-    if (hasMounted) {
+    if (isMounted) {
       localStorage.setItem(STORAGE_KEY, String(isMinimized));
     }
-  }, [isMinimized, hasMounted]);
+  }, [isMinimized, isMounted]);
+
+  // Don't render until mounted to avoid hydration mismatch
+  if (!isMounted) return null;
 
   // Auto-hide when all complete
   if (allComplete) {
@@ -133,7 +136,7 @@ export function BrandVaultChecklist({ steps, onComplete }: BrandVaultChecklistPr
         </div>
         <div className="h-1.5 bg-slate-100 rounded-full overflow-hidden">
           <div 
-            className="h-full bg-gradient-to-r from-lamaPurple to-indigo-500 rounded-full transition-all duration-500"
+            className="h-full bg-linear-to-r from-lamaPurple to-indigo-500 rounded-full transition-all duration-500"
             style={{ width: `${progress}%` }}
           />
         </div>

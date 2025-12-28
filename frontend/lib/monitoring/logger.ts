@@ -10,9 +10,15 @@ interface LogEntry {
   level: LogLevel;
   context: string;
   message: string;
-  data?: any;
+  data?: unknown;
   userId?: string;
   sessionId?: string;
+}
+
+interface SentryWindow extends Window {
+  Sentry?: {
+    captureMessage: (message: string, options?: { level?: string; extra?: unknown }) => void;
+  };
 }
 
 class Logger {
@@ -21,7 +27,7 @@ class Logger {
   /**
    * Log with context and metadata
    */
-  private log(level: LogLevel, context: string, message: string, data?: any): void {
+  private log(level: LogLevel, context: string, message: string, data?: unknown): void {
     const entry: LogEntry = {
       timestamp: new Date().toISOString(),
       level,
@@ -47,21 +53,21 @@ class Logger {
     }
   }
 
-  debug(context: string, message: string, data?: any): void {
+  debug(context: string, message: string, data?: unknown): void {
     if (this.isDevelopment) {
       this.log('debug', context, message, data);
     }
   }
 
-  info(context: string, message: string, data?: any): void {
+  info(context: string, message: string, data?: unknown): void {
     this.log('info', context, message, data);
   }
 
-  warn(context: string, message: string, data?: any): void {
+  warn(context: string, message: string, data?: unknown): void {
     this.log('warn', context, message, data);
   }
 
-  error(context: string, message: string, error?: any): void {
+  error(context: string, message: string, error?: unknown): void {
     this.log('error', context, message, {
       error: error instanceof Error ? {
         name: error.name,
@@ -76,11 +82,14 @@ class Logger {
    */
   private sendToMonitoring(entry: LogEntry): void {
     // In production, integrate with Sentry, DataDog, or similar
-    if (typeof window !== 'undefined' && (window as any).Sentry) {
-      (window as any).Sentry.captureMessage(entry.message, {
-        level: entry.level,
-        extra: entry.data,
-      });
+    if (typeof window !== 'undefined') {
+      const sw = window as unknown as SentryWindow;
+      if (sw.Sentry) {
+        sw.Sentry.captureMessage(entry.message, {
+          level: entry.level,
+          extra: entry.data,
+        });
+      }
     }
   }
 
@@ -91,7 +100,7 @@ class Logger {
     context: string,
     operation: string,
     duration: number,
-    metadata?: Record<string, any>
+    metadata?: Record<string, unknown>
   ): void {
     this.info(context, `Performance: ${operation}`, {
       duration_ms: duration,
@@ -148,13 +157,13 @@ export const logger = new Logger();
  */
 export function trackPerformance(context: string, operation: string) {
   return function (
-    target: any,
+    target: object,
     propertyKey: string,
     descriptor: PropertyDescriptor
   ) {
     const originalMethod = descriptor.value;
 
-    descriptor.value = async function (...args: any[]) {
+    descriptor.value = async function (...args: unknown[]) {
       const start = Date.now();
       try {
         const result = await originalMethod.apply(this, args);

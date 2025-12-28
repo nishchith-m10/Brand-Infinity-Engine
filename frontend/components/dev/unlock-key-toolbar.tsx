@@ -19,7 +19,9 @@ export function UnlockKeyToolbar() {
     if (process.env.NODE_ENV !== 'development') return;
 
     const key = getStoredUnlockKey();
-    setIsActive(!!key);
+    if (key) {
+      setTimeout(() => setIsActive(true), 0);
+    }
   }, []);
 
   if (process.env.NODE_ENV !== 'development' || !isActive) {

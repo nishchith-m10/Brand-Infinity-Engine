@@ -46,6 +46,16 @@ export interface RAGSearchOptions {
   matchCount?: number;
 }
 
+interface MatchResult {
+  id: string;
+  file_name: string;
+  file_url: string;
+  asset_type: string;
+  content: string;
+  similarity: number;
+  metadata?: Record<string, unknown>;
+}
+
 /**
  * Embed a text prompt using OpenAI embeddings
  * Cost: ~$0.000002 per query
@@ -76,7 +86,7 @@ export async function getBrandContext(
 
     // 2. Vector search
     const supabase = await createClient();
-    let matches: any[] = [];
+    let matches: MatchResult[] = [];
 
     if (kbIds && kbIds.length > 0) {
       // Use KB-filtered search (new Phase 6 function)
@@ -109,26 +119,26 @@ export async function getBrandContext(
     }
 
     // 3. Extract relevant context
-    const imageMatches = matches.filter((m: any) => 
+    const imageMatches = matches.filter((m: MatchResult) => 
       m.file_url && (m.asset_type === 'logo' || m.asset_type === 'product' || m.asset_type === 'color')
     );
 
     return {
-      matched_assets: matches.map((m: any) => m.file_name),
-      brand_voice: matches.find((m: any) => m.asset_type === 'guideline')?.metadata?.voice,
-      primary_colors: matches.find((m: any) => m.asset_type === 'color')?.metadata?.colors,
+      matched_assets: matches.map((m: MatchResult) => m.file_name),
+      brand_voice: matches.find((m: MatchResult) => m.asset_type === 'guideline')?.metadata?.voice as string | undefined,
+      primary_colors: matches.find((m: MatchResult) => m.asset_type === 'color')?.metadata?.colors as string[] | undefined,
       product_images: matches
-        .filter((m: any) => m.asset_type === 'product')
-        .map((m: any) => m.file_url),
-      logo_url: matches.find((m: any) => m.asset_type === 'logo')?.file_url,
+        .filter((m: MatchResult) => m.asset_type === 'product')
+        .map((m: MatchResult) => m.file_url),
+      logo_url: matches.find((m: MatchResult) => m.asset_type === 'logo')?.file_url,
       // NEW: Image URLs for vision API
-      image_urls: imageMatches.map((m: any) => ({
+      image_urls: imageMatches.map((m: MatchResult) => ({
         url: m.file_url,
         type: m.asset_type,
         file_name: m.file_name,
       })),
       // NEW: Full asset details for advanced processing
-      assets: matches.map((m: any) => ({
+      assets: matches.map((m: MatchResult) => ({
         id: m.id,
         file_name: m.file_name,
         file_url: m.file_url,

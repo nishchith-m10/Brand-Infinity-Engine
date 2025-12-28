@@ -8,7 +8,7 @@ export class AgentError extends Error {
     message: string,
     public code: string,
     public retryable: boolean = false,
-    public context?: Record<string, any>
+    public context?: Record<string, unknown>
   ) {
     super(message);
     this.name = 'AgentError';

@@ -6,12 +6,13 @@ import {
   LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer
 } from 'recharts';
 import { 
-  Users, Video, Calendar, ArrowUpRight, ArrowDownRight, 
+  Video, 
   Activity, TrendingUp, PenTool, MonitorPlay, Share2, Radio, DollarSign
 } from "lucide-react";
 import { useTrends, useDashboardStats, useCampaigns } from "@/lib/hooks/use-api";
 import { motion } from "framer-motion";
 import { OnboardingWizard } from "@/components/OnboardingWizard";
+import type { Campaign } from "@/lib/hooks/use-current-campaign";
 
 export default function DashboardPage() {
   const { data: trends } = useTrends();
@@ -21,7 +22,7 @@ export default function DashboardPage() {
   // Check if user has campaigns
   const campaigns = Array.isArray(campaignsData) 
     ? campaignsData 
-    : (campaignsData as any)?.data || [];
+    : (campaignsData as unknown as { data?: Campaign[] })?.data || [];
   const hasCampaigns = campaigns.length > 0;
   
   // Show onboarding if no campaigns

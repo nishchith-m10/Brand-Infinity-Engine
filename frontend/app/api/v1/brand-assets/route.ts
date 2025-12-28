@@ -23,7 +23,7 @@ const CreateAssetSchema = z.object({
   file_url: z.string().url(),
   file_name: z.string(),
   content_text: z.string().optional(), // NEW: For text-based content
-  metadata: z.record(z.string(), z.any()).optional(),
+  metadata: z.record(z.string(), z.unknown()).optional(),
   generate_embedding: z.boolean().default(true),
 });
 
@@ -137,14 +137,24 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    const insertData: any = {
+    const insertData: {
+      brand_id: string;
+      knowledge_base_id: string | null;
+      asset_type: string;
+      file_url: string;
+      file_name: string;
+      content_text: string | null;
+      metadata: Record<string, unknown>;
+      is_active: boolean;
+      embedding?: number[];
+    } = {
       brand_id: params.brand_id,
-      knowledge_base_id: params.knowledge_base_id || null, // NEW: KB association
+      knowledge_base_id: params.knowledge_base_id || null,
       asset_type: params.asset_type,
       file_url: params.file_url,
       file_name: params.file_name,
-      content_text: params.content_text || null, // NEW: Text content
-      metadata: params.metadata || {},
+      content_text: params.content_text || null,
+      metadata: (params.metadata as Record<string, unknown>) || {},
       is_active: true,
     };
 
@@ -298,7 +308,7 @@ export async function PATCH(request: NextRequest) {
   }
 
   const body = await request.json();
-  const updates: any = {};
+  const updates: Record<string, unknown> = {};
 
   if (typeof body.is_active === 'boolean') {
     updates.is_active = body.is_active;

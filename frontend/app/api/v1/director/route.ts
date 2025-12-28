@@ -85,14 +85,14 @@ ${hasImages ? '- image_context: brief description of what you observe in the bra
 Only return valid JSON, no markdown.`;
 
     // Build user message content
-    const userContent: any = hasImages && brandContext
+    const userContent: OpenAI.Chat.Completions.ChatCompletionContentPart[] | string = hasImages && brandContext
       ? [
           { type: 'text', text: prompt },
-          ...brandContext.image_urls!.map((img) => ({
-            type: 'image_url',
+          ...(brandContext.image_urls || []).map((img) => ({
+            type: 'image_url' as const,
             image_url: {
               url: img.url,
-              detail: 'auto',
+              detail: 'auto' as const,
             },
           })),
         ]

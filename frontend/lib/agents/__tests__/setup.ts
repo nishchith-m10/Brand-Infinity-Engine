@@ -10,7 +10,7 @@ process.env.LLM_KEY_ENCRYPTION_SECRET = "test-encryption-key-32-chars!!";
 
 // Mock Supabase client
 export const mockSupabase = {
-  from: (table: string) => ({
+  from: (_: string) => ({ // eslint-disable-line @typescript-eslint/no-unused-vars
     select: () => ({
       eq: () => ({
         single: () => Promise.resolve({ data: null, error: null }),
@@ -101,6 +101,7 @@ expect.extend({
 
 // TypeScript declarations for custom matchers
 declare global {
+  // eslint-disable-next-line @typescript-eslint/no-namespace
   namespace jest {
     interface Matchers<R> {
       toBeValidUUID(): R;

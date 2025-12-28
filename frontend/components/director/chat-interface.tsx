@@ -66,7 +66,7 @@ export function ChatInterface({ brandId, sessionId, onSessionCreate }: ChatInter
       const res = await fetch(`/api/v1/conversation/${sid}`, {
         headers: { 'Content-Type': 'application/json' },
       });
-      const data = await res.json();
+      const data = (await res.json()) as { success: boolean; messages: ConversationMessage[] };
       if (data.success && data.messages) {
         setMessages(data.messages);
       }
@@ -144,7 +144,7 @@ export function ChatInterface({ brandId, sessionId, onSessionCreate }: ChatInter
         }),
       });
 
-      const data = await res.json();
+      const data = (await res.json()) as { success: boolean; session_id: string; response: { content: string; questions?: ClarifyingQuestion[] } };
       
       if (data.success) {
         setCurrentSessionId(data.session_id);
@@ -204,7 +204,7 @@ export function ChatInterface({ brandId, sessionId, onSessionCreate }: ChatInter
         }),
       });
 
-      const data = await res.json();
+      const data = (await res.json()) as { success: boolean; response: { content: string; questions?: ClarifyingQuestion[] } };
       
       if (data.success) {
         // Add user message

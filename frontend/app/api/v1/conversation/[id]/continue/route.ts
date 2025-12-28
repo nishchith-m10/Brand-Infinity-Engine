@@ -15,7 +15,7 @@ import {
   clearCachedQuestions,
 } from "@/lib/redis/session-cache";
 import { createExecutiveAgent } from "@/lib/agents/executive";
-import type { ClarifyingQuestion } from "@/lib/agents/types";
+import type { ClarifyingQuestion, TaskPlan } from "@/lib/agents/types";
 
 interface ContextPayload {
   campaign_id: string;
@@ -46,8 +46,8 @@ interface ContinueResponse {
   response?: {
     type: "message" | "questions" | "plan";
     content: string;
-    questions?: any[];
-    plan?: any;
+    questions?: ClarifyingQuestion[];
+    plan?: TaskPlan;
   };
   state?: string;
   error?: {
@@ -211,7 +211,7 @@ export async function POST(
       content: assistantContent,
       metadata: {
         actionTaken: action.type,
-        modelUsed: agent['agentModel'],
+        modelUsed: agent.getModel(),
         provider: 'openai',
       },
     });

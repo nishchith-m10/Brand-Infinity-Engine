@@ -24,6 +24,10 @@ export class ExecutiveAgent {
     this.userId = userId || 'system'; // Fallback to 'system' for testing
   }
 
+  public getModel(): string {
+    return this.agentModel;
+  }
+
   /**
    * Main entry point: Process user message and decide action
    */
@@ -160,7 +164,7 @@ Return ONLY valid JSON matching this structure.`;
    */
   async processAnswers(params: {
     session: ConversationSession;
-    answers: Record<string, any>;
+    answers: Record<string, unknown>;
   }): Promise<ExecutiveAction> {
     // Merge answers into intent
     const updatedIntent = {

@@ -25,8 +25,14 @@ export default function VerifyPasscodePage() {
     const tryExchange = async () => {
       try {
         // Preferred method if available
-        if (typeof (supabase.auth as any).getSessionFromUrl === 'function') {
-          const { data, error } = await (supabase.auth as any).getSessionFromUrl({ storeSession: true });
+        // Type cast for auth extension methods
+        const auth = supabase.auth as unknown as {
+          getSessionFromUrl: (opts: { storeSession: boolean }) => Promise<{ data: { session: { access_token: string, refresh_token: string } | null }, error: unknown }>;
+          exchangeCodeForSession: (opts: { code: string }) => Promise<{ data: { session: { access_token: string, refresh_token: string } | null }, error: unknown }>;
+        };
+
+        if (typeof auth.getSessionFromUrl === 'function') {
+          const { data, error } = await auth.getSessionFromUrl({ storeSession: true });
           if (!error && data?.session) {
             await storeSessionOnServer(data.session);
             return;
@@ -36,8 +42,8 @@ export default function VerifyPasscodePage() {
         // Fallback: try exchangeCodeForSession if available
         const url = new URL(window.location.href);
         const code = url.searchParams.get('code');
-        if (code && typeof (supabase.auth as any).exchangeCodeForSession === 'function') {
-          const { data, error } = await (supabase.auth as any).exchangeCodeForSession({ code });
+        if (code && typeof auth.exchangeCodeForSession === 'function') {
+          const { data, error } = await auth.exchangeCodeForSession({ code });
           if (!error && data?.session) {
             await storeSessionOnServer(data.session);
             return;
@@ -48,7 +54,7 @@ export default function VerifyPasscodePage() {
       }
     };
 
-    const storeSessionOnServer = async (session: any) => {
+    const storeSessionOnServer = async (session: { access_token: string, refresh_token: string }) => {
       try {
         const storeRes = await fetch('/api/auth/store-session', {
           method: 'POST',

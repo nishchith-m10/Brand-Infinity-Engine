@@ -82,7 +82,7 @@ export interface ConversationMessage {
 
 export interface ParsedIntent {
   // Core parameters
-  content_type?: "video" | "image" | "carousel" | "story";
+  content_type?: "video" | "image" | "carousel" | "story" | "script" | "social_post";
   platform?: "tiktok" | "instagram_reels" | "youtube_shorts" | "facebook" | "linkedin";
   product?: string;
   

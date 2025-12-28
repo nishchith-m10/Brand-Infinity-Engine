@@ -90,11 +90,11 @@ export function KBManager({ brandId, campaignId, onKBSelect }: KBManagerProps) {
     setLoading(true);
     try {
       const res = await fetch(`/api/v1/knowledge-bases?brand_id=${brandId}&campaign_id=${campaignId}`);
-      const { data, success, error } = await res.json();
+      const { data, success } = (await res.json()) as { data: KnowledgeBase[]; success: boolean };
       if (success) {
         setKBs(data || []);
       }
-    } catch (_err) {
+    } catch {
       showToast({ type: 'error', message: 'Failed to load knowledge bases' });
     } finally {
       setLoading(false);
@@ -128,7 +128,7 @@ export function KBManager({ brandId, campaignId, onKBSelect }: KBManagerProps) {
         setDeleteConfirmModal({ isOpen: false, kb: null });
         fetchKBs();
       }
-    } catch (_err) {
+    } catch {
       showToast({ type: 'error', message: 'Failed to delete' });
     }
   };
@@ -144,7 +144,7 @@ export function KBManager({ brandId, campaignId, onKBSelect }: KBManagerProps) {
       if (res.ok) {
         fetchKBs();
       }
-    } catch (_err) {
+    } catch {
       showToast({ type: 'error', message: 'Failed to update' });
     }
   };
@@ -404,7 +404,7 @@ function KBCreateModal({ brandId, campaignId, editingKB, onClose, onSuccess }: K
         body: JSON.stringify(body),
       });
 
-      const data = await res.json();
+      const data = (await res.json()) as { success: boolean; error?: { message: string } };
       if (data.success) {
         showToast({
           type: 'success',

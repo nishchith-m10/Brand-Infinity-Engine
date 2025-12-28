@@ -13,6 +13,7 @@ import type {
   ConversationSession,
   ConversationMessage,
   ClarifyingQuestion,
+  TaskPlan,
 } from '@/lib/agents/types';
 
 // ============================================================================
@@ -178,7 +179,12 @@ export async function getCachedStats(
     try {
       const cached = await redis.get(REDIS_KEYS.SESSION_STATS(sessionId));
       if (cached) {
-        return { stats: cached as any, error: null };
+        return { stats: cached as Array<{
+          role: string;
+          message_count: number;
+          total_tokens: number;
+          total_cost: number;
+        }>, error: null };
       }
     } catch (error) {
       console.error('[SessionCache] Redis get stats failed:', error);
@@ -287,7 +293,7 @@ export async function clearCachedQuestions(sessionId: string): Promise<void> {
 /**
  * Get task plan from cache
  */
-export async function getCachedTaskPlan(sessionId: string): Promise<any | null> {
+export async function getCachedTaskPlan(sessionId: string): Promise<TaskPlan | null> {
   const redis = getRedisClient();
   if (!redis) return null;
 
@@ -304,7 +310,7 @@ export async function getCachedTaskPlan(sessionId: string): Promise<any | null> 
  */
 export async function setCachedTaskPlan(
   sessionId: string,
-  plan: any
+  plan: TaskPlan
 ): Promise<void> {
   const redis = getRedisClient();
   if (!redis) return;

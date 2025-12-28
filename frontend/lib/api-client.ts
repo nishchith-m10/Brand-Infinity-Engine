@@ -228,7 +228,7 @@ export interface Platform {
 // Campaign types (aggregate)
 export interface Campaign {
   id: string;
-  name: string;
+  campaign_name: string;
   brand_id: string;
   status: 'draft' | 'active' | 'completed' | 'paused';
   brief?: Brief;

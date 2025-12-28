@@ -82,7 +82,7 @@ export async function updateSession(
   updates: {
     state?: ConversationSession["state"];
     parsed_intent?: Partial<ParsedIntent>;
-    answered_questions?: Record<string, any>;
+    answered_questions?: Record<string, unknown>;
     pending_questions?: ClarifyingQuestion[];
     active_task_plan_id?: string | null;
   }
@@ -191,12 +191,12 @@ export async function createMessage(params: {
     latencyMs?: number;
     actionTaken?: string;
     questionsAsked?: ClarifyingQuestion[];
-    delegationPlan?: any;
+    delegationPlan?: unknown;
   };
 }): Promise<{ message: ConversationMessage | null; error: string | null }> {
   const supabase = await createClient();
 
-  const insertData: any = {
+  const insertData: Record<string, unknown> = {
     session_id: params.sessionId,
     brand_id: params.brandId,
     user_id: params.userId,

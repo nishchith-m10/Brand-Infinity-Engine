@@ -23,7 +23,7 @@ export async function GET(
     }
 
     // RLS will automatically filter results to user's accessible campaigns
-    let { data: campaign, error } = await supabase
+    const { data: campaign, error } = await supabase
       .from('campaigns')
       .select(`
         *,
@@ -142,7 +142,7 @@ export async function PUT(
     }
 
     // Update with RLS enforcement
-    let { data: campaign, error } = await supabase
+    const { data: campaign, error } = await supabase
       .from('campaigns')
       .update(updateData)
       .eq('id', campaignId)

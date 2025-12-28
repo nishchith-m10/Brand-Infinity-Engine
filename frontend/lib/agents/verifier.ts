@@ -172,7 +172,7 @@ Return the corrected content, preserving the original tone: ${params.intent.tone
   async checkCriterion(params: {
     content: string;
     criterion: keyof QualityChecklist;
-    requirements: any;
+    requirements: unknown;
   }): Promise<{ passed: boolean; details: string }> {
     const criterionPrompts: Record<keyof QualityChecklist, string> = {
       brand_alignment: 'Does this content align with the brand voice, values, and positioning?',
