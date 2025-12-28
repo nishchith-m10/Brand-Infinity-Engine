@@ -19,7 +19,8 @@ import {
   Sparkles,
   ChevronDown,
   Plus,
-  Shield
+  Shield,
+  EyeOff
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -141,6 +142,7 @@ export default function BrandVaultPage() {
   const [assets, setAssets] = useState<BrandAsset[]>([]);
   const [loading, setLoading] = useState(true);
   const [filter, setFilter] = useState<AssetCategory>('all');
+  const [showInactive, setShowInactive] = useState(false);
   
   // File input ref for upload
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -465,15 +467,17 @@ export default function BrandVaultPage() {
     }
   };
 
-  const filteredAssets = filter === 'all' 
-    ? assets 
-    : assets.filter(a => a.asset_type === filter);
+  // Filter assets by category and active status
+  const filteredAssets = assets
+    .filter(a => filter === 'all' || a.asset_type === filter)
+    .filter(a => showInactive || a.is_active);
 
   const categories: AssetCategory[] = ['all', 'logo', 'product', 'guideline', 'color', 'font'];
   
-  // Count assets per category for filter badges
+  // Count active assets per category for filter badges
   const categoryCounts = categories.reduce((acc, cat) => {
-    acc[cat] = cat === 'all' ? assets.length : assets.filter(a => a.asset_type === cat).length;
+    const activeAssets = assets.filter(a => showInactive || a.is_active);
+    acc[cat] = cat === 'all' ? activeAssets.length : activeAssets.filter(a => a.asset_type === cat).length;
     return acc;
   }, {} as Record<AssetCategory, number>);
   
@@ -606,6 +610,20 @@ export default function BrandVaultPage() {
 
             {/* Filter + Upload */}
             <div className="flex items-center gap-3">
+              {/* Show Inactive Toggle */}
+              <button
+                onClick={() => setShowInactive(!showInactive)}
+                className={`px-2.5 py-1 rounded-full text-xs font-medium transition-colors flex items-center gap-1.5 ${
+                  showInactive
+                    ? 'bg-slate-600 text-white' 
+                    : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
+                }`}
+                title={showInactive ? 'Hide deactivated assets' : 'Show deactivated assets'}
+              >
+                <EyeOff className={`h-3 w-3 ${showInactive ? 'opacity-100' : 'opacity-60'}`} />
+                {showInactive ? 'Showing Inactive' : 'Show Inactive'}
+              </button>
+
               <div className="flex gap-1.5 flex-wrap">
                 {categories.map((cat) => {
                   const count = categoryCounts[cat];
