@@ -30,9 +30,32 @@ export default function VerifyPasscodePage() {
           return;
         }
         if (data?.session) {
-          console.log('[VerifyPasscode] Session obtained via OAuth callback, redirecting to dashboard');
-          // force full reload so middleware sees the cookie/session
-          window.location.href = '/dashboard';
+          console.log('[VerifyPasscode] Session obtained via OAuth callback, storing server-side session');
+
+          try {
+            const storeRes = await fetch('/api/auth/store-session', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                access_token: data.session.access_token,
+                refresh_token: data.session.refresh_token,
+              }),
+              credentials: 'include',
+            });
+
+            const storeJson = await storeRes.json();
+            if (storeJson.success) {
+              console.log('[VerifyPasscode] Server-side session stored, redirecting to dashboard');
+              window.location.href = '/dashboard';
+              return;
+            }
+
+            console.warn('[VerifyPasscode] Failed to store session on server, falling back to redirect', storeJson);
+            window.location.href = '/dashboard';
+          } catch (err) {
+            console.error('[VerifyPasscode] Error storing session on server', err);
+            window.location.href = '/dashboard';
+          }
         }
       } catch (err) {
         console.error('[VerifyPasscode] unexpected error while exchanging session', err);
