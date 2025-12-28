@@ -103,6 +103,8 @@ export interface LLMResponse {
     name: string;
     arguments: string;
   };
+  costUsd?: number;
+  latencyMs?: number;
 }
 
 export interface TokenUsage {

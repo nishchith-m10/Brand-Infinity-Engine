@@ -195,12 +195,12 @@ Return as JSON with milestones and dates.`;
       return await n8n.triggerContentGeneration({
         ...params.data,
         session_id: params.sessionId,
-      } as any);
+      } as { content_type: string; brief: string; specifications: Record<string, unknown>; brand_id: string; session_id: string; });
     } else {
       return await n8n.triggerVideoProduction({
         ...params.data,
         session_id: params.sessionId,
-      } as any);
+      } as { script: string; visual_specs: Record<string, unknown>; brand_assets: string[]; session_id: string; });
     }
   }
 }

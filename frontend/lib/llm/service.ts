@@ -62,8 +62,14 @@ export class LLMService {
         { input: response.usage.inputTokens, output: response.usage.outputTokens }
       );
 
-      // Response already has all required fields
-      return response;
+      // Add metadata
+      const latency = Date.now() - startTime;
+      
+      return {
+        ...response,
+        costUsd: cost,
+        latencyMs: latency,
+      };
     } catch (error) {
       console.error('[LLMService] Generation failed:', error);
       throw error;

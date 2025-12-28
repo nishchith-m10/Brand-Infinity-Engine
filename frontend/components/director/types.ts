@@ -5,10 +5,8 @@
 
 import {
   ConversationSession,
-  ConversationMessage,
   ClarifyingQuestion,
   TaskPlan,
-  AgentResponse,
   BrandContext,
 } from "@/lib/agents/types";
 import { LLMProvider, PresetMode } from "@/lib/llm/types";
@@ -90,19 +88,19 @@ export interface DirectorChatProps {
   initialKBs?: string[];
   onSessionStart?: (sessionId: string) => void;
   onPlanGenerated?: (plan: TaskPlan) => void;
-  onComplete?: (outputs: any) => void;
+  onComplete?: (outputs: Record<string, unknown>) => void;
 }
 
 export interface MessageBubbleProps {
   message: ChatMessage;
-  onQuestionAnswer?: (questionId: string, answer: any) => void;
+  onQuestionAnswer?: (questionId: string, answer: unknown) => void;
   onPlanConfirm?: () => void;
   onPlanReject?: () => void;
 }
 
 export interface QuestionFormProps {
   questions: ClarifyingQuestion[];
-  onSubmit: (answers: Record<string, any>) => void;
+  onSubmit: (answers: Record<string, unknown>) => void;
   isSubmitting?: boolean;
 }
 
@@ -168,7 +166,7 @@ export interface MessageContentProps {
 
 export interface QuestionButtonProps {
   question: ClarifyingQuestion;
-  onSelect: (answer: any) => void;
+  onSelect: (answer: unknown) => void;
   disabled?: boolean;
 }
 
@@ -295,7 +293,7 @@ export interface UseDirectorChatReturn {
   
   // Actions
   sendMessage: (content: string) => Promise<void>;
-  answerQuestions: (answers: Record<string, any>) => Promise<void>;
+  answerQuestions: (answers: Record<string, unknown>) => Promise<void>;
   confirmPlan: () => Promise<void>;
   rejectPlan: () => Promise<void>;
   cancelExecution: () => Promise<void>;

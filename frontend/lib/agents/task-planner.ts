@@ -116,7 +116,7 @@ Break this into specific tasks.`;
     });
 
     // Copywriting tasks
-    if (intent.content_type === 'video' || (intent.content_type as any) === 'script') {
+    if (intent.content_type === 'video' || intent.content_type === 'script') {
       tasks.push({
         id: `task_${taskId++}`,
         type: 'copy',
@@ -131,7 +131,7 @@ Break this into specific tasks.`;
     }
 
     const socialPlatforms = ['tiktok', 'instagram_reels', 'youtube_shorts', 'facebook', 'linkedin'];
-    if (socialPlatforms.includes(intent.platform as string) || (intent.content_type as any) === 'social_post') {
+    if (socialPlatforms.includes(intent.platform as string) || intent.content_type === 'social_post') {
       tasks.push({
         id: `task_${taskId++}`,
         type: 'copy',
