@@ -73,7 +73,7 @@ export default function CreativeDirectorPage() {
   }
 
   return (
-    <div className="w-full h-full flex flex-col px-4 sm:px-6 lg:px-8 py-6 sm:py-8">
+    <div className="w-full flex-1 flex flex-col min-h-0">
       <ChatInterfaceResponsive
         brandId={brandId}
         sessionId={sessionId}
