@@ -1,6 +1,8 @@
 import { NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
 
+export const dynamic = 'force-dynamic'; // Prevent caching
+
 // Statuses that should NOT be counted in "Total Campaigns" on dashboard
 const EXCLUDED_STATUSES = ['archived', 'pending_deletion'];
 
