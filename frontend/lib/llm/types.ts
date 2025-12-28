@@ -123,7 +123,7 @@ export interface LLMTool {
     description: string;
     parameters: {
       type: "object";
-      properties: Record<string, any>;
+      properties: Record<string, unknown>;
       required?: string[];
     };
   };
@@ -131,7 +131,7 @@ export interface LLMTool {
 
 export interface FunctionCall {
   name: string;
-  arguments: Record<string, any>;
+  arguments: Record<string, unknown>;
 }
 
 // ============================================================================
@@ -217,7 +217,7 @@ export interface LLMError {
   provider: LLMProvider;
   retryable: boolean;
   retry_after?: number;  // seconds
-  original_error?: any;
+  original_error?: unknown;
 }
 
 export type LLMErrorCode = 

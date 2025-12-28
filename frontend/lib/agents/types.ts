@@ -39,7 +39,7 @@ export interface ConversationSession {
   
   // Collected information
   parsed_intent: Partial<ParsedIntent>;
-  answered_questions: Record<string, any>;
+  answered_questions: Record<string, unknown>;
   pending_questions: ClarifyingQuestion[];
   
   // Context
@@ -105,14 +105,14 @@ export interface ClarifyingQuestion {
   type: "choice" | "text" | "confirm" | "number";
   options?: string[];
   required: boolean;
-  default_value?: any;
+  default_value?: unknown;
   help_text?: string;
 }
 
 export interface QuestionAnswer {
   question_id: string;
   field: string;
-  value: any;
+  value: unknown;
   timestamp: string;
 }
 
@@ -145,7 +145,7 @@ export interface TaskPlan {
   completed_at: string | null;
   
   // Results
-  outputs?: Record<string, any>;
+  outputs?: Record<string, unknown>;
   errors?: TaskError[];
   
   created_at: string;
@@ -158,8 +158,8 @@ export interface Task {
   name: string;
   manager: AgentType;
   dependencies: string[];  // Task IDs
-  inputs: Record<string, any>;
-  outputs?: Record<string, any>;
+  inputs: Record<string, unknown>;
+  outputs?: Record<string, unknown>;
   status: "pending" | "running" | "completed" | "failed" | "skipped";
   parallel_group?: number;  // Tasks with same group can run in parallel
   
@@ -191,17 +191,17 @@ export interface DelegationPlan {
 export interface StrategyTask {
   objective: string;
   target_audience: string;
-  platform_specs: any;
+  platform_specs: unknown;
 }
 
 export interface CopyTask {
-  brief: any;
+  brief: unknown;
   style: string;
-  length_constraints: any;
+  length_constraints: unknown;
 }
 
 export interface ProductionTask {
-  script: any;
+  script: unknown;
   assets: string[];
   platform: string;
 }
@@ -239,7 +239,7 @@ export interface BrandAsset {
   name: string;
   type: "image" | "video" | "document" | "logo" | "font";
   url: string;
-  metadata?: Record<string, any>;
+  metadata?: Record<string, unknown>;
 }
 
 export interface Product {
@@ -334,7 +334,7 @@ export interface ExecutionResult {
   success: boolean;
   partial: boolean;  // Some tasks succeeded, some failed
   
-  results: Record<string, any>;  // task_id → output
+  results: Record<string, unknown>;  // task_id → output
   failed_tasks: {
     id: string;
     name: string;
@@ -370,7 +370,7 @@ export interface PlatformSpecs {
 
 export interface ExtractedInfo {
   field: string;
-  value: any;
+  value: unknown;
   confidence: number;  // 0-1
   source: "explicit" | "inferred" | "knowledge_base";
 }

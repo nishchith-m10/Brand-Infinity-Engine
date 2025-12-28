@@ -221,3 +221,4 @@ n8n_data/
 !docker-compose.yml
 .env.local
 mcp_config.json
+.vercel
