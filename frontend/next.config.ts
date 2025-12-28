@@ -65,34 +65,19 @@ const nextConfig: NextConfig = {
   },
 };
 
-// Sentry configuration for error tracking and performance monitoring
-export default withSentryConfig(nextConfig, {
-  // For all available options, see:
-  // https://github.com/getsentry/sentry-webpack-plugin#options
+// Sentry configuration temporarily disabled due to Edge runtime compatibility issues
+// The withSentryConfig wrapper injects code that uses __dirname, causing middleware failures
+// TODO: Re-enable when Sentry provides proper edge runtime support or we find a workaround
 
-  org: process.env.SENTRY_ORG,
-  project: process.env.SENTRY_PROJECT,
+// export default withSentryConfig(nextConfig, {
+//   org: process.env.SENTRY_ORG,
+//   project: process.env.SENTRY_PROJECT,
+//   silent: !process.env.CI,
+//   widenClientFileUpload: true,
+//   reactComponentAnnotation: { enabled: true },
+//   tunnelRoute: "/monitoring",
+//   disableLogger: true,
+//   automaticVercelMonitors: true,
+// });
 
-  // Only print logs for uploading source maps in CI
-  silent: !process.env.CI,
-
-  // Upload a larger set of source maps for prettier stack traces
-  widenClientFileUpload: true,
-
-  // Automatically annotate React components for better debugging
-  reactComponentAnnotation: {
-    enabled: true,
-  },
-
-  // Route browser requests to Sentry through a Next.js rewrite to circumvent ad-blockers
-  tunnelRoute: "/monitoring",
-
-  // Hides source maps from generated client bundles
-
-
-  // Automatically tree-shake Sentry logger statements
-  disableLogger: true,
-
-  // Enables automatic instrumentation of Vercel Cron Monitors
-  automaticVercelMonitors: true,
-});
+export default nextConfig;
