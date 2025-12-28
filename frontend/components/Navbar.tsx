@@ -16,10 +16,13 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { Search, MessageSquare, Megaphone, Bell, Settings, LogOut } from "lucide-react";
 import { CampaignSelector } from "@/components/CampaignSelector";
+import { useCampaignStore } from "@/lib/hooks/use-current-campaign";
 
 export default function Navbar() {
   const router = useRouter();
   const { user, signOut } = useAuth();
+  const clearCampaign = useCampaignStore((state) => state.clearCampaign);
+
   return (
     <div className="flex items-center justify-between p-4">
       {/* CAMPAIGN SELECTOR */}
@@ -67,7 +70,14 @@ export default function Navbar() {
               </Link>
             </DropdownMenuItem>
             <DropdownMenuSeparator />
-            <DropdownMenuItem className="text-red-600 focus:bg-red-50 focus:text-red-600 cursor-pointer" onClick={async () => { await signOut(); router.push('/login'); }}>
+            <DropdownMenuItem 
+              className="text-red-600 focus:bg-red-50 focus:text-red-600 cursor-pointer" 
+              onClick={async () => { 
+                clearCampaign(); // Clear local storage campaign
+                await signOut(); 
+                router.push('/login'); 
+              }}
+            >
                <LogOut className="mr-2 h-4 w-4" />
                <span>Sign Out</span>
             </DropdownMenuItem>
