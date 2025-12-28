@@ -75,9 +75,10 @@ export async function GET() {
       0
     );
 
-    // Count active campaigns (not draft or completed)
+    // Count active campaigns (explicit whitelist)
+    // Only count truly active or paused campaigns. Ignore draft, completed, archived, etc.
     const activeCampaigns = Object.entries(campaignsByStatus)
-      .filter(([status]) => !['draft', 'completed'].includes(status))
+      .filter(([status]) => ['active', 'paused'].includes(status))
       .reduce((sum, [, count]) => sum + count, 0);
 
     return NextResponse.json({
