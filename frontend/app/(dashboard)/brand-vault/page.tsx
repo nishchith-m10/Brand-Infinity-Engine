@@ -26,6 +26,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { useToast } from '@/lib/hooks/use-toast';
+import { ToastContainer } from '@/components/ui/toast-container';
 import { BrandVaultChecklist } from '@/components/BrandVaultChecklist';
 import { KBManager } from '@/components/KBManager';
 import { Tooltip } from '@/components/ui/tooltip';
@@ -157,7 +158,7 @@ export default function BrandVaultPage() {
     assetId: null,
   });
 
-  const { showToast } = useToast();
+  const { toasts, showToast, dismissToast } = useToast();
   const { user } = useAuth();
   const { campaign, campaignId } = useCurrentCampaign();
 
@@ -373,10 +374,20 @@ export default function BrandVaultPage() {
       // Determine asset type based on file
       const isImage = file.type.startsWith('image/');
       const isPdf = file.type === 'application/pdf';
-      let assetType: 'logo' | 'product' | 'guideline' | 'other' = 'other';
+      const isFont = file.name.match(/\.(ttf|otf|woff|woff2|eot)$/i);
+      let assetType: 'logo' | 'product' | 'guideline' | 'color' | 'font' | 'other' = 'other';
       
-      if (isImage) {
-        assetType = file.name.toLowerCase().includes('logo') ? 'logo' : 'product';
+      if (isFont) {
+        assetType = 'font';
+      } else if (isImage) {
+        const lowerName = file.name.toLowerCase();
+        if (lowerName.includes('logo')) {
+          assetType = 'logo';
+        } else if (lowerName.includes('color') || lowerName.includes('palette') || lowerName.includes('swatch')) {
+          assetType = 'color';
+        } else {
+          assetType = 'product';
+        }
       } else if (isPdf) {
         assetType = 'guideline';
       }
@@ -459,6 +470,13 @@ export default function BrandVaultPage() {
     : assets.filter(a => a.asset_type === filter);
 
   const categories: AssetCategory[] = ['all', 'logo', 'product', 'guideline', 'color', 'font'];
+  
+  // Count assets per category for filter badges
+  const categoryCounts = categories.reduce((acc, cat) => {
+    acc[cat] = cat === 'all' ? assets.length : assets.filter(a => a.asset_type === cat).length;
+    return acc;
+  }, {} as Record<AssetCategory, number>);
+  
   const selectedKB = knowledgeBases.find(kb => kb.id === selectedKBId);
 
   // Check if setup is complete
@@ -589,19 +607,36 @@ export default function BrandVaultPage() {
             {/* Filter + Upload */}
             <div className="flex items-center gap-3">
               <div className="flex gap-1.5 flex-wrap">
-                {categories.map((cat) => (
-                  <button
-                    key={cat}
-                    onClick={() => setFilter(cat)}
-                    className={`px-2.5 py-1 rounded-full text-xs font-medium transition-colors ${
-                      filter === cat 
-                        ? 'bg-indigo-100 text-indigo-700' 
-                        : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
-                    }`}
-                  >
-                    {cat.charAt(0).toUpperCase() + cat.slice(1)}
-                  </button>
-                ))}
+                {categories.map((cat) => {
+                  const count = categoryCounts[cat];
+                  const isActive = filter === cat;
+                  const isEmpty = cat !== 'all' && count === 0;
+                  
+                  return (
+                    <button
+                      key={cat}
+                      onClick={() => setFilter(cat)}
+                      className={`px-2.5 py-1 rounded-full text-xs font-medium transition-colors flex items-center gap-1 ${
+                        isActive
+                          ? 'bg-indigo-100 text-indigo-700' 
+                          : isEmpty
+                            ? 'bg-slate-50 text-slate-400 cursor-default'
+                            : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
+                      }`}
+                      disabled={isEmpty}
+                      title={isEmpty ? `No ${cat} assets uploaded yet` : `Filter by ${cat}`}
+                    >
+                      {cat.charAt(0).toUpperCase() + cat.slice(1)}
+                      {count > 0 && (
+                        <span className={`text-[10px] px-1 py-0.5 rounded-full ${
+                          isActive ? 'bg-indigo-200' : 'bg-slate-200'
+                        }`}>
+                          {count}
+                        </span>
+                      )}
+                    </button>
+                  );
+                })}
               </div>
               
               {/* Hidden file input */}
@@ -610,7 +645,7 @@ export default function BrandVaultPage() {
                 type="file" 
                 className="hidden" 
                 onChange={handleUpload} 
-                accept="image/*,.pdf,.doc,.docx,.txt"
+                accept="image/*,.pdf,.doc,.docx,.txt,.ttf,.otf,.woff,.woff2,.eot"
               />
               
             </div>
@@ -1155,6 +1190,9 @@ export default function BrandVaultPage() {
         variant="danger"
         isLoading={!!deleteConfirmModal.assetId && !!actionLoading[deleteConfirmModal.assetId]}
       />
+
+      {/* Toast notifications */}
+      <ToastContainer toasts={toasts} onDismiss={dismissToast} />
     </div>
   );
 }

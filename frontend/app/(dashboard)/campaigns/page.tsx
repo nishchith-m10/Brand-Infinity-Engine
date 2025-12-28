@@ -73,6 +73,7 @@ export default function CampaignsPage() {
   // Local state
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedCampaign, setSelectedCampaign] = useState<Campaign | null>(null);
+  const [restoringId, setRestoringId] = useState<string | null>(null);
   // Generate a default brand_id - in production this would come from user's brand selection
   const defaultBrandId = typeof window !== 'undefined' ? crypto.randomUUID() : '00000000-0000-0000-0000-000000000001';
   const [createForm, setCreateForm] = useState({ name: '', brand_id: defaultBrandId, budget_tier: 'medium', custom_budget: '150' });
@@ -242,10 +243,14 @@ export default function CampaignsPage() {
   };
 
   const handleRestore = async (campaign: Campaign) => {
-    try {
-      const campaignId = campaign.campaign_id || campaign.id;
-      if (!campaignId) throw new Error('Missing campaign ID');
+    const campaignId = campaign.campaign_id || campaign.id;
+    if (!campaignId) {
+      showToast({ type: 'error', message: 'Missing campaign ID' });
+      return;
+    }
 
+    setRestoringId(campaignId);
+    try {
       const response = await fetch(`/api/v1/campaigns/${campaignId}`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
@@ -268,6 +273,8 @@ export default function CampaignsPage() {
         type: 'error',
         message: error instanceof Error ? error.message : 'Failed to restore campaign. Please try again.'
       });
+    } finally {
+      setRestoringId(null);
     }
   };
 
@@ -386,10 +393,17 @@ export default function CampaignsPage() {
                                 {(campaign.status === 'pending_deletion' || campaign.status === 'archived') && (
                                   <button 
                                     onClick={() => handleRestore(campaign)}
-                                    className="p-2 hover:bg-emerald-50 rounded-full text-emerald-500 hover:text-emerald-600 transition-colors"
+                                    disabled={restoringId === (campaign.campaign_id || campaign.id)}
+                                    className={`p-2 hover:bg-emerald-50 rounded-full text-emerald-500 hover:text-emerald-600 transition-colors ${
+                                      restoringId === (campaign.campaign_id || campaign.id) ? 'opacity-50 cursor-wait' : ''
+                                    }`}
                                     title={campaign.status === 'pending_deletion' ? "Restore from deletion" : "Unarchive campaign"}
                                   >
-                                     <RotateCcw size={16} />
+                                     {restoringId === (campaign.campaign_id || campaign.id) ? (
+                                       <Loader2 size={16} className="animate-spin" />
+                                     ) : (
+                                       <RotateCcw size={16} />
+                                     )}
                                   </button>
                                 )}
                                 {/* Edit button - disabled for archived/pending_deletion */}
