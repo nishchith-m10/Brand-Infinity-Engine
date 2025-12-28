@@ -27,10 +27,7 @@ export default function VerifyPasscodePage() {
         // Preferred method if available
         if (typeof (supabase.auth as any).getSessionFromUrl === 'function') {
           const { data, error } = await (supabase.auth as any).getSessionFromUrl({ storeSession: true });
-          if (error) {
-            console.debug('[VerifyPasscode] getSessionFromUrl error:', error);
-          } else if (data?.session) {
-            console.log('[VerifyPasscode] Session obtained via getSessionFromUrl');
+          if (!error && data?.session) {
             await storeSessionOnServer(data.session);
             return;
           }
@@ -40,19 +37,12 @@ export default function VerifyPasscodePage() {
         const url = new URL(window.location.href);
         const code = url.searchParams.get('code');
         if (code && typeof (supabase.auth as any).exchangeCodeForSession === 'function') {
-          console.log('[VerifyPasscode] Exchanging auth code via exchangeCodeForSession');
           const { data, error } = await (supabase.auth as any).exchangeCodeForSession({ code });
-          if (error) {
-            console.debug('[VerifyPasscode] exchangeCodeForSession error:', error);
-          } else if (data?.session) {
-            console.log('[VerifyPasscode] Session obtained via exchangeCodeForSession');
+          if (!error && data?.session) {
             await storeSessionOnServer(data.session);
             return;
           }
         }
-
-        // As last resort, log available auth methods for debugging
-        console.warn('[VerifyPasscode] No session exchange method found on supabase.auth. Available methods:', Object.keys(supabase.auth as any));
       } catch (err) {
         console.error('[VerifyPasscode] unexpected error while exchanging session', err);
       }
