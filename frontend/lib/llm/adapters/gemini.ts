@@ -77,7 +77,7 @@ export class GeminiAdapter extends BaseLLMAdapter {
   /**
    * Format messages for Gemini API (different structure)
    */
-  private formatGeminiMessages(messages: LLMRequest['messages']): any[] {
+  private formatGeminiMessages(messages: LLMRequest['messages']): Array<{ role: string; parts: Array<{ text: string }> }> {
     return messages
       .filter(m => m.role !== 'system') // Gemini doesn't support system messages
       .map(msg => ({
