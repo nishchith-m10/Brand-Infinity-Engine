@@ -11,12 +11,12 @@ import type { ClarifyingQuestion } from '@/lib/agents/types';
 
 interface QuestionFormProps {
   questions: ClarifyingQuestion[];
-  onSubmit: (answers: Record<string, any>) => void;
+  onSubmit: (answers: Record<string, unknown>) => void;
   disabled?: boolean;
 }
 
 export function QuestionForm({ questions, onSubmit, disabled }: QuestionFormProps) {
-  const [answers, setAnswers] = useState<Record<string, any>>({});
+  const [answers, setAnswers] = useState<Record<string, unknown>>({});
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -34,12 +34,12 @@ export function QuestionForm({ questions, onSubmit, disabled }: QuestionFormProp
     onSubmit(answers);
   };
 
-  const handleAnswerChange = (field: string, value: any, multiple: boolean) => {
+  const handleAnswerChange = (field: string, value: unknown, multiple: boolean) => {
     if (multiple) {
       // For multiple selection
-      const current = answers[field] || [];
+      const current = (answers[field] as unknown[]) || [];
       const updated = current.includes(value)
-        ? current.filter((v: any) => v !== value)
+        ? current.filter((v: unknown) => v !== value)
         : [...current, value];
       setAnswers(prev => ({ ...prev, [field]: updated }));
     } else {
@@ -84,7 +84,7 @@ export function QuestionForm({ questions, onSubmit, disabled }: QuestionFormProp
           ) : (
             // Text input
             <textarea
-              value={answers[question.field] || ''}
+              value={(answers[question.field] as string) || ''}
               onChange={(e) => setAnswers(prev => ({ ...prev, [question.field]: e.target.value }))}
               disabled={disabled}
               placeholder="Type your answer..."

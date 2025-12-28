@@ -22,7 +22,7 @@ export class StrategistAgent {
     task: Task;
     intent: ParsedIntent;
     brandContext?: string;
-  }): Promise<{ result: any; success: boolean; error?: string }> {
+  }): Promise<{ result: unknown; success: boolean; error?: string }> {
     try {
       const systemPrompt = `You are a Brand Strategist Agent.
 Create comprehensive strategic briefs for content campaigns.
@@ -85,8 +85,8 @@ Provide a detailed strategic brief.`;
    * Analyze target audience
    */
   async analyzeAudience(params: {
-    demographics: any;
-    psychographics?: any;
+    demographics: unknown;
+    psychographics?: unknown;
   }): Promise<string> {
     const prompt = `Analyze this target audience and provide insights:
 

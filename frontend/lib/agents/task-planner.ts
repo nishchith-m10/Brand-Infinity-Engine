@@ -8,6 +8,7 @@ import type {
   ParsedIntent,
   TaskPlan,
   Task,
+  AgentType,
 } from './types';
 import { AGENT_TEMPERATURES, AGENT_MAX_TOKENS } from './config';
 
@@ -206,7 +207,7 @@ Break this into specific tasks.`;
   async createDelegationPlan(
     tasks: Task[],
     intent: ParsedIntent
-  ): Promise<any> {
+  ): Promise<unknown> {
     // Group tasks by agent
     const tasksByAgent: Record<string, Task[]> = {};
     
@@ -219,7 +220,7 @@ Break this into specific tasks.`;
 
     // Create delegation instructions
     const delegations = Object.entries(tasksByAgent).map(([agent, agentTasks]) => ({
-      agent: agent as any,
+      agent: agent as AgentType,
       tasks: agentTasks.map(t => t.id),
       instructions: this.generateAgentInstructions(agent, agentTasks, intent),
       priority: Math.max(...agentTasks.map(t => t.priority || 0)),
@@ -260,7 +261,7 @@ Key Messages: ${intent.key_message || ''}
     plan: TaskPlan,
     taskId: string,
     status: Task['status'],
-    result?: any
+    result?: unknown
   ): TaskPlan {
     return {
       ...plan,
