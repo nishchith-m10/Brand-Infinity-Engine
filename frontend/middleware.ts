@@ -1,12 +1,82 @@
 import { NextResponse } from 'next/server';
 import type { NextRequest } from 'next/server';
-// TODO: Implement Upstash REST rate limiting for edge middleware.
-// Removed import of '@/lib/ratelimit' because it pulls modules incompatible with Edge.
+
+/**
+ * Edge-compatible rate limiter using Upstash REST API
+ */
+async function checkRateLimit(
+  identifier: string,
+  limit: number = 100,
+  windowSeconds: number = 10
+): Promise<{ success: boolean; limit: number; remaining: number; reset: number }> {
+  const url = process.env.UPSTASH_REDIS_REST_URL;
+  const token = process.env.UPSTASH_REDIS_REST_TOKEN;
+
+  if (!url || !token) {
+    return { success: true, limit, remaining: limit, reset: Date.now() + windowSeconds * 1000 };
+  }
+
+  try {
+    const now = Date.now();
+    const windowMs = windowSeconds * 1000;
+    const key = `ratelimit:${identifier}`;
+    const windowStart = now - windowMs;
+
+    // Get current count from sorted set
+    const countResponse = await fetch(`${url}/zcount/${key}/${windowStart}/${now}`, {
+      headers: { Authorization: `Bearer ${token}` },
+    });
+
+    if (!countResponse.ok) {
+      return { success: true, limit, remaining: limit, reset: now + windowMs };
+    }
+
+    const countData = await countResponse.json();
+    const currentCount = countData.result || 0;
+
+    if (currentCount >= limit) {
+      return { success: false, limit, remaining: 0, reset: now + windowMs };
+    }
+
+    // Add current timestamp
+    await fetch(`${url}/zadd/${key}/${now}/${now}`, {
+      headers: { Authorization: `Bearer ${token}` },
+    });
+
+    // Set expiry
+    await fetch(`${url}/expire/${key}/${windowSeconds * 2}`, {
+      headers: { Authorization: `Bearer ${token}` },
+    });
+
+    // Cleanup old entries
+    fetch(`${url}/zremrangebyscore/${key}/0/${windowStart}`, {
+      headers: { Authorization: `Bearer ${token}` },
+    }).catch(() => {});
+
+    return { success: true, limit, remaining: limit - currentCount - 1, reset: now + windowMs };
+  } catch (error) {
+    return { success: true, limit, remaining: limit, reset: Date.now() + windowSeconds * 1000 };
+  }
+}
 
 export async function middleware(request: NextRequest) {
-  // Note: Rate limiting has been temporarily disabled in middleware.
-  // API routes should implement per-route rate limiting until an edge-safe
-  // solution (REST-based Upstash ratelimit) is added.
+  // Rate limiting: 100 requests per 10 seconds per IP
+  const ip = request.headers.get('x-forwarded-for')?.split(',')[0].trim() 
+    ?? request.headers.get('x-real-ip') 
+    ?? 'unknown';
+  const rateLimitResult = await checkRateLimit(ip, 100, 10);
+
+  if (!rateLimitResult.success) {
+    return new NextResponse('Too Many Requests', {
+      status: 429,
+      headers: {
+        'X-RateLimit-Limit': rateLimitResult.limit.toString(),
+        'X-RateLimit-Remaining': rateLimitResult.remaining.toString(),
+        'X-RateLimit-Reset': rateLimitResult.reset.toString(),
+        'Retry-After': Math.ceil((rateLimitResult.reset - Date.now()) / 1000).toString(),
+      },
+    });
+  }
 
   // For page routing, consult the /api/auth/session endpoint which runs on the server
   const authPaths = ['/login', '/signup', '/verify-passcode'];
