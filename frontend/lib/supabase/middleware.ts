@@ -72,11 +72,19 @@ export async function updateSession(request: NextRequest) {
   // Check passcode verification for authenticated users on protected routes
   if (isProtectedRoute && user) {
     const passcodeVerified = request.cookies.get('dashboard_passcode_verified');
+    console.log('[Middleware] Protected route check:', {
+      path: request.nextUrl.pathname,
+      user: user.email,
+      passcodeVerified: !!passcodeVerified,
+      allCookies: request.cookies.getAll().map(c => c.name),
+    });
     if (!passcodeVerified) {
+      console.log('[Middleware] ❌ No passcode cookie, redirecting to /verify-passcode');
       const url = request.nextUrl.clone();
       url.pathname = '/verify-passcode';
       return NextResponse.redirect(url);
     }
+    console.log('[Middleware] ✅ Passcode verified, allowing access');
   }
 
   // Redirect logged-in users with passcode away from auth pages

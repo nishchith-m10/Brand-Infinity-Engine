@@ -32,6 +32,7 @@ export async function POST(request: NextRequest) {
     const isValid = passcode === expectedPasscode;
     
     if (isValid) {
+      console.log('[Passcode] ✅ Valid passcode, setting cookie');
       const response = NextResponse.json({ success: true });
       
       // Set secure httpOnly cookie for 7 days
@@ -40,6 +41,13 @@ export async function POST(request: NextRequest) {
         secure: process.env.NODE_ENV === 'production',
         sameSite: 'lax',
         maxAge: 60 * 60 * 24 * 7, // 7 days
+        path: '/',
+      });
+      
+      console.log('[Passcode] Cookie set with config:', {
+        httpOnly: true,
+        secure: process.env.NODE_ENV === 'production',
+        sameSite: 'lax',
         path: '/',
       });
       

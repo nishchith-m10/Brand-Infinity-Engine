@@ -21,7 +21,7 @@ import { GeminiAdapter } from './adapters/gemini';
  * LLM Service - Routes requests to appropriate provider
  */
 export class LLMService {
-  private adapters: Map<LLMProvider, any>;
+  private adapters: Map<LLMProvider, {  generateCompletion(request: LLMRequest): Promise<LLMResponse> }>;
 
   constructor() {
     this.adapters = new Map();
@@ -59,19 +59,11 @@ export class LLMService {
       const cost = this.calculateCost(
         provider,
         request.model || '',
-        response.tokensUsed
+        { input: response.usage.inputTokens, output: response.usage.outputTokens }
       );
 
-      // Add metadata
-      const latency = Date.now() - startTime;
-      
-      return {
-        ...response,
-        provider,
-        model: request.model,
-        costUsd: cost,
-        latencyMs: latency,
-      };
+      // Response already has all required fields
+      return response;
     } catch (error) {
       console.error('[LLMService] Generation failed:', error);
       throw error;

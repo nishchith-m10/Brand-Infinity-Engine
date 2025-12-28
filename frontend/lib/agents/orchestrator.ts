@@ -22,12 +22,12 @@ interface TaskPlanRecord {
   intent_raw?: string;
   status: 'pending' | 'running' | 'completed' | 'failed' | 'cancelled';
   plan_data: TaskPlan;
-  context_data: Record<string, any>;
+  context_data: Record<string, unknown>;
   total_tasks: number;
   completed_tasks: number;
   current_task_id?: string;
   progress_percentage: number;
-  results: any[];
+  results: unknown[];
   errors: string[];
   created_at: string;
   started_at?: string;
@@ -52,7 +52,7 @@ export class AgentOrchestrator {
   private async persistPlan(params: {
     plan: TaskPlan;
     intent: ParsedIntent;
-    results: any[];
+    results: unknown[];
     errors: string[];
     status: 'pending' | 'running' | 'completed' | 'failed';
     brandContext?: string;
@@ -118,7 +118,7 @@ export class AgentOrchestrator {
     plan: TaskPlan;
     intent: ParsedIntent;
     brandContext?: string;
-    results: any[];
+    results: unknown[];
   } | null> {
     try {
       const { data, error } = await this.supabase
@@ -174,8 +174,8 @@ export class AgentOrchestrator {
     brandContext?: string;
     campaignId?: string;
     conversationId?: string;
-  }): Promise<{ success: boolean; results: any[]; errors: string[]; planId?: string }> {
-    const results: any[] = [];
+  }): Promise<{ success: boolean; results: unknown[]; errors: string[]; planId?: string }> {
+    const results: unknown[] = [];
     const errors: string[] = [];
 
     // Persist initial plan state
@@ -276,8 +276,8 @@ export class AgentOrchestrator {
     task: Task,
     intent: ParsedIntent,
     brandContext?: string,
-    previousResults?: any[]
-  ): Promise<{ success: boolean; result?: any; error?: string }> {
+    previousResults?: unknown[]
+  ): Promise<{ success: boolean; result?: unknown; error?: string }> {
     try {
       // Update task status to running
       task.status = 'running';
@@ -293,11 +293,11 @@ export class AgentOrchestrator {
 
         case 'copywriter': {
           // Pass strategic brief if available
-          const strategicBrief = previousResults?.find(r => r.type === 'strategic_brief')?.content;
+
           return await this.copywriter.executeTask({
             task,
             intent,
-            strategicBrief,
+            strategicBrief: (previousResults?.find(r => (r as { type?: string })?.type === 'strategic_brief') as { content?: string } | undefined)?.content,
             brandContext,
           });
         }
