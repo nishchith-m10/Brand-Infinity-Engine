@@ -35,7 +35,7 @@ export function ChatInterfaceResponsive({
   }, [isCollapsed]);
 
   return (
-    <div className={`${responsiveMaxWidth} h-full flex flex-col`}>
+    <div className={`${responsiveMaxWidth} flex-1 flex flex-col min-h-0`}>
       <ChatInterface
         brandId={brandId}
         sessionId={sessionId}
