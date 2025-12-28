@@ -1,9 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
+import { processImage, processPDF } from '@/lib/image-processor';
 
 /**
  * POST /api/v1/brand-assets/upload
- * Upload a file to Supabase Storage and create an asset record
+ * Upload a file to Supabase Storage and create an asset record with processed content
  */
 export async function POST(request: NextRequest) {
   try {
@@ -79,6 +80,22 @@ export async function POST(request: NextRequest) {
       .from('brand-assets')
       .getPublicUrl(uploadData.path);
 
+    // Process content based on file type
+    let content = '';
+    const isImage = file.type.startsWith('image/');
+    const isPdf = file.type === 'application/pdf';
+
+    if (isImage) {
+      // Process image: extract text, analyze visual elements
+      content = await processImage(file, urlData.publicUrl);
+    } else if (isPdf) {
+      // Extract text from PDF
+      content = await processPDF(file, urlData.publicUrl);
+    } else {
+      // For other files (fonts, etc.)
+      content = `File asset: ${file.name}\nType: ${assetType}\nFormat: ${file.type}`;
+    }
+
     // Create asset record in database
     const { data: asset, error: dbError } = await supabase
       .from('brand_knowledge_base')
@@ -88,10 +105,13 @@ export async function POST(request: NextRequest) {
         asset_type: assetType,
         file_url: urlData.publicUrl,
         file_name: file.name,
+        content: content, // Processed content from image/PDF analysis
         metadata: {
           size: file.size,
           type: file.type,
           uploaded_at: new Date().toISOString(),
+          processing_status: isImage || isPdf ? 'basic_processing_complete' : 'complete',
+          needs_vision_api: isImage, // Flag for future enhanced processing
         },
         is_active: true,
       })
