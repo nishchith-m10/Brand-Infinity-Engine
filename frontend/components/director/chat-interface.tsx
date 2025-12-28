@@ -278,7 +278,7 @@ export function ChatInterface({ brandId, sessionId, onSessionCreate }: ChatInter
   };
 
   return (
-    <div className="flex flex-col h-full w-full bg-white rounded-lg shadow-md border border-slate-200/80 overflow-hidden">
+    <div className="flex flex-col flex-1 min-h-0 w-full bg-white rounded-lg shadow-md border border-slate-200/80 overflow-hidden">
       {/* Header with Context Selector */}
       <div className="px-3 sm:px-4 py-2 border-b border-slate-200/60 bg-slate-50/50">
         <div className="flex items-center justify-between gap-3 mb-2">
