@@ -85,7 +85,7 @@ ${hasImages ? '- image_context: brief description of what you observe in the bra
 Only return valid JSON, no markdown.`;
 
     // Build user message content
-    const userContent: any = hasImages
+    const userContent: any = hasImages && brandContext
       ? [
           { type: 'text', text: prompt },
           ...brandContext.image_urls!.map((img) => ({
