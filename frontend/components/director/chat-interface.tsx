@@ -305,7 +305,7 @@ export function ChatInterface({ brandId, sessionId, onSessionCreate }: ChatInter
       {/* Messages */}
       <div className="flex-1 overflow-y-auto px-3 sm:px-4 py-2 sm:py-3 space-y-2 bg-white">
         {messages.length === 0 && (
-          <div className="text-center py-4 px-3 flex flex-col h-full justify-center">
+          <div className="text-center py-8 px-3 flex flex-col">
             <h3 className="text-base font-semibold text-slate-900 mb-1.5">
               Describe your campaign
             </h3>
