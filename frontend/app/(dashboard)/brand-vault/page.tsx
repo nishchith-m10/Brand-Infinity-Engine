@@ -258,6 +258,8 @@ export default function BrandVaultPage() {
       const queryParams = new URLSearchParams();
       if (brandId) queryParams.append('brand_id', brandId);
       if (selectedKBId) queryParams.append('knowledge_base_id', selectedKBId);
+      // Fetch ALL assets (active + inactive) - frontend will filter based on showInactive toggle
+      queryParams.append('active', 'false');
       
       const res = await fetch(`/api/v1/brand-assets?${queryParams.toString()}`);
       const data = await res.json();
@@ -474,10 +476,12 @@ export default function BrandVaultPage() {
 
   const categories: AssetCategory[] = ['all', 'logo', 'product', 'guideline', 'color', 'font'];
   
-  // Count active assets per category for filter badges
+  // Count currently visible assets (respects both category filter AND showInactive toggle)
   const categoryCounts = categories.reduce((acc, cat) => {
-    const activeAssets = assets.filter(a => showInactive || a.is_active);
-    acc[cat] = cat === 'all' ? activeAssets.length : activeAssets.filter(a => a.asset_type === cat).length;
+    const visibleAssets = assets.filter(a => showInactive || a.is_active);
+    acc[cat] = cat === 'all' 
+      ? visibleAssets.length 
+      : visibleAssets.filter(a => a.asset_type === cat).length;
     return acc;
   }, {} as Record<AssetCategory, number>);
   
@@ -612,7 +616,11 @@ export default function BrandVaultPage() {
             <div className="flex items-center gap-3">
               {/* Show Inactive Toggle */}
               <button
-                onClick={() => setShowInactive(!showInactive)}
+                onClick={() => {
+                  console.log('[Toggle] Current showInactive:', showInactive);
+                  console.log('[Toggle] Setting to:', !showInactive);
+                  setShowInactive(!showInactive);
+                }}
                 className={`px-2.5 py-1 rounded-full text-xs font-medium transition-colors flex items-center gap-1.5 ${
                   showInactive
                     ? 'bg-slate-600 text-white' 
