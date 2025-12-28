@@ -20,12 +20,16 @@ import { useApiKeys } from '@/contexts/api-keys-context';
 import { MultiKeyProviderCard } from '@/components/settings/multi-key-provider-card';
 import { useToast } from '@/lib/hooks/use-toast';
 import { ToastContainer } from '@/components/ui/toast-container';
+import { useOpenRouterModels } from '@/lib/hooks/use-openrouter-models';
 
 export default function SettingsPage() {
   const [activeSection, setActiveSection] = useState('api-keys');
   const [showKeys, setShowKeys] = useState<Record<string, boolean>>({});
   const { apiKeys, setSimpleKey, saveKeys, isSaving } = useApiKeys();
   const { toasts, showToast, dismissToast } = useToast();
+  
+  // Fetch OpenRouter models dynamically when key is configured
+  const { models: openRouterModels, isLoading: loadingOpenRouterModels } = useOpenRouterModels(apiKeys.openrouter);
 
   interface Settings {
     defaultModel: string;
@@ -382,6 +386,7 @@ export default function SettingsPage() {
                   <Select
                     label="Default AI Model"
                     options={[
+                      // Hardcoded models for standard providers
                       { value: 'claude-opus-4.5', label: 'Claude Opus 4.5 (Premium - Best)' },
                       { value: 'claude-sonnet-4.5', label: 'Claude Sonnet 4.5 (Balanced)' },
                       { value: 'gpt-5.2-pro', label: 'GPT-5.2 Pro (Enterprise)' },
@@ -389,6 +394,13 @@ export default function SettingsPage() {
                       { value: 'gpt-5.2-instant', label: 'GPT-5.2 Instant (Fast)' },
                       { value: 'deepseek-chat-v3.2', label: 'DeepSeek V3.2 (Affordable)' },
                       { value: 'gemini-3-flash', label: 'Gemini 3 Flash (Fast)' },
+                      // OpenRouter models (dynamically fetched)
+                      ...openRouterModels.map(model => ({
+                        value: model.id,
+                        label: `${model.name} (OpenRouter)`,
+                      })),
+                      // Loading indicator
+                      ...(loadingOpenRouterModels ? [{ value: '', label: 'Loading OpenRouter models...', disabled: true }] : []),
                     ]}
                     value={settings.defaultModel}
                     onChange={(e) =>
