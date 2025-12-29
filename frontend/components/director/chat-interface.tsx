@@ -136,6 +136,7 @@ export function ChatInterface({ brandId, sessionId, onSessionCreate }: ChatInter
       const contextPayload = getContextPayload();
       
       console.log('[Chat] Sending to API with provider:', provider, 'model:', modelId);
+      console.log('[Chat] OpenRouter API key available:', !!apiKeys.openrouter, apiKeys.openrouter ? `(${apiKeys.openrouter.substring(0, 8)}...)` : '(none)');
       
       const res = await fetch('/api/v1/conversation/start', {
         method: 'POST',
