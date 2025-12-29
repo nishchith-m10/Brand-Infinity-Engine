@@ -49,6 +49,13 @@ export class LLMService {
         provider = this.getProviderFromModel(request.model) || undefined;
       }
 
+      console.log("[LLMService] Request received:", {
+        model: request.model,
+        requestProvider: request.provider,
+        resolvedProvider: provider,
+        hasApiKey: !!request.apiKey,
+      });
+
       if (!provider) {
         throw new Error(`Could not determine provider for model: ${request.model}. Please specify provider.`);
       }
