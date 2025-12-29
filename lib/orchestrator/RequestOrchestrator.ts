@@ -323,12 +323,12 @@ export class RequestOrchestrator {
     }
 
     // Log the callback
-    await eventLogger.logProviderCallback(
+    await eventLogger.logProviderCompleted(
       task.request_id,
       taskId,
       (providerData?.provider_name as string) || 'unknown',
       (providerData?.external_job_id as string) || 'unknown',
-      status,
+      status as 'completed' | 'failed',
       outputUrl,
       errorMessage,
       providerData?.cost_incurred as number
