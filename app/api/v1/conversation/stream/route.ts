@@ -118,10 +118,11 @@ export async function POST(request: NextRequest) {
     const campaignId = context?.campaign_id;
     const estimatedCost = ESTIMATED_COSTS.llm_chat;
     let budgetReserved = false;
+    let reservationId: string | undefined = undefined;
 
     // Reserve budget if campaign is specified
     if (campaignId) {
-      const reservation = await reserveBudget(campaignId, estimatedCost);
+      const reservation = await reserveBudget(campaignId, session_id, estimatedCost);
       if (!reservation.success) {
         return new Response(
           JSON.stringify({
@@ -135,6 +136,8 @@ export async function POST(request: NextRequest) {
           { status: 402, headers: { 'Content-Type': 'application/json' } }
         );
       }
+      // Capture reservation ID for commit/release
+      reservationId = reservation.reservationId;
       budgetReserved = true;
     }
 
@@ -263,9 +266,9 @@ export async function POST(request: NextRequest) {
           controller.close();
 
           // Commit budget on successful completion
-          if (budgetReserved && campaignId) {
+          if (budgetReserved && campaignId && reservationId) {
             // Commit with estimated cost (actual cost tracking would require token counting)
-            await commitBudget(campaignId, estimatedCost, estimatedCost);
+            await commitBudget(campaignId, reservationId, estimatedCost);
           }
 
           // Log successful completion
