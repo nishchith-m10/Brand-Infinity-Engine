@@ -36,6 +36,9 @@ export interface TransitionResult extends TransactionResult<ContentRequest> {
 // =============================================================================
 
 const RequestDataSchema = z.object({
+  // Optional ID allows callers to provide a pre-generated UUID for correlating
+  // related operations (e.g., budget reservations) prior to creation.
+  id: z.string().uuid().optional(),
   brand_id: z.string().uuid(),
   campaign_id: z.string().uuid().optional(),
   title: z.string().min(1).max(255),
@@ -73,7 +76,7 @@ const TaskTemplateSchema = z.object({
   description: z.string().optional(),
   sequence_order: z.number().int(),
   dependencies: z.array(z.string()).optional().default([]),
-  input_data: z.record(z.unknown()).optional().default({}),
+  input_data: z.record(z.string(), z.unknown()).optional().default({}),
   estimatedDurationSeconds: z.number().optional(),
   retryable: z.boolean().optional().default(true),
 });
@@ -165,7 +168,7 @@ export async function createRequestAtomic(
         success: false,
         error: 'Validation failed',
         code: 'VALIDATION_ERROR',
-        details: { issues: error.errors },
+        details: { issues: error.issues },
       };
     }
 
