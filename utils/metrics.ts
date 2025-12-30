@@ -26,6 +26,8 @@ const KNOWN_JOB_TYPES = [
   'video-processing',
   'brief-generation',
   'script-generation',
+  'n8n-dispatch',
+  'n8n-callback',
 ];
 
 // Small in-memory Redis-like store used when no Redis client is provided
