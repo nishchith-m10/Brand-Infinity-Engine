@@ -77,16 +77,60 @@ export async function POST(request: NextRequest) {
           });
 
           // Yield chunks as SSE
+          let buffer = '';
+          let checksComplete = false;
+          const CHECK_THRESHOLD = 100; // Characters to buffer before checking
+
           for await (const chunk of generator) {
-            // Safety check: specific workaround for OpenRouter potentially determining model
-            if (chunk.includes(modelToUse) || (model_id && chunk.includes(model_id))) {
-               console.warn('[Stream] Detected model echo, skipping:', chunk);
-               continue;
+            if (checksComplete) {
+              const sseData = `data: ${JSON.stringify({ content: chunk })}\n\n`;
+              controller.enqueue(encoder.encode(sseData));
+              continue;
             }
 
-            // console.log('[Stream] Yielding chunk:', chunk.substring(0, 50));
-            const sseData = `data: ${JSON.stringify({ content: chunk })}\n\n`;
-            controller.enqueue(encoder.encode(sseData));
+            buffer += chunk;
+
+            // Check if we have enough data or a newline to make a decision
+            if (buffer.length >= CHECK_THRESHOLD || buffer.includes('\n')) {
+              // Check for model echo
+              if (buffer.startsWith(modelToUse) || (model_id && buffer.startsWith(model_id))) {
+                 console.warn('[Stream] Detected model echo in buffer, stripping:', buffer.substring(0, 50));
+                 // Strip model name and potential trailing numbers/whitespace
+                 // Example: "openai/gpt-oss-120b 0" -> ""
+                 const cleanBuffer = buffer
+                   .replace(modelToUse, '')
+                   .replace(model_id || '_____', '') // Safety fallback
+                   .replace(/^\s+\d+\s*/, '') // Remove trailing " 0 " or similar numbers
+                   .trimStart();
+                 
+                 buffer = cleanBuffer;
+              }
+              
+              // Flush buffer
+              if (buffer.length > 0) {
+                const sseData = `data: ${JSON.stringify({ content: buffer })}\n\n`;
+                controller.enqueue(encoder.encode(sseData));
+              }
+              buffer = '';
+              checksComplete = true;
+            }
+          }
+
+          // Handle any remaining buffer if stream ended early (short response)
+          if (!checksComplete && buffer.length > 0) {
+              if (buffer.startsWith(modelToUse) || (model_id && buffer.startsWith(model_id))) {
+                 console.warn('[Stream] Detected model echo in final buffer, stripping.');
+                 const cleanBuffer = buffer
+                   .replace(modelToUse, '')
+                   .replace(model_id || '_____', '')
+                   .replace(/^\s+\d+\s*/, '')
+                   .trimStart();
+                 buffer = cleanBuffer;
+              }
+              if (buffer.length > 0) {
+                const sseData = `data: ${JSON.stringify({ content: buffer })}\n\n`;
+                controller.enqueue(encoder.encode(sseData));
+              }
           }
 
           // Send done signal
