@@ -170,8 +170,10 @@ export function useTaskExecution() {
         pollProgress(data.plan_id, { onProgress, onComplete, onError });
       }, POLL_INTERVAL);
 
-      // Initial poll
-      pollProgress(data.plan_id, { onProgress, onComplete, onError });
+      // Delay initial poll to allow DB persistence (Bug 3.4 fix)
+      setTimeout(() => {
+        pollProgress(data.plan_id, { onProgress, onComplete, onError });
+      }, 1000);
 
     } catch (error) {
       if (error instanceof Error && error.name === 'AbortError') {

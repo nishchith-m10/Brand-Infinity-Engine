@@ -47,6 +47,19 @@ export async function POST(request: NextRequest) {
     // Get LLM service
     const llmService = getLLMService();
     
+    // Fetch conversation history for multi-turn context (Bug 1.1 fix)
+    const { data: historyMessages } = await supabase
+      .from('conversation_messages')
+      .select('role, content')
+      .eq('session_id', session_id)
+      .order('created_at', { ascending: true })
+      .limit(20); // Last 20 messages for context
+
+    const conversationHistory = (historyMessages || []).map(m => ({
+      role: m.role as 'user' | 'assistant',
+      content: m.content,
+    }));
+    
     // Determine model
     const modelToUse = model_id 
       ? `${provider || 'openrouter'}/${model_id}`
@@ -58,7 +71,7 @@ export async function POST(request: NextRequest) {
     const stream = new ReadableStream({
       async start(controller) {
         try {
-          // Stream from LLM
+          // Stream from LLM with conversation history
           const generator = llmService.streamCompletion({
             userId: user.id,
             agentType: 'executive',
@@ -67,6 +80,7 @@ export async function POST(request: NextRequest) {
                 role: 'system', 
                 content: system_prompt || 'You are a helpful Creative Director assistant.' 
               },
+              ...conversationHistory, // Include conversation history
               { role: 'user', content: message },
             ],
             model: modelToUse,
@@ -76,61 +90,19 @@ export async function POST(request: NextRequest) {
             apiKey: openrouter_api_key,
           });
 
-          // Yield chunks as SSE
-          let buffer = '';
-          let checksComplete = false;
-          const CHECK_THRESHOLD = 100; // Characters to buffer before checking
-
-          for await (const chunk of generator) {
-            if (checksComplete) {
-              const sseData = `data: ${JSON.stringify({ content: chunk })}\n\n`;
-              controller.enqueue(encoder.encode(sseData));
-              continue;
-            }
-
-            buffer += chunk;
-
-            // Check if we have enough data or a newline to make a decision
-            if (buffer.length >= CHECK_THRESHOLD || buffer.includes('\n')) {
-              // Check for model echo
-              if (buffer.startsWith(modelToUse) || (model_id && buffer.startsWith(model_id))) {
-                 console.warn('[Stream] Detected model echo in buffer, stripping:', buffer.substring(0, 50));
-                 // Strip model name and potential trailing numbers/whitespace
-                 // Example: "openai/gpt-oss-120b 0" -> ""
-                 const cleanBuffer = buffer
-                   .replace(modelToUse, '')
-                   .replace(model_id || '_____', '') // Safety fallback
-                   .replace(/^\s+\d+\s*/, '') // Remove trailing " 0 " or similar numbers
-                   .trimStart();
-                 
-                 buffer = cleanBuffer;
-              }
-              
-              // Flush buffer
-              if (buffer.length > 0) {
-                const sseData = `data: ${JSON.stringify({ content: buffer })}\n\n`;
-                controller.enqueue(encoder.encode(sseData));
-              }
-              buffer = '';
-              checksComplete = true;
-            }
+          // Validate model before streaming (Bug 1.2 fix - replaced brittle buffer)
+          const BLOCKED_MODELS = ['gpt-oss-120b', 'test-model'];
+          if (BLOCKED_MODELS.some(blocked => modelToUse.includes(blocked))) {
+            const errorData = `data: ${JSON.stringify({ error: `Model "${model_id}" is currently unavailable. Please select a different model.` })}\n\n`;
+            controller.enqueue(encoder.encode(errorData));
+            controller.close();
+            return;
           }
 
-          // Handle any remaining buffer if stream ended early (short response)
-          if (!checksComplete && buffer.length > 0) {
-              if (buffer.startsWith(modelToUse) || (model_id && buffer.startsWith(model_id))) {
-                 console.warn('[Stream] Detected model echo in final buffer, stripping.');
-                 const cleanBuffer = buffer
-                   .replace(modelToUse, '')
-                   .replace(model_id || '_____', '')
-                   .replace(/^\s+\d+\s*/, '')
-                   .trimStart();
-                 buffer = cleanBuffer;
-              }
-              if (buffer.length > 0) {
-                const sseData = `data: ${JSON.stringify({ content: buffer })}\n\n`;
-                controller.enqueue(encoder.encode(sseData));
-              }
+          // Yield chunks as SSE (direct passthrough)
+          for await (const chunk of generator) {
+            const sseData = `data: ${JSON.stringify({ content: chunk })}\n\n`;
+            controller.enqueue(encoder.encode(sseData));
           }
 
           // Send done signal

@@ -264,7 +264,6 @@ export function ChatInterface({ brandId, sessionId, onSessionCreate }: ChatInter
     
     setError(null);
     const tempId = `temp-${Date.now()}`;
-    const dedupKey = createMessageDedupKey(currentSessionId, message);
     
     // OPTIMISTIC: Add user message immediately
     setMessages(prev => [...prev, {
@@ -277,65 +276,114 @@ export function ChatInterface({ brandId, sessionId, onSessionCreate }: ChatInter
     
     setLoading(true);
     
+    // Start progress tracking (Bug 2.1 fix)
+    startProgress();
+    
     try {
       const [provider, modelId] = selectedModel.split(':');
       const contextPayload = getContextPayload();
-      const idempotencyKey = generateIdempotencyKey('continue');
       
-      // Deduplicate requests (prevent double-submit)
-      const res = await dedup(dedupKey, () => 
-        fetchWithRetry(`/api/v1/conversation/${currentSessionId}/continue`, {
-          method: 'POST',
-          headers: { 
-            'Content-Type': 'application/json',
-            'x-idempotency-key': idempotencyKey,
+      // Mark user message as confirmed
+      setMessages(prev => prev.map(m => 
+        m.id === tempId ? { ...m, _pending: false } : m
+      ));
+      
+      if (useStreaming) {
+        // Use streaming endpoint
+        let isFirstChunk = true;
+        
+        await startStream({
+          sessionId: currentSessionId,
+          message: answers ? `${message}\n\nAnswers: ${JSON.stringify(answers)}` : message,
+          provider,
+          modelId,
+          apiKey: apiKeys.openrouter,
+          onChunk: () => {
+            // Move to next step on first chunk (Bug 2.1)
+            if (isFirstChunk) {
+              nextStep(); // Analyzing -> Planning
+              isFirstChunk = false;
+            }
           },
-          body: JSON.stringify({ 
-            message, 
-            answers,
-            provider,
-            model_id: modelId,
-            context: contextPayload,
-            openrouter_api_key: apiKeys.openrouter,
-          }),
-          signal: abortControllerRef.current!.signal,
-        })
-      );
-
-      const data = (await res.json()) as { success: boolean; response: { content: string; questions?: ClarifyingQuestion[] } };
-      
-      if (data.success) {
-        // Mark user message as confirmed
-        setMessages(prev => prev.map(m => 
-          m.id === tempId ? { ...m, _pending: false } : m
-        ));
-
-        // Add assistant response
-        setMessages(prev => [...prev, {
-          id: `assistant-${Date.now()}`,
-          role: 'assistant',
-          content: data.response.content,
-          created_at: new Date().toISOString(),
-        } as ConversationMessage]);
-
-        // Update questions
-        if (data.response.questions) {
-          setPendingQuestions(data.response.questions);
-        } else {
-          setPendingQuestions([]);
-        }
+          onComplete: (fullContent) => {
+            // Add completed message to history (Bug 1.4 fix)
+            setMessages(prev => [...prev, {
+              id: `assistant-${Date.now()}`,
+              role: 'assistant',
+              content: fullContent,
+              created_at: new Date().toISOString(),
+            } as ConversationMessage]);
+            
+            resetContent();
+            completeProgress(); // Mark all steps complete
+            setPendingQuestions([]);
+          },
+          onError: (error) => {
+            setError(error.message);
+            resetProgress();
+          },
+        });
       } else {
-        throw new Error('API returned success: false');
+        // Use regular endpoint (fallback)
+        const idempotencyKey = generateIdempotencyKey('continue');
+        const dedupKey = createMessageDedupKey(currentSessionId, message);
+        
+        // Move to planning step
+        nextStep();
+        
+        const res = await dedup(dedupKey, () => 
+          fetchWithRetry(`/api/v1/conversation/${currentSessionId}/continue`, {
+            method: 'POST',
+            headers: { 
+              'Content-Type': 'application/json',
+              'x-idempotency-key': idempotencyKey,
+            },
+            body: JSON.stringify({ 
+              message, 
+              answers,
+              provider,
+              model_id: modelId,
+              context: contextPayload,
+              openrouter_api_key: apiKeys.openrouter,
+            }),
+            signal: abortControllerRef.current!.signal,
+          })
+        );
+
+        const data = (await res.json()) as { success: boolean; response: { content: string; questions?: ClarifyingQuestion[] } };
+        
+        if (data.success) {
+          // Add assistant response
+          setMessages(prev => [...prev, {
+            id: `assistant-${Date.now()}`,
+            role: 'assistant',
+            content: data.response.content,
+            created_at: new Date().toISOString(),
+          } as ConversationMessage]);
+
+          // Update questions
+          if (data.response.questions) {
+            setPendingQuestions(data.response.questions);
+          } else {
+            setPendingQuestions([]);
+          }
+          
+          completeProgress();
+        } else {
+          throw new Error('API returned success: false');
+        }
       }
     } catch (err) {
       // Don't show error for intentional cancellation
       if (err instanceof Error && err.name === 'AbortError') {
         console.log('[Chat] Request cancelled');
+        resetProgress();
         return;
       }
       
       console.error('Failed to continue conversation:', err);
       setError('Failed to send message. Please try again.');
+      resetProgress();
       
       // ROLLBACK: Remove optimistic message
       setMessages(prev => prev.filter(m => m.id !== tempId));

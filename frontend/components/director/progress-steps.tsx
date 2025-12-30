@@ -171,8 +171,11 @@ export function useProgressSteps(initialSteps: ProgressStep[] = DEFAULT_GENERATI
   };
 
   const completeAll = () => {
-    setSteps(prev => prev.map(step => ({ ...step, status: 'completed' })));
-    setCurrentStepIndex(steps.length);
+    setSteps(prev => {
+      // Use functional update to avoid stale closure (Bug 2.2 fix)
+      setCurrentStepIndex(prev.length);
+      return prev.map(step => ({ ...step, status: 'completed' as const }));
+    });
   };
 
   const setError = (stepId: string) => {
