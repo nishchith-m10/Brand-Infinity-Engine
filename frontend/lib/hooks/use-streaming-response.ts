@@ -95,6 +95,7 @@ export function useStreamingResponse() {
             try {
               const json = JSON.parse(trimmed.slice(6));
               if (json.content) {
+                // console.log('[StreamHook] Received:', json.content);
                 accumulated += json.content;
                 setState(prev => ({ ...prev, content: accumulated }));
                 onChunk?.(json.content);
