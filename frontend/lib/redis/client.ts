@@ -54,6 +54,8 @@ export const REDIS_KEYS = {
   ACTIVE_SESSIONS: (userId: string) => `active:${userId}`,
   PENDING_QUESTIONS: (sessionId: string) => `questions:${sessionId}`,
   TASK_PLAN: (sessionId: string) => `plan:${sessionId}`,
+  PENDING_CONFIRMATION: (sessionId: string) => `confirmation:${sessionId}`,
+  IDEMPOTENCY: (key: string) => `idem:${key}`,
 } as const;
 
 /**
@@ -66,5 +68,7 @@ export const REDIS_TTL = {
   ACTIVE_SESSIONS: 3600, // 1 hour
   QUESTIONS: 1800, // 30 minutes
   TASK_PLAN: 3600, // 1 hour
+  CONFIRMATION: 1800, // 30 minutes
+  IDEMPOTENCY: 300, // 5 minutes
 } as const;
 
