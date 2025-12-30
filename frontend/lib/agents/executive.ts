@@ -37,12 +37,13 @@ export class ExecutiveAgent {
     session: ConversationSession;
     userMessage: string;
     brandKnowledge?: string;
+    brandContext?: { identity?: { target_audience?: string; default_platform?: string; tone?: string } };
   }): Promise<ExecutiveAction> {
     // Parse intent from user message
     const intent = await this.parseIntent(params.userMessage, params.brandKnowledge);
 
-    // Check if we need more information
-    const questions = this.identifyMissingInfo(intent);
+    // Check if we need more information (smart skip using brand context)
+    const questions = this.identifyMissingInfo(intent, params.brandContext);
     
     if (questions.length > 0) {
       return {
@@ -52,9 +53,11 @@ export class ExecutiveAgent {
       };
     }
 
-    // If we have everything, create task plan
+    // If we have everything, generate confirmation summary
+    const summary = await this.generateConfirmationSummary(intent);
     return {
-      type: 'create_plan',
+      type: 'confirm_plan',
+      summary,
       parsedIntent: intent,
     };
   }
@@ -122,11 +125,15 @@ Return ONLY valid JSON matching this structure.`;
 
   /**
    * Identify missing information that needs clarification
+   * Uses brand context for smart question skipping
    */
-  private identifyMissingInfo(intent: ParsedIntent): ClarifyingQuestion[] {
+  private identifyMissingInfo(
+    intent: ParsedIntent,
+    brandContext?: { identity?: { target_audience?: string; default_platform?: string; tone?: string } }
+  ): ClarifyingQuestion[] {
     const questions: ClarifyingQuestion[] = [];
 
-    // Check for missing critical information
+    // Check for missing critical information (skip if available in brand context)
     if (!intent.content_type) {
       questions.push({
         id: 'content_type',
@@ -138,7 +145,8 @@ Return ONLY valid JSON matching this structure.`;
       });
     }
 
-    if (!intent.platform) {
+    // Skip platform question if brand has default
+    if (!intent.platform && !brandContext?.identity?.default_platform) {
       questions.push({
         id: 'platform',
         question: 'Which platform will you use?',
@@ -147,9 +155,13 @@ Return ONLY valid JSON matching this structure.`;
         required: true,
         options: ['tiktok', 'instagram_reels', 'youtube_shorts', 'facebook', 'linkedin'],
       });
+    } else if (!intent.platform && brandContext?.identity?.default_platform) {
+      // Use brand default
+      intent.platform = brandContext.identity.default_platform as ParsedIntent['platform'];
     }
 
-    if (!intent.target_audience) {
+    // Skip audience question if brand has defined target
+    if (!intent.target_audience && !brandContext?.identity?.target_audience) {
       questions.push({
         id: 'target_audience',
         question: 'Who is your target audience?',
@@ -157,6 +169,14 @@ Return ONLY valid JSON matching this structure.`;
         type: 'text',
         required: true,
       });
+    } else if (!intent.target_audience && brandContext?.identity?.target_audience) {
+      // Use brand default
+      intent.target_audience = brandContext.identity.target_audience;
+    }
+
+    // Apply brand tone if available
+    if (!intent.tone && brandContext?.identity?.tone) {
+      intent.tone = brandContext.identity.tone as ParsedIntent['tone'];
     }
 
     return questions;
@@ -168,6 +188,7 @@ Return ONLY valid JSON matching this structure.`;
   async processAnswers(params: {
     session: ConversationSession;
     answers: Record<string, unknown>;
+    brandContext?: { identity?: { target_audience?: string; default_platform?: string; tone?: string } };
   }): Promise<ExecutiveAction> {
     // Merge answers into intent
     const updatedIntent = {
@@ -175,8 +196,8 @@ Return ONLY valid JSON matching this structure.`;
       ...params.answers,
     } as ParsedIntent;
 
-    // Check if we still need more info
-    const remainingQuestions = this.identifyMissingInfo(updatedIntent);
+    // Check if we still need more info (with smart skipping)
+    const remainingQuestions = this.identifyMissingInfo(updatedIntent, params.brandContext);
 
     if (remainingQuestions.length > 0) {
       return {
@@ -186,11 +207,52 @@ Return ONLY valid JSON matching this structure.`;
       };
     }
 
-    // Ready to create plan
+    // Generate confirmation summary before creating plan
+    const summary = await this.generateConfirmationSummary(updatedIntent);
+    
     return {
-      type: 'create_plan',
+      type: 'confirm_plan',
+      summary,
       parsedIntent: updatedIntent,
     };
+  }
+
+  /**
+   * Generate human-readable confirmation summary
+   */
+  private async generateConfirmationSummary(intent: ParsedIntent): Promise<string> {
+    const systemPrompt = `You are the Creative Director. Summarize the content plan in 2-3 sentences.
+Be encouraging, specific, and confirm what will be created.
+Do NOT ask any questions - just summarize the plan.`;
+
+    const userPrompt = `Summarize this content creation plan:
+- Content Type: ${intent.content_type || 'video'}
+- Platform: ${intent.platform || 'social media'}
+- Target Audience: ${intent.target_audience || 'general'}
+- Tone: ${intent.tone || 'professional'}
+- Key Message: ${intent.key_message || 'brand message'}
+
+Provide a confident, encouraging summary.`;
+
+    try {
+      const response = await this.llmService.generateCompletion({
+        userId: this.userId,
+        agentType: 'executive',
+        messages: [
+          { role: 'system', content: systemPrompt },
+          { role: 'user', content: userPrompt },
+        ],
+        model: this.agentModel,
+        temperature: 0.7,
+        maxTokens: 300,
+        apiKey: this.apiKey,
+      });
+      return response.content;
+    } catch (error) {
+      console.error('[Executive] Failed to generate summary:', error);
+      // Fallback to simple summary
+      return `I'll create a ${intent.content_type || 'video'} for ${intent.platform || 'your platform'} targeting ${intent.target_audience || 'your audience'}.`;
+    }
   }
 
   /**
