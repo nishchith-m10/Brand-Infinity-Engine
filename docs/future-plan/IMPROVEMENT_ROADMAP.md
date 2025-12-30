@@ -321,6 +321,7 @@ _These features represent what separates a 1.0 product from a truly world-class 
 
 - [ ] **Self-Improving Agents** — Agents learn from user feedback and improve over time
 - [ ] **Agent Memory Persistence** — Agents remember user preferences, past campaigns, and successful patterns across sessions
+- [ ] **Generation Performance Tracking** — Track which scripts scored highest, which hooks performed best per brand, patterns that worked/failed (Reference: V14 OLYMPUS Phase 2 for architecture inspiration)
 - [ ] **Agent Personality Profiles** — Customizable agent personas (conservative vs bold, formal vs casual)
 - [ ] **Autonomous Campaign Loops** — Agents can run multi-day campaigns without human intervention
 - [ ] **Agent-to-Agent Negotiation** — Agents discuss and resolve conflicting requirements internally
