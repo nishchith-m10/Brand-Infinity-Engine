@@ -37,8 +37,8 @@ const CreateRequestSchema = z.object({
       .enum(['Close-up', 'Wide', 'Medium', 'POV', 'Aerial'])
       .optional()
       .default('Medium'),
-    voice_id: z.string().optional(),
-    pollinations_model: z.enum(['flux', 'flux-realism', 'flux-anime', 'flux-3d', 'turbo']).optional(),
+    voice_id: z.string().optional().nullable(),
+    pollinations_model: z.string().optional().nullable(),
   }),
 
   settings: z
@@ -77,6 +77,7 @@ export async function POST(request: NextRequest) {
     const validation = CreateRequestSchema.safeParse(body);
 
     if (!validation.success) {
+      console.error('[API] Request validation failed:', JSON.stringify(validation.error.flatten(), null, 2));
       return NextResponse.json(
         {
           success: false,
