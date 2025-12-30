@@ -118,6 +118,12 @@ export default function LoginPage() {
         provider: 'google',
         options: {
           redirectTo: `${window.location.origin}/verify-passcode`,
+          // Request offline access and prompt for consent so an OAuth refresh token is returned
+          scopes: 'openid email profile',
+          queryParams: {
+            access_type: 'offline',
+            prompt: 'consent'
+          }
         },
       });
 
