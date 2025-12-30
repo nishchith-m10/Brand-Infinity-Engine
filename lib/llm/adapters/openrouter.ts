@@ -169,11 +169,11 @@ export class OpenRouterAdapter extends BaseLLMAdapter {
    * Yields content chunks as they arrive
    */
   async *streamCompletion(request: LLMRequest): AsyncGenerator<string, void, unknown> {
-    const apiKey = request.apiKey || this.defaultApiKey;
+    const apiKey = request.apiKey || await this.fetchApiKey(request.userId);
     
     console.log("[OpenRouter] streamCompletion called:", {
       hasRequestApiKey: !!request.apiKey,
-      hasDefaultApiKey: !!this.defaultApiKey,
+      hasFetchedApiKey: !!apiKey,
       model: request.model,
     });
     
