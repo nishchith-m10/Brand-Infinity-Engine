@@ -78,6 +78,13 @@ export async function POST(request: NextRequest) {
 
           // Yield chunks as SSE
           for await (const chunk of generator) {
+            // Safety check: specific workaround for OpenRouter potentially determining model
+            if (chunk.includes(modelToUse) || (model_id && chunk.includes(model_id))) {
+               console.warn('[Stream] Detected model echo, skipping:', chunk);
+               continue;
+            }
+
+            // console.log('[Stream] Yielding chunk:', chunk.substring(0, 50));
             const sseData = `data: ${JSON.stringify({ content: chunk })}\n\n`;
             controller.enqueue(encoder.encode(sseData));
           }
