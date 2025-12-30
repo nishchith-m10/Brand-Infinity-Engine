@@ -353,10 +353,109 @@ export async function invalidateSessionCaches(sessionId: string): Promise<void> 
       REDIS_KEYS.SESSION_MESSAGES(sessionId),
       REDIS_KEYS.SESSION_STATS(sessionId),
       REDIS_KEYS.PENDING_QUESTIONS(sessionId),
-      REDIS_KEYS.TASK_PLAN(sessionId)
+      REDIS_KEYS.TASK_PLAN(sessionId),
+      REDIS_KEYS.PENDING_CONFIRMATION(sessionId)
     );
   } catch (error) {
     console.error('[SessionCache] Failed to invalidate all caches:', error);
   }
 }
 
+// ============================================================================
+// CONFIRMATION CACHING
+// ============================================================================
+
+import type { ConfirmationState } from '@/lib/agents/types';
+
+/**
+ * Get pending confirmation from cache
+ */
+export async function getCachedConfirmation(
+  sessionId: string
+): Promise<ConfirmationState | null> {
+  const redis = getRedisClient();
+  if (!redis) return null;
+
+  try {
+    return await redis.get<ConfirmationState>(REDIS_KEYS.PENDING_CONFIRMATION(sessionId));
+  } catch (error) {
+    console.error('[SessionCache] Failed to get confirmation:', error);
+    return null;
+  }
+}
+
+/**
+ * Set pending confirmation in cache
+ */
+export async function setCachedConfirmation(
+  sessionId: string,
+  confirmation: ConfirmationState
+): Promise<void> {
+  const redis = getRedisClient();
+  if (!redis) return;
+
+  try {
+    await redis.setex(
+      REDIS_KEYS.PENDING_CONFIRMATION(sessionId),
+      REDIS_TTL.CONFIRMATION,
+      confirmation
+    );
+  } catch (error) {
+    console.error('[SessionCache] Failed to set confirmation:', error);
+  }
+}
+
+/**
+ * Clear pending confirmation from cache
+ */
+export async function clearCachedConfirmation(sessionId: string): Promise<void> {
+  const redis = getRedisClient();
+  if (!redis) return;
+
+  try {
+    await redis.del(REDIS_KEYS.PENDING_CONFIRMATION(sessionId));
+  } catch (error) {
+    console.error('[SessionCache] Failed to clear confirmation:', error);
+  }
+}
+
+// ============================================================================
+// IDEMPOTENCY CACHING
+// ============================================================================
+
+/**
+ * Get cached response for idempotency key
+ */
+export async function getIdempotencyResponse<T>(key: string): Promise<T | null> {
+  const redis = getRedisClient();
+  if (!redis) return null;
+
+  try {
+    return await redis.get<T>(REDIS_KEYS.IDEMPOTENCY(key));
+  } catch (error) {
+    console.error('[SessionCache] Failed to get idempotency response:', error);
+    return null;
+  }
+}
+
+/**
+ * Set response for idempotency key
+ */
+export async function setIdempotencyResponse<T>(
+  key: string,
+  response: T,
+  ttlSeconds?: number
+): Promise<void> {
+  const redis = getRedisClient();
+  if (!redis) return;
+
+  try {
+    await redis.setex(
+      REDIS_KEYS.IDEMPOTENCY(key),
+      ttlSeconds ?? REDIS_TTL.IDEMPOTENCY,
+      response
+    );
+  } catch (error) {
+    console.error('[SessionCache] Failed to set idempotency response:', error);
+  }
+}

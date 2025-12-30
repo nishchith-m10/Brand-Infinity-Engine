@@ -3,6 +3,7 @@
 /**
  * Creative Director Chat Interface
  * Slice 8: Frontend Chat UI
+ * Enhanced with optimistic updates, streaming, and error recovery
  */
 
 import { useState, useRef, useEffect } from 'react';
@@ -10,9 +11,15 @@ import { MessageBubble } from './message-bubble';
 import { QuestionForm } from './question-form';
 import { ProviderSelector } from './provider-selector';
 import { ChatContextSelector } from './ChatContextSelector';
+import { TypingIndicator } from './typing-indicator';
+import { ProgressSteps, InlineProgress, useProgressSteps, DEFAULT_GENERATION_STEPS } from './progress-steps';
 import { useChatContext } from '@/lib/hooks/use-chat-context';
 import { useApiKeys } from '@/contexts/api-keys-context';
-import { Loader2, Send } from 'lucide-react';
+import { useConnectionStatus } from '@/lib/hooks/use-connection-status';
+import { useStreamingResponse } from '@/lib/hooks/use-streaming-response';
+import { fetchWithRetry, generateIdempotencyKey } from '@/lib/utils/fetch-with-retry';
+import { dedup, createMessageDedupKey } from '@/lib/utils/request-dedup';
+import { Loader2, Send, WifiOff, RefreshCw } from 'lucide-react';
 import type { ConversationMessage, ClarifyingQuestion } from '@/lib/agents/types';
 
 interface ChatInterfaceProps {
@@ -22,18 +29,44 @@ interface ChatInterfaceProps {
 }
 
 export function ChatInterface({ brandId, sessionId, onSessionCreate }: ChatInterfaceProps) {
-  const [messages, setMessages] = useState<ConversationMessage[]>([]);
+  const [messages, setMessages] = useState<(ConversationMessage & { _pending?: boolean })[]>([]);
   const [input, setInput] = useState('');
   const [loading, setLoading] = useState(false);
   const [pendingQuestions, setPendingQuestions] = useState<ClarifyingQuestion[]>([]);
   const [currentSessionId, setCurrentSessionId] = useState(sessionId);
   const [showCustomInput] = useState(false);
   const [adaptiveSuggestions, setAdaptiveSuggestions] = useState<string[]>([]);
+  const [error, setError] = useState<string | null>(null);
+  const [useStreaming, setUseStreaming] = useState(true); // Toggle for streaming mode
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  const abortControllerRef = useRef<AbortController | null>(null);
   const { apiKeys } = useApiKeys();
+  
+  // Progress tracking for content generation
+  const { 
+    steps: progressSteps, 
+    isInProgress, 
+    startProgress, 
+    nextStep, 
+    completeAll: completeProgress, 
+    reset: resetProgress 
+  } = useProgressSteps(DEFAULT_GENERATION_STEPS);
+  
+  // Streaming hook
+  const { isStreaming, content: streamingContent, startStream, cancelStream, resetContent } = useStreamingResponse();
+  
+  // Connection status for offline detection
+  const { isOnline, isReconnecting } = useConnectionStatus();
   
   // Chat context for Campaign → KB → Identity selection
   const { getContextPayload } = useChatContext();
+
+  // Cancel pending requests on unmount
+  useEffect(() => {
+    return () => {
+      abortControllerRef.current?.abort();
+    };
+  }, []);
 
   // AI Model Selection - Load from localStorage or default to OpenAI GPT-4o
   const [selectedModel, setSelectedModel] = useState<string>(() => {
@@ -51,10 +84,10 @@ export function ChatInterface({ brandId, sessionId, onSessionCreate }: ChatInter
   }, [selectedModel]);
 
 
-  // Auto-scroll to bottom
+  // Auto-scroll to bottom (also on streaming content update)
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
-  }, [messages]);
+  }, [messages, streamingContent]);
 
   // Load existing session messages
   useEffect(() => {
@@ -130,17 +163,38 @@ export function ChatInterface({ brandId, sessionId, onSessionCreate }: ChatInter
 
   const startConversation = async (message: string) => {
     console.log('[Chat] Starting conversation with message:', message);
+    
+    // Cancel any previous pending request
+    abortControllerRef.current?.abort();
+    abortControllerRef.current = new AbortController();
+    
+    setError(null);
+    const tempId = `temp-${Date.now()}`;
+    
+    // OPTIMISTIC: Add user message immediately
+    setMessages(prev => [...prev, {
+      id: tempId,
+      role: 'user',
+      content: message,
+      created_at: new Date().toISOString(),
+      _pending: true,
+    } as ConversationMessage & { _pending?: boolean }]);
+    
     setLoading(true);
+    
     try {
       const [provider, modelId] = selectedModel.split(':');
       const contextPayload = getContextPayload();
+      const idempotencyKey = generateIdempotencyKey('start');
       
       console.log('[Chat] Sending to API with provider:', provider, 'model:', modelId);
-      console.log('[Chat] OpenRouter API key available:', !!apiKeys.openrouter, apiKeys.openrouter ? `(${apiKeys.openrouter.substring(0, 8)}...)` : '(none)');
       
-      const res = await fetch('/api/v1/conversation/start', {
+      const res = await fetchWithRetry('/api/v1/conversation/start', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 
+          'Content-Type': 'application/json',
+          'x-idempotency-key': idempotencyKey,
+        },
         body: JSON.stringify({
           brand_id: brandId,
           initial_message: message,
@@ -149,56 +203,52 @@ export function ChatInterface({ brandId, sessionId, onSessionCreate }: ChatInter
           context: contextPayload,
           openrouter_api_key: apiKeys.openrouter,
         }),
+        signal: abortControllerRef.current.signal,
       });
 
-      console.log('[Chat] API response status:', res.status);
       const data = (await res.json()) as { success: boolean; session_id: string; response: { content: string; questions?: ClarifyingQuestion[] } };
-      console.log('[Chat] API response data:', data);
       
       if (data.success) {
         setCurrentSessionId(data.session_id);
         onSessionCreate?.(data.session_id);
         
-        console.log('[Chat] Adding user message to state');
-        // Add user message
-        setMessages(prev => {
-          const newMessages = [...prev, {
-            id: `temp-${Date.now()}`,
-            role: 'user',
-            content: message,
-            created_at: new Date().toISOString(),
-          } as ConversationMessage];
-          console.log('[Chat] Messages after adding user:', newMessages.length);
-          return newMessages;
-        });
+        // Mark user message as confirmed
+        setMessages(prev => prev.map(m => 
+          m.id === tempId ? { ...m, _pending: false } : m
+        ));
 
-        console.log('[Chat] Adding assistant message to state');
         // Add assistant response
-        setMessages(prev => {
-          const newMessages = [...prev, {
-            id: `temp-${Date.now()}-1`,
-            role: 'assistant',
-            content: data.response.content,
-            created_at: new Date().toISOString(),
-          } as ConversationMessage];
-          console.log('[Chat] Messages after adding assistant:', newMessages.length);
-          return newMessages;
-        });
+        setMessages(prev => [...prev, {
+          id: `assistant-${Date.now()}`,
+          role: 'assistant',
+          content: data.response.content,
+          created_at: new Date().toISOString(),
+        } as ConversationMessage]);
 
         // Handle questions
         if (data.response.questions) {
           setPendingQuestions(data.response.questions);
         }
 
-        // Generate adaptive suggestions based on user's first message
+        // Generate adaptive suggestions
         if (showCustomInput) {
           setAdaptiveSuggestions(generateAdaptiveSuggestions(message));
         }
       } else {
-        console.error('[Chat] API returned success: false');
+        throw new Error('API returned success: false');
       }
-    } catch (error) {
-      console.error('Failed to start conversation:', error);
+    } catch (err) {
+      // Don't show error for intentional cancellation
+      if (err instanceof Error && err.name === 'AbortError') {
+        console.log('[Chat] Request cancelled');
+        return;
+      }
+      
+      console.error('Failed to start conversation:', err);
+      setError('Failed to send message. Please try again.');
+      
+      // ROLLBACK: Remove optimistic message
+      setMessages(prev => prev.filter(m => m.id !== tempId));
     } finally {
       setLoading(false);
       setInput('');
@@ -208,38 +258,61 @@ export function ChatInterface({ brandId, sessionId, onSessionCreate }: ChatInter
   const continueConversation = async (message: string, answers?: Record<string, unknown>) => {
     if (!currentSessionId) return;
 
+    // Cancel any previous pending request
+    abortControllerRef.current?.abort();
+    abortControllerRef.current = new AbortController();
+    
+    setError(null);
+    const tempId = `temp-${Date.now()}`;
+    const dedupKey = createMessageDedupKey(currentSessionId, message);
+    
+    // OPTIMISTIC: Add user message immediately
+    setMessages(prev => [...prev, {
+      id: tempId,
+      role: 'user',
+      content: message,
+      created_at: new Date().toISOString(),
+      _pending: true,
+    } as ConversationMessage & { _pending?: boolean }]);
+    
     setLoading(true);
+    
     try {
       const [provider, modelId] = selectedModel.split(':');
       const contextPayload = getContextPayload();
+      const idempotencyKey = generateIdempotencyKey('continue');
       
-      const res = await fetch(`/api/v1/conversation/${currentSessionId}/continue`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ 
-          message, 
-          answers,
-          provider,
-          model_id: modelId,
-          context: contextPayload,
-          openrouter_api_key: apiKeys.openrouter,
-        }),
-      });
+      // Deduplicate requests (prevent double-submit)
+      const res = await dedup(dedupKey, () => 
+        fetchWithRetry(`/api/v1/conversation/${currentSessionId}/continue`, {
+          method: 'POST',
+          headers: { 
+            'Content-Type': 'application/json',
+            'x-idempotency-key': idempotencyKey,
+          },
+          body: JSON.stringify({ 
+            message, 
+            answers,
+            provider,
+            model_id: modelId,
+            context: contextPayload,
+            openrouter_api_key: apiKeys.openrouter,
+          }),
+          signal: abortControllerRef.current!.signal,
+        })
+      );
 
       const data = (await res.json()) as { success: boolean; response: { content: string; questions?: ClarifyingQuestion[] } };
       
       if (data.success) {
-        // Add user message
-        setMessages(prev => [...prev, {
-          id: `temp-${Date.now()}`,
-          role: 'user',
-          content: message,
-          created_at: new Date().toISOString(),
-        } as ConversationMessage]);
+        // Mark user message as confirmed
+        setMessages(prev => prev.map(m => 
+          m.id === tempId ? { ...m, _pending: false } : m
+        ));
 
         // Add assistant response
         setMessages(prev => [...prev, {
-          id: `temp-${Date.now()}-1`,
+          id: `assistant-${Date.now()}`,
           role: 'assistant',
           content: data.response.content,
           created_at: new Date().toISOString(),
@@ -251,9 +324,21 @@ export function ChatInterface({ brandId, sessionId, onSessionCreate }: ChatInter
         } else {
           setPendingQuestions([]);
         }
+      } else {
+        throw new Error('API returned success: false');
       }
-    } catch (error) {
-      console.error('Failed to continue conversation:', error);
+    } catch (err) {
+      // Don't show error for intentional cancellation
+      if (err instanceof Error && err.name === 'AbortError') {
+        console.log('[Chat] Request cancelled');
+        return;
+      }
+      
+      console.error('Failed to continue conversation:', err);
+      setError('Failed to send message. Please try again.');
+      
+      // ROLLBACK: Remove optimistic message
+      setMessages(prev => prev.filter(m => m.id !== tempId));
     } finally {
       setLoading(false);
       setInput('');
@@ -280,6 +365,20 @@ export function ChatInterface({ brandId, sessionId, onSessionCreate }: ChatInter
 
   return (
     <div className="flex flex-col flex-1 min-h-0 w-full bg-white rounded-lg shadow-md border border-slate-200/80 overflow-hidden">
+      {/* Offline Banner */}
+      {!isOnline && (
+        <div className="flex items-center gap-2 px-4 py-2 bg-yellow-50 border-b border-yellow-200 text-yellow-800">
+          <WifiOff className="w-4 h-4" />
+          <span className="text-xs font-medium">You're offline. Messages will send when you reconnect.</span>
+        </div>
+      )}
+      {isReconnecting && (
+        <div className="flex items-center gap-2 px-4 py-2 bg-blue-50 border-b border-blue-200 text-blue-800">
+          <RefreshCw className="w-4 h-4 animate-spin" />
+          <span className="text-xs font-medium">Reconnecting...</span>
+        </div>
+      )}
+      
       {/* Header with Context Selector */}
       <div className="px-3 sm:px-4 py-2 border-b border-slate-200/60 bg-slate-50/50">
         <div className="flex items-center justify-between gap-3 mb-2">
@@ -352,13 +451,52 @@ export function ChatInterface({ brandId, sessionId, onSessionCreate }: ChatInter
         )}
 
         {messages.map((message) => (
-          <MessageBubble key={message.id} message={message} />
+          <MessageBubble 
+            key={message.id} 
+            message={message}
+            isPending={'_pending' in message && message._pending}
+          />
         ))}
 
-        {loading && (
-          <div className="flex items-center gap-2 text-lamaPurple bg-white px-3 py-2 rounded-md shadow-sm border border-lamaPurple/20">
-            <Loader2 className="w-4 h-4 animate-spin shrink-0" />
-            <span className="text-xs font-medium">Thinking...</span>
+        {/* Streaming response - show as it comes in */}
+        {isStreaming && streamingContent && (
+          <div className="flex gap-3 flex-row">
+            <div className="flex-shrink-0 w-8 h-8 rounded-full flex items-center justify-center bg-lamaPurple">
+              <svg className="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9.75 17L9 20l-1 1h8l-1-1-.75-3M3 13h18M5 17h14a2 2 0 002-2V5a2 2 0 00-2-2h-14a2 2 0 00-2 2v10a2 2 0 002 2z" />
+              </svg>
+            </div>
+            <div className="flex-1 max-w-[80%]">
+              <div className="rounded-lg px-4 py-3 bg-gray-100 text-gray-900">
+                <div className="text-sm whitespace-pre-wrap break-words">
+                  {streamingContent}
+                  <span className="inline-block w-2 h-4 ml-1 bg-lamaPurple animate-pulse" />
+                </div>
+              </div>
+              <div className="mt-1 text-xs text-gray-500 text-left">Generating...</div>
+            </div>
+          </div>
+        )}
+
+        {/* Progress steps - show during content generation */}
+        {isInProgress && (
+          <div className="py-2">
+            <ProgressSteps steps={progressSteps} variant="horizontal" size="sm" />
+          </div>
+        )}
+
+        {/* Show typing indicator only when loading but not streaming */}
+        {loading && !isStreaming && !isInProgress && <TypingIndicator />}
+        
+        {error && (
+          <div className="flex items-center gap-2 text-red-600 bg-red-50 px-3 py-2 rounded-md border border-red-200">
+            <span className="text-xs">{error}</span>
+            <button 
+              onClick={() => setError(null)}
+              className="text-xs underline hover:no-underline"
+            >
+              Dismiss
+            </button>
           </div>
         )}
 

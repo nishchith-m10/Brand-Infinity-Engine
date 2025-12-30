@@ -679,8 +679,27 @@ export default function ContentReviewPage() {
                 {/* Video Preview */}
                 <div className="rounded-lg border border-gray-200 p-4">
                   <h4 className="mb-3 font-medium text-gray-900">Video Preview</h4>
-                  <div className="aspect-video rounded-lg bg-black flex items-center justify-center">
-                    <Video className="h-12 w-12 text-gray-500" />
+                  <div className="aspect-video rounded-lg bg-black flex items-center justify-center overflow-hidden">
+                    {(selectedItem.data as VideoType).output_url ? (
+                      <video
+                        controls
+                        className="w-full h-full object-contain"
+                        src={(selectedItem.data as VideoType).output_url}
+                        poster="/images/video-poster.png"
+                      >
+                        Your browser does not support the video tag.
+                      </video>
+                    ) : (selectedItem.data as VideoType).status === 'generating' || (selectedItem.data as VideoType).status === 'pending' ? (
+                      <div className="flex flex-col items-center gap-2 text-gray-400">
+                        <div className="h-10 w-10 animate-spin rounded-full border-2 border-lamaPurple border-t-transparent" />
+                        <span className="text-sm">Generating video...</span>
+                      </div>
+                    ) : (
+                      <div className="flex flex-col items-center gap-2 text-gray-500">
+                        <Video className="h-12 w-12" />
+                        <span className="text-sm">Preview not available</span>
+                      </div>
+                    )}
                   </div>
                   <div className="mt-3 grid grid-cols-3 gap-2 text-center">
                     <div className="rounded bg-gray-50 p-2">

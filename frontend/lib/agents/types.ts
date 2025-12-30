@@ -123,9 +123,59 @@ export type ExecutiveAction =
       parsedIntent: Partial<ParsedIntent>;
     }
   | {
+      type: 'confirm_plan';
+      summary: string;
+      parsedIntent: Partial<ParsedIntent>;
+    }
+  | {
       type: 'create_plan';
       parsedIntent: Partial<ParsedIntent>;
     };
+
+/**
+ * State for pending confirmation (before plan creation)
+ */
+export interface ConfirmationState {
+  summary: string;
+  parsedIntent: Partial<ParsedIntent>;
+  adjustments?: string[];
+  createdAt: string;
+}
+
+/**
+ * User preferences per brand (for smart question skipping)
+ */
+export interface UserPreferences {
+  id: string;
+  user_id: string;
+  brand_id: string;
+  default_platform?: string;
+  default_tone?: string;
+  default_content_type?: string;
+  created_at: string;
+  updated_at: string;
+}
+
+/**
+ * Extended ConversationMessage with client-side pending flag
+ */
+export interface ConversationMessageExtended {
+  id: string;
+  session_id: string;
+  brand_id: string;
+  user_id: string;
+  role: "user" | "assistant" | "system";
+  content: string;
+  tokens_used?: number;
+  model_used?: string;
+  latency_ms?: number;
+  action_taken?: "asked_questions" | "delegated" | "responded";
+  questions_asked?: ClarifyingQuestion[];
+  delegation_plan?: DelegationPlan;
+  created_at: string;
+  /** Client-only: marks message as pending (optimistic update) */
+  _pending?: boolean;
+}
 
 // ============================================================================
 // TASK & DELEGATION TYPES
