@@ -685,14 +685,18 @@ export default function ContentReviewPage() {
                         controls
                         className="w-full h-full object-contain"
                         src={(selectedItem.data as VideoType).output_url}
-                        poster="/images/video-poster.png"
                       >
                         Your browser does not support the video tag.
                       </video>
-                    ) : (selectedItem.data as VideoType).status === 'generating' || (selectedItem.data as VideoType).status === 'pending' ? (
+                    ) : ['generating', 'pending'].includes((selectedItem.data as VideoType).status) ? (
                       <div className="flex flex-col items-center gap-2 text-gray-400">
                         <div className="h-10 w-10 animate-spin rounded-full border-2 border-lamaPurple border-t-transparent" />
                         <span className="text-sm">Generating video...</span>
+                      </div>
+                    ) : (selectedItem.data as VideoType).status === 'failed' ? (
+                      <div className="flex flex-col items-center gap-2 text-red-500">
+                        <span className="text-2xl">⚠️</span>
+                        <span className="text-sm">Generation failed</span>
                       </div>
                     ) : (
                       <div className="flex flex-col items-center gap-2 text-gray-500">

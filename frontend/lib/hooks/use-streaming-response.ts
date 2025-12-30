@@ -104,7 +104,8 @@ export function useStreamingResponse() {
                 throw new Error(json.error);
               }
             } catch (e) {
-              // Skip malformed chunks
+              // Log malformed chunks for debugging (Bug 1.3 fix)
+              console.warn('[StreamHook] Malformed chunk, skipping:', trimmed.slice(0, 100), e);
             }
           }
         }
