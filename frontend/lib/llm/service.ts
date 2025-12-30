@@ -91,6 +91,46 @@ export class LLMService {
   }
 
   /**
+   * Stream completion with real-time response chunks
+   * Falls back to non-streaming for adapters that don't support it
+   */
+  async *streamCompletion(request: LLMRequest): AsyncGenerator<string, void, unknown> {
+    // 1. Get provider
+    let provider = request.provider;
+    
+    if (!provider && request.model) {
+      provider = this.getProviderFromModel(request.model) || undefined;
+    }
+
+    console.log("[LLMService] Stream request:", {
+      model: request.model,
+      provider: provider,
+      hasApiKey: !!request.apiKey,
+    });
+
+    if (!provider) {
+      throw new Error(`Could not determine provider for model: ${request.model}`);
+    }
+
+    // 2. Get adapter
+    const adapter = this.adapters.get(provider);
+    if (!adapter) {
+      throw new Error(`Provider ${provider} not initialized or not supported`);
+    }
+
+    // 3. Check if adapter supports streaming
+    if ('streamCompletion' in adapter && typeof adapter.streamCompletion === 'function') {
+      // Delegate to adapter's streaming implementation
+      yield* adapter.streamCompletion(request);
+    } else {
+      // Fallback: get full response and yield it as one chunk
+      console.log('[LLMService] Adapter does not support streaming, falling back to full response');
+      const response = await adapter.generateCompletion(request);
+      yield response.content;
+    }
+  }
+
+  /**
    * Get provider from model string
    */
   private getProviderFromModel(model: string): LLMProvider | null {

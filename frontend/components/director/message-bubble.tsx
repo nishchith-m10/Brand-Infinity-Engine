@@ -6,19 +6,21 @@
  */
 
 import { formatDistanceToNow } from 'date-fns';
-import { Bot, User } from 'lucide-react';
+import { Bot, User, Clock } from 'lucide-react';
 import type { ConversationMessage } from '@/lib/agents/types';
 
 interface MessageBubbleProps {
   message: ConversationMessage;
+  /** True when message is optimistically added but not yet confirmed */
+  isPending?: boolean;
 }
 
-export function MessageBubble({ message }: MessageBubbleProps) {
+export function MessageBubble({ message, isPending = false }: MessageBubbleProps) {
   const isUser = message.role === 'user';
   const isSystem = message.role === 'system';
 
   return (
-    <div className={`flex gap-3 ${isUser ? 'flex-row-reverse' : 'flex-row'}`}>
+    <div className={`flex gap-3 ${isUser ? 'flex-row-reverse' : 'flex-row'} ${isPending ? 'opacity-70' : ''}`}>
       {/* Avatar */}
       <div className={`flex-shrink-0 w-8 h-8 rounded-full flex items-center justify-center ${
         isUser ? 'bg-blue-600' : isSystem ? 'bg-gray-400' : 'bg-purple-600'
@@ -56,7 +58,14 @@ export function MessageBubble({ message }: MessageBubbleProps) {
 
         {/* Timestamp */}
         <div className={`mt-1 text-xs text-gray-500 ${isUser ? 'text-right' : 'text-left'}`}>
-          {formatDistanceToNow(new Date(message.created_at), { addSuffix: true })}
+          {isPending ? (
+            <span className="flex items-center gap-1 justify-end">
+              <Clock className="w-3 h-3" />
+              Sending...
+            </span>
+          ) : (
+            formatDistanceToNow(new Date(message.created_at), { addSuffix: true })
+          )}
         </div>
       </div>
     </div>

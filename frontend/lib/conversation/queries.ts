@@ -378,3 +378,71 @@ export async function isSessionActive(sessionId: string): Promise<boolean> {
   return !["delivered", "cancelled"].includes(session.state);
 }
 
+// ============================================================================
+// USER PREFERENCES QUERIES
+// ============================================================================
+
+import type { UserPreferences } from "@/lib/agents/types";
+
+/**
+ * Get user preferences for a specific brand
+ */
+export async function getUserPreferences(
+  userId: string,
+  brandId: string
+): Promise<{ preferences: UserPreferences | null; error: string | null }> {
+  const supabase = await createClient();
+
+  const { data, error } = await supabase
+    .from("user_preferences")
+    .select("*")
+    .eq("user_id", userId)
+    .eq("brand_id", brandId)
+    .single();
+
+  // PGRST116 = not found, which is OK for preferences
+  if (error && error.code !== "PGRST116") {
+    console.error("[Queries] Failed to get user preferences:", error);
+    return { preferences: null, error: error.message };
+  }
+
+  return { preferences: data, error: null };
+}
+
+/**
+ * Update or create user preferences for a brand
+ */
+export async function updateUserPreferences(
+  userId: string,
+  brandId: string,
+  updates: {
+    default_platform?: string;
+    default_tone?: string;
+    default_content_type?: string;
+  }
+): Promise<{ preferences: UserPreferences | null; error: string | null }> {
+  const supabase = await createClient();
+
+  const { data, error } = await supabase
+    .from("user_preferences")
+    .upsert(
+      {
+        user_id: userId,
+        brand_id: brandId,
+        ...updates,
+        updated_at: new Date().toISOString(),
+      },
+      {
+        onConflict: "user_id,brand_id",
+      }
+    )
+    .select()
+    .single();
+
+  if (error) {
+    console.error("[Queries] Failed to update user preferences:", error);
+    return { preferences: null, error: error.message };
+  }
+
+  return { preferences: data, error: null };
+}
