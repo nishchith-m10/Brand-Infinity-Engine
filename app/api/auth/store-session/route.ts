@@ -7,6 +7,16 @@ export async function POST(request: NextRequest) {
     const body = await request.json();
     const { access_token, refresh_token } = body;
 
+    // Safe debug: log presence of tokens and incoming cookie NAMES (never values)
+    try {
+      const cookieHeader = request.headers.get('cookie') ?? '';
+      const cookieNames = cookieHeader ? cookieHeader.split(';').map(c => c.split('=')[0].trim()) : [];
+      console.log('[Auth:store-session] Incoming cookie names:', cookieNames);
+      console.log('[Auth:store-session] Refresh token present:', !!refresh_token, 'Access token present:', !!access_token);
+    } catch (e) {
+      // ignore logging errors
+    }
+
     if (!access_token) {
       console.error('[Auth:store-session] No access token provided');
       return NextResponse.json({
@@ -83,12 +93,12 @@ export async function POST(request: NextRequest) {
     const { data, error } = await supabase.auth.setSession({ access_token, refresh_token });
 
     if (error) {
-      console.error('[Auth:store-session] setSession error:', error.message);
+      console.error('[Auth:store-session] setSession error:', JSON.stringify(error, Object.getOwnPropertyNames(error)));
       return NextResponse.json({
         success: false,
         error: {
           code: 'SET_SESSION_ERROR',
-          message: error.message,
+          message: error.message || 'setSession failed',
           details: {}
         },
         meta: {
@@ -100,6 +110,10 @@ export async function POST(request: NextRequest) {
 
     console.log('[Auth:store-session] ✅ Session set for user:', data.user?.email);
     console.log('[Auth:store-session] Setting', cookiesToSet.length, 'cookies in response');
+    // Log cookie names we are about to set (safe, no token values)
+    try {
+      console.log('[Auth:store-session] Cookies to set:', cookiesToSet.map(c => c.name));
+    } catch (e) {}
     
     // Create response and set all cookies
     const response = NextResponse.json({
