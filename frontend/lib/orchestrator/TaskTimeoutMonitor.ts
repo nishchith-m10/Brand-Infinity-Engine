@@ -66,12 +66,12 @@ export class TaskTimeoutMonitor {
 
         const startedAt = new Date(task.started_at).getTime();
         const elapsed = now - startedAt;
-        const timeout = this.getTimeoutForAgent(task.assigned_to);
+        const timeout = this.getTimeoutForAgent(task.agent_role);
 
         if (elapsed > timeout) {
           console.warn(`[TaskTimeoutMonitor] Task ${task.id} timed out:`, {
             task_name: task.task_name,
-            assigned_to: task.assigned_to,
+            agent_role: task.agent_role,
             started_at: task.started_at,
             elapsed_ms: elapsed,
             timeout_ms: timeout,
@@ -131,7 +131,7 @@ export class TaskTimeoutMonitor {
       task.request_id,
       task.id,
       task.task_name,
-      task.assigned_to,
+      task.agent_role,
       'TASK_TIMEOUT',
       errorMessage,
       false // Timeouts are generally not retriable
@@ -140,14 +140,14 @@ export class TaskTimeoutMonitor {
     // Log additional timeout metadata
     await eventLogger.logEvent({
       request_id: task.request_id,
-      event_type: 'error',
+      event_type: 'system_error',
       description: `Task timed out: ${task.task_name}`,
       metadata: {
         task_id: task.id,
-        agent_role: task.assigned_to,
+        agent_role: task.agent_role,
         started_at: task.started_at,
         elapsed_ms: elapsedMs,
-        timeout_ms: this.getTimeoutForAgent(task.assigned_to),
+        timeout_ms: this.getTimeoutForAgent(task.agent_role),
         timeout_minutes: timeoutMinutes,
       },
       task_id: task.id,
@@ -190,7 +190,7 @@ export class TaskTimeoutMonitor {
 
     const startedAt = new Date(task.started_at).getTime();
     const elapsed = Date.now() - startedAt;
-    const timeout = this.getTimeoutForAgent(task.assigned_to);
+    const timeout = this.getTimeoutForAgent(task.agent_role);
 
     return elapsed > (timeout * 0.8);
   }
