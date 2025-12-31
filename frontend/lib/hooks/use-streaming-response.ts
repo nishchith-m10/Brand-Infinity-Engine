@@ -7,6 +7,19 @@
 
 import { useState, useCallback, useRef } from 'react';
 
+interface ContextPayload {
+  campaign_id?: string;
+  campaign_name?: string;
+  kb_ids?: string[];
+  identity?: {
+    brand_name?: string;
+    brand_voice?: string;
+    tagline?: string;
+    target_audience?: string;
+    tone_style?: string;
+  } | null;
+}
+
 interface StreamingOptions {
   sessionId: string;
   message: string;
@@ -14,6 +27,7 @@ interface StreamingOptions {
   modelId?: string;
   apiKey?: string;
   systemPrompt?: string;
+  context?: ContextPayload; // Added for brand context support
   onChunk?: (chunk: string) => void;
   onComplete?: (fullContent: string) => void;
   onError?: (error: Error) => void;
@@ -42,6 +56,7 @@ export function useStreamingResponse() {
       modelId,
       apiKey,
       systemPrompt,
+      context,
       onChunk,
       onComplete,
       onError,
@@ -64,6 +79,7 @@ export function useStreamingResponse() {
           model_id: modelId,
           openrouter_api_key: apiKey,
           system_prompt: systemPrompt,
+          context, // Forward brand context to streaming endpoint
         }),
         signal: abortControllerRef.current.signal,
       });
@@ -86,6 +102,10 @@ export function useStreamingResponse() {
 
         const text = decoder.decode(value, { stream: true });
         const lines = text.split('\n');
+        
+        // Generic pattern to strip ANY model echo (client-side safety net)
+        // Matches: "provider/model-name 0" format
+        const modelEchoPattern = /^[a-z0-9-]+\/[a-z0-9.-]+\s*\d*\s*/gi;
 
         for (const line of lines) {
           const trimmed = line.trim();
@@ -95,10 +115,13 @@ export function useStreamingResponse() {
             try {
               const json = JSON.parse(trimmed.slice(6));
               if (json.content) {
-                // console.log('[StreamHook] Received:', json.content);
-                accumulated += json.content;
-                setState(prev => ({ ...prev, content: accumulated }));
-                onChunk?.(json.content);
+                // Sanitize content on client side as safety net
+                const cleanContent = json.content.replace(modelEchoPattern, '');
+                if (cleanContent.length > 0) {
+                  accumulated += cleanContent;
+                  setState(prev => ({ ...prev, content: accumulated }));
+                  onChunk?.(cleanContent);
+                }
               }
               if (json.error) {
                 throw new Error(json.error);
