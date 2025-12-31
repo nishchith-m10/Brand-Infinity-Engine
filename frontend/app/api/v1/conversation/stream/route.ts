@@ -65,6 +65,15 @@ export async function POST(request: NextRequest) {
       ? `${provider || 'openrouter'}/${model_id}`
       : 'anthropic/claude-3-5-sonnet-20241022';
 
+    // Validate model BEFORE streaming (Bug 1.2 fix - must be before API call)
+    const BLOCKED_MODELS = ['gpt-oss-120b', 'test-model'];
+    if (BLOCKED_MODELS.some(blocked => modelToUse.includes(blocked))) {
+      return new Response(
+        JSON.stringify({ error: `Model "${model_id}" is currently unavailable. Please select a different model.` }),
+        { status: 400, headers: { 'Content-Type': 'application/json' } }
+      );
+    }
+
     // Create readable stream
     const encoder = new TextEncoder();
     
@@ -89,15 +98,6 @@ export async function POST(request: NextRequest) {
             maxTokens: 2000,
             apiKey: openrouter_api_key,
           });
-
-          // Validate model before streaming (Bug 1.2 fix - replaced brittle buffer)
-          const BLOCKED_MODELS = ['gpt-oss-120b', 'test-model'];
-          if (BLOCKED_MODELS.some(blocked => modelToUse.includes(blocked))) {
-            const errorData = `data: ${JSON.stringify({ error: `Model "${model_id}" is currently unavailable. Please select a different model.` })}\n\n`;
-            controller.enqueue(encoder.encode(errorData));
-            controller.close();
-            return;
-          }
 
           // Yield chunks as SSE (direct passthrough)
           for await (const chunk of generator) {
