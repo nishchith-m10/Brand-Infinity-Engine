@@ -235,7 +235,8 @@ export function ChatInterface({ brandId, sessionId, onSessionCreate }: ChatInter
           setAdaptiveSuggestions(generateAdaptiveSuggestions(message));
         }
       } else {
-        throw new Error('API returned success: false');
+        const errorMessage = (data as unknown as { error?: { message?: string } }).error?.message || 'API returned success: false';
+        throw new Error(errorMessage);
       }
     } catch (err) {
       // Don't show error for intentional cancellation
@@ -245,7 +246,8 @@ export function ChatInterface({ brandId, sessionId, onSessionCreate }: ChatInter
       }
       
       console.error('Failed to start conversation:', err);
-      setError('Failed to send message. Please try again.');
+      const displayError = err instanceof Error ? err.message : 'Failed to send message. Please try again.';
+      setError(displayError);
       
       // ROLLBACK: Remove optimistic message
       setMessages(prev => prev.filter(m => m.id !== tempId));
@@ -370,7 +372,8 @@ export function ChatInterface({ brandId, sessionId, onSessionCreate }: ChatInter
           
           completeProgress();
         } else {
-          throw new Error('API returned success: false');
+          const errorMessage = (data as unknown as { error?: { message?: string } }).error?.message || 'API returned success: false';
+          throw new Error(errorMessage);
         }
       }
     } catch (err) {
@@ -382,7 +385,8 @@ export function ChatInterface({ brandId, sessionId, onSessionCreate }: ChatInter
       }
       
       console.error('Failed to continue conversation:', err);
-      setError('Failed to send message. Please try again.');
+      const displayError = err instanceof Error ? err.message : 'Failed to send message. Please try again.';
+      setError(displayError);
       resetProgress();
       
       // ROLLBACK: Remove optimistic message
