@@ -122,6 +122,21 @@ export async function POST(
       );
     }
 
+    // Validate model - block known broken models
+    const BLOCKED_MODELS = ['gpt-oss-120b', 'test-model'];
+    if (body.model_id && BLOCKED_MODELS.some(blocked => body.model_id!.includes(blocked))) {
+      return NextResponse.json(
+        {
+          success: false,
+          error: {
+            code: "INVALID_MODEL",
+            message: `Model "${body.model_id}" is currently unavailable. Please select a different model.`,
+          },
+        },
+        { status: 400 }
+      );
+    }
+
     // Step 3: Verify user has access to brand
     const { data: brand, error: brandError } = await supabase
       .from("brands")
