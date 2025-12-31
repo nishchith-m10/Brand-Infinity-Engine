@@ -71,7 +71,7 @@ export function CampaignSelector() {
       >
       <button
         onClick={() => setIsOpen(!isOpen)}
-          className="flex items-center gap-2 px-3 py-2 rounded-lg bg-white border border-slate-200 hover:border-slate-300 hover:bg-slate-50 transition-colors min-w-[180px] max-w-[260px] shadow-sm"
+          className="flex items-center gap-2 px-3 py-2 rounded-lg bg-white dark:bg-card border border-slate-200 dark:border-border hover:border-slate-300 dark:hover:border-slate-600 hover:bg-slate-50 dark:hover:bg-muted transition-colors min-w-[180px] max-w-[260px] shadow-sm"
         disabled={isSwitching}
       >
         {isSwitching ? (
@@ -79,7 +79,7 @@ export function CampaignSelector() {
         ) : (
           <FolderOpen className="h-4 w-4 text-slate-500 shrink-0" />
         )}
-        <span className="text-sm font-medium text-slate-700 truncate flex-1 text-left">
+        <span className="text-sm font-medium text-slate-800 dark:text-slate-300 truncate flex-1 text-left">
           {isSwitching ? 'Switching...' : (isLoading ? 'Loading...' : displayName)}
         </span>
         <ChevronDown 
@@ -98,9 +98,9 @@ export function CampaignSelector() {
           />
           
           {/* Menu */}
-          <div className="absolute top-full left-0 mt-1 w-full min-w-[250px] bg-white rounded-lg shadow-lg border border-slate-200 z-50 py-1 max-h-[300px] overflow-y-auto">
+          <div className="absolute top-full left-0 mt-1 w-full min-w-[250px] bg-white dark:bg-card rounded-lg shadow-lg border border-slate-200 dark:border-border z-50 py-1 max-h-[300px] overflow-y-auto">
             {activeCampaigns.length === 0 ? (
-              <div className="px-3 py-4 text-center text-sm text-slate-500">
+              <div className="px-3 py-4 text-center text-sm text-slate-500 dark:text-slate-400">
                 No campaigns yet
               </div>
             ) : (
@@ -108,7 +108,7 @@ export function CampaignSelector() {
                 <button
                   key={camp.id}
                   onClick={() => handleSelect(camp as Campaign)}
-                  className="w-full flex items-center gap-2 px-3 py-2 hover:bg-slate-50 transition-colors"
+                  className="w-full flex items-center gap-2 px-3 py-2 hover:bg-slate-50 dark:hover:bg-muted transition-colors"
                 >
                   <div className={`w-2 h-2 rounded-full shrink-0 ${
                     camp.status === 'active' ? 'bg-green-500' : 
@@ -116,7 +116,7 @@ export function CampaignSelector() {
                     camp.status === 'completed' ? 'bg-blue-500' : 
                     'bg-slate-300'
                   }`} />
-                  <span className="text-sm text-slate-700 truncate flex-1 text-left">
+                  <span className="text-sm text-slate-800 dark:text-slate-300 truncate flex-1 text-left">
                     {camp.campaign_name}
                   </span>
                   {camp.id === campaignId && (
@@ -132,7 +132,7 @@ export function CampaignSelector() {
             {/* Create New */}
             <button
               onClick={handleCreateNew}
-              className="w-full flex items-center gap-2 px-3 py-2 hover:bg-indigo-50 transition-colors text-indigo-600"
+              className="w-full flex items-center gap-2 px-3 py-2 hover:bg-indigo-50 dark:hover:bg-indigo-950/30 transition-colors text-indigo-600 dark:text-indigo-400"
             >
               <Plus className="h-4 w-4" />
               <span className="text-sm font-medium">Create New Campaign</span>
