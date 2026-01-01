@@ -64,7 +64,7 @@ export async function POST(request: NextRequest, context: { params: { id: string
     }
 
     // Filter tasks that can be retried
-    const retriableTasks = failedTasks.filter((t) => t.retry_count < t.max_retries);
+    const retriableTasks = failedTasks.filter((t: any) => t.retry_count < t.max_retries);
 
     if (!retriableTasks.length) {
       return NextResponse.json(
@@ -74,7 +74,7 @@ export async function POST(request: NextRequest, context: { params: { id: string
     }
 
     // Reset failed tasks to pending and increment retry count
-    const taskIds = retriableTasks.map((t) => t.id);
+    const taskIds = retriableTasks.map((t: any) => t.id);
 
     for (const task of retriableTasks) {
       await supabase
@@ -95,7 +95,7 @@ export async function POST(request: NextRequest, context: { params: { id: string
       request_id: requestId,
       event_type: 'retry_initiated',
       description: `Retry initiated for ${retriableTasks.length} failed task(s)`,
-      metadata: { task_ids: taskIds, task_names: retriableTasks.map((t) => t.task_name) },
+      metadata: { task_ids: taskIds, task_names: retriableTasks.map((t: any) => t.task_name) },
       actor: `user:${user.id}`,
     });
 
