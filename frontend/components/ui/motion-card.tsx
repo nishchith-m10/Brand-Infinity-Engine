@@ -14,9 +14,9 @@ export function MotionCard({
   ...props 
 }: MotionCardProps) {
   const variants = {
-    default: "bg-white border border-slate-200",
-    glass: "bg-white/90 backdrop-blur-md border border-slate-200 shadow-xl",
-    lift: "bg-white shadow-md hover:shadow-xl hover:-translate-y-1 transition-all duration-300",
+    default: "bg-white dark:bg-card border border-slate-200 dark:border-border",
+    glass: "bg-white/90 dark:bg-card/90 backdrop-blur-md border border-slate-200 dark:border-border shadow-xl",
+    lift: "bg-white dark:bg-card shadow-md hover:shadow-xl hover:-translate-y-1 transition-all duration-300 border border-slate-200 dark:border-border",
   };
 
   const motionVariants = {

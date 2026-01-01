@@ -141,10 +141,10 @@ export function Sidebar() {
           showLabels ? 'px-4 py-3' : 'px-2 py-3 justify-center'
         } ${
           isLocked 
-            ? 'opacity-50 cursor-not-allowed text-slate-400'
+            ? 'opacity-50 cursor-not-allowed text-slate-400 dark:text-slate-600'
             : isActive 
-              ? 'bg-lamaPurpleLight text-lamaPurple shadow-sm' 
-              : 'text-slate-500 hover:bg-slate-50 hover:text-slate-900'
+              ? 'bg-lamaPurpleLight dark:bg-lamaPurple/20 text-lamaPurple dark:text-lamaPurple shadow-sm' 
+              : 'text-slate-500 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-muted hover:text-slate-900 dark:hover:text-foreground'
         }`}
       >
         {/* Step number with lock overlay */}
@@ -192,7 +192,7 @@ export function Sidebar() {
         
         {/* Locked tooltip */}
         {isLocked && (
-          <div className="absolute left-full ml-2 px-2 py-1 bg-slate-800 text-white text-xs rounded opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none whitespace-nowrap z-50">
+          <div className="absolute left-full ml-2 px-2 py-1 bg-slate-800 dark:bg-slate-700 text-white text-xs rounded opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none whitespace-nowrap z-50">
             Complete previous step first
           </div>
         )}
@@ -209,7 +209,7 @@ export function Sidebar() {
       }}
       className="px-4 pt-4 pb-2"
     >
-      <span className="text-[10px] font-semibold uppercase tracking-wider text-slate-400">
+      <span className="text-[10px] font-semibold uppercase tracking-wider text-slate-400 dark:text-slate-600">
         {title}
       </span>
     </motion.div>
@@ -218,7 +218,7 @@ export function Sidebar() {
   return (
     <div 
       ref={sidebarRef}
-      className="relative flex h-screen flex-col bg-white text-slate-600 transition-all duration-300 shadow-sm z-50 border-r border-slate-100/50"
+      className="relative flex h-screen flex-col bg-white dark:bg-card text-slate-600 dark:text-slate-400 transition-all duration-300 shadow-sm z-50 border-r border-slate-100/50 dark:border-border"
       style={{ width: sidebarWidth }}
     >
       {/* Header */}
@@ -233,7 +233,7 @@ export function Sidebar() {
             transition={{ duration: 0.2, ease: "easeInOut" }}
             className="flex items-center gap-2"
           >
-            <span className="text-xl font-bold text-slate-800 tracking-tight whitespace-nowrap">
+            <span className="text-xl font-bold text-slate-800 dark:text-foreground tracking-tight whitespace-nowrap">
               Brand Infinity
             </span>
           </motion.div>
@@ -241,7 +241,7 @@ export function Sidebar() {
         
         <button 
           onClick={toggleCollapse}
-          className={`flex h-8 w-8 items-center justify-center rounded-lg hover:bg-slate-100 text-slate-400 hover:text-slate-600 transition-colors ${!showLabels ? 'mx-auto' : ''}`}
+          className={`flex h-8 w-8 items-center justify-center rounded-lg hover:bg-slate-100 dark:hover:bg-muted text-slate-400 dark:text-slate-500 hover:text-slate-600 dark:hover:text-foreground transition-colors ${!showLabels ? 'mx-auto' : ''}`}
         >
           {showLabels ? <ChevronLeft size={20} /> : <Menu size={20} />}
         </button>
