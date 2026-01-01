@@ -1,17 +1,32 @@
-import { createClient } from '@/lib/supabase/server';
-import { NextResponse } from 'next/server';
+import { createServerClient } from '@supabase/ssr';
+import { NextResponse, type NextRequest } from 'next/server';
 
-export async function GET(req: Request) {
+export async function GET(req: NextRequest) {
   try {
-    const supabase = await createClient();
-    const { data: { user }, error } = await supabase.auth.getUser();
+    // Create server-side Supabase client using the incoming request's cookies
+    const supabase = createServerClient(
+      process.env.NEXT_PUBLIC_SUPABASE_URL!,
+      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+      {
+        cookies: {
+          getAll() {
+            return req.cookies.getAll();
+          },
+        },
+      }
+    );
+
+    const {
+      data: { user },
+      error,
+    } = await supabase.auth.getUser();
 
     if (error) {
       console.error('[Auth:session] error getting user', error);
       return NextResponse.json({ authenticated: false, error: error.message }, { status: 200 });
     }
 
-    const passcodeVerified = req.headers.get('cookie')?.includes('dashboard_passcode_verified=') ?? false;
+    const passcodeVerified = !!req.cookies.get('dashboard_passcode_verified');
 
     return NextResponse.json({
       authenticated: !!user,
@@ -23,4 +38,3 @@ export async function GET(req: Request) {
     return NextResponse.json({ authenticated: false, error: 'unexpected' }, { status: 500 });
   }
 }
-
