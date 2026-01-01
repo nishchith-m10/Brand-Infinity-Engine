@@ -17,6 +17,7 @@ import {
 import { Search, MessageSquare, Megaphone, Bell, Settings, LogOut } from "lucide-react";
 import { CampaignSelector } from "@/components/CampaignSelector";
 import { useCampaignStore } from "@/lib/hooks/use-current-campaign";
+import { ThemeToggle } from "@/components/ThemeToggle";
 
 export default function Navbar() {
   const router = useRouter();
@@ -62,6 +63,10 @@ export default function Navbar() {
           </DropdownMenuTrigger>
           <DropdownMenuContent align="end" className="w-56">
             <DropdownMenuLabel>My Account</DropdownMenuLabel>
+            <DropdownMenuSeparator />
+            <div className="px-1 py-1">
+              <ThemeToggle />
+            </div>
             <DropdownMenuSeparator />
             <DropdownMenuItem asChild>
               <Link href="/account" className="cursor-pointer w-full flex items-center">
