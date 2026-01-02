@@ -293,6 +293,17 @@ describe('StateMachine', () => {
       expect(result.success).toBe(false);
       expect(result.error).toContain('blocking tasks');
     });
+
+    it('should reject transition when required tasks are missing or not provided', () => {
+      // Simulate a visibility/RLS scenario where no tasks were returned (undefined or empty)
+      const result1 = stateMachine.validateTransition('draft', 'production', undefined);
+      expect(result1.success).toBe(false);
+      expect(result1.error).toContain('blocking tasks');
+
+      const result2 = stateMachine.validateTransition('draft', 'production', []);
+      expect(result2.success).toBe(false);
+      expect(result2.error).toContain('blocking tasks');
+    });
   });
 
   describe('getCompletionPercentage', () => {
