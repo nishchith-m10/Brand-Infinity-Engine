@@ -66,9 +66,10 @@ interface KBManagerProps {
   brandId: string;
   campaignId?: string | null;
   onKBSelect?: (kbId: string) => void;
+  showToast?: (toast: { type: 'success' | 'error' | 'info' | 'warning'; message: string }) => void;
 }
 
-export function KBManager({ brandId, campaignId, onKBSelect }: KBManagerProps) {
+export function KBManager({ brandId, campaignId, onKBSelect, showToast: parentShowToast }: KBManagerProps) {
   const [kbs, setKBs] = useState<KnowledgeBase[]>([]);
   const [loading, setLoading] = useState(true);
   const [showCreateModal, setShowCreateModal] = useState(false);
@@ -77,7 +78,10 @@ export function KBManager({ brandId, campaignId, onKBSelect }: KBManagerProps) {
     isOpen: false,
     kb: null,
   });
-  const { showToast } = useToast();
+  const { showToast: fallbackShowToast } = useToast();
+  
+  // Use parent's showToast if available, otherwise use local fallback
+  const showToast = parentShowToast || fallbackShowToast;
 
   // Fetch KBs - wrapped in useCallback to prevent infinite loops
   const fetchKBs = useCallback(async () => {
@@ -186,6 +190,7 @@ export function KBManager({ brandId, campaignId, onKBSelect }: KBManagerProps) {
             brandId={brandId}
             campaignId={campaignId}
             editingKB={null}
+            showToast={showToast}
             onClose={() => setShowCreateModal(false)}
             onSuccess={() => {
               setShowCreateModal(false);
@@ -326,6 +331,7 @@ export function KBManager({ brandId, campaignId, onKBSelect }: KBManagerProps) {
           brandId={brandId}
           campaignId={campaignId}
           editingKB={editingKB}
+          showToast={showToast}
           onClose={() => {
             setShowCreateModal(false);
             setEditingKB(null);
@@ -357,12 +363,12 @@ export function KBManager({ brandId, campaignId, onKBSelect }: KBManagerProps) {
 interface KBCreateModalProps {
   brandId: string;
   campaignId?: string | null;
-  editingKB: KnowledgeBase | null;
+  showToast: (toast: { type: 'success' | 'error' | 'info' | 'warning'; message: string }) => void;
   onClose: () => void;
   onSuccess: () => void;
 }
 
-function KBCreateModal({ brandId, campaignId, editingKB, onClose, onSuccess }: KBCreateModalProps) {
+function KBCreateModal({ brandId, campaignId, editingKB, showToast, onClose, onSuccess }: KBCreateModalProps) {
   const [name, setName] = useState(editingKB?.name || '');
   const [description, setDescription] = useState(editingKB?.description || '');
   const [icon, setIcon] = useState(editingKB?.icon || 'folder');
@@ -370,7 +376,6 @@ function KBCreateModal({ brandId, campaignId, editingKB, onClose, onSuccess }: K
   const [tags, setTags] = useState(editingKB?.tags.join(', ') || '');
   const [isDefault, setIsDefault] = useState(editingKB?.is_default || false);
   const [saving, setSaving] = useState(false);
-  const { showToast } = useToast();
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
