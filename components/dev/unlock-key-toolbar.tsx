@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react';
 import { Lock, Unlock, X } from 'lucide-react';
 import { getStoredUnlockKey, clearUnlockKey } from '@/lib/unlock-key';
+import { Tooltip } from '@/components/ui/tooltip';
 
 /**
  * Development Toolbar - Unlock Key Management
@@ -31,13 +32,14 @@ export function UnlockKeyToolbar() {
   return (
     <>
       {/* Floating Toggle Button */}
-      <button
-        onClick={() => setShowToolbar(!showToolbar)}
-        className="fixed bottom-4 right-4 z-40 p-3 bg-amber-500 text-white rounded-full shadow-lg hover:bg-amber-600 transition-colors flex items-center justify-center"
-        title="Toggle unlock key toolbar"
-      >
-        <Unlock className="h-5 w-5" />
-      </button>
+      <Tooltip content="Toggle unlock key toolbar" position="left">
+        <button
+          onClick={() => setShowToolbar(!showToolbar)}
+          className="fixed bottom-4 right-4 z-40 p-3 bg-amber-500 text-white rounded-full shadow-lg hover:bg-amber-600 transition-colors flex items-center justify-center"
+        >
+          <Unlock className="h-5 w-5" />
+        </button>
+      </Tooltip>
 
       {/* Toolbar Panel */}
       {showToolbar && (

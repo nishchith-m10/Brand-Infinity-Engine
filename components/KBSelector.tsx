@@ -122,7 +122,7 @@ export function KBSelector({ brandId, selectedIds, onChange, disabled }: KBSelec
                 <button
                   key={kb.id}
                   onClick={() => toggleKB(kb.id)}
-                  className={`w-full flex items-center justify-between px-3 py-2 text-left hover:bg-slate-50 transition-colors ${
+                  className={`w-full flex items-center justify-between px-4 py-2 text-left hover:bg-slate-50 transition-colors ${
                     isSelected ? 'bg-indigo-50' : ''
                   }`}
                 >

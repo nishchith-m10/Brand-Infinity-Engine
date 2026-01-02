@@ -2,6 +2,24 @@ import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
 
 // =============================================================================
+// State Machine for Campaign Status Transitions
+// =============================================================================
+const VALID_CAMPAIGN_TRANSITIONS: Record<string, string[]> = {
+  draft: ['in_progress', 'cancelled', 'archived'],
+  in_progress: ['completed', 'failed', 'cancelled', 'archived'],
+  completed: ['archived'],
+  failed: ['in_progress', 'archived'], // allow retry
+  cancelled: ['archived'],
+  archived: ['pending_deletion'],
+  pending_deletion: ['archived'] // can be restored
+};
+
+function validateCampaignTransition(currentStatus: string, newStatus: string): boolean {
+  const allowed = VALID_CAMPAIGN_TRANSITIONS[currentStatus] || [];
+  return allowed.includes(newStatus);
+}
+
+// =============================================================================
 // GET /api/v1/campaigns/[id] - Get single campaign with related data
 // =============================================================================
 export async function GET(
@@ -122,6 +140,27 @@ export async function PUT(
         { success: false, error: { code: 'FORBIDDEN', message: 'Cannot modify archived or deleted campaigns. Restore first to make changes.' } },
         { status: 403 }
       );
+    }
+
+    // Validate state transition if status is being changed
+    if (body.status && body.status !== existing.status) {
+      if (!validateCampaignTransition(existing.status, body.status)) {
+        return NextResponse.json(
+          { 
+            success: false, 
+            error: { 
+              code: 'INVALID_TRANSITION', 
+              message: `Invalid status transition: ${existing.status} → ${body.status}`,
+              details: {
+                currentStatus: existing.status,
+                requestedStatus: body.status,
+                allowedTransitions: VALID_CAMPAIGN_TRANSITIONS[existing.status] || []
+              }
+            } 
+          },
+          { status: 400 }
+        );
+      }
     }
 
     // Build update object (only allow certain fields)

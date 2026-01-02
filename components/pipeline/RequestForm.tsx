@@ -11,6 +11,7 @@ import { useState } from 'react';
 import { createClient } from '@/lib/supabase/client';
 import { ProviderSelector } from '@/components/director/provider-selector';
 import { ChatContextSelector } from '@/components/director/ChatContextSelector';
+import { Button } from '@/components/ui/button';
 
 interface RequestFormProps {
   onSubmit: () => void;
@@ -379,16 +380,21 @@ export default function RequestForm({ onSubmit }: RequestFormProps) {
       {/* Sticky Footer with Actions */}
       <div className="border-t border-gray-200 p-6 bg-white">
         <div className="flex gap-1.5 mb-3">
-          <button
+          <Button
             onClick={handleEstimate}
             disabled={estimating}
-            className="flex-1 h-9 px-3 bg-gray-100 text-gray-900 text-xs font-semibold rounded-md hover:bg-gray-200 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+            variant="outline"
+            className="flex-1 h-9 px-3 text-xs font-semibold"
           >
             {estimating ? 'Calculating...' : 'Estimate'}
-          </button>
-          <button onClick={handleSubmit} className="flex-1 h-9 px-3 bg-indigo-600 text-white text-xs font-semibold rounded-md hover:bg-indigo-700 transition-colors flex items-center justify-center gap-1.5">
+          </Button>
+          <Button 
+            onClick={handleSubmit} 
+            variant="default"
+            className="flex-1 h-9 px-3 text-xs font-semibold flex items-center justify-center gap-1.5"
+          >
             <span>+</span> Create & Queue
-          </button>
+          </Button>
         </div>
 
         {/* Estimate Display */}
