@@ -35,7 +35,7 @@ const apiFetcher = async <T,>(fetcher: () => Promise<{ data: { data: T } }>) => 
       if (error.response?.status === 403) {
         throw new Error(`Access denied: You don't have permission to access this resource.`);
       }
-      if (error.response?.status >= 500) {
+      if (error.response?.status && error.response.status >= 500) {
         throw new Error(`Server error: ${error.response.data?.error?.message || 'Please try again later.'}`);
       }
     }
