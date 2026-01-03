@@ -41,7 +41,7 @@ export async function GET(request: NextRequest) {
 
     const platformStats: Record<string, { views: number; likes: number; comments: number; shares: number; posts: number }> = {};
 
-    (posts || []).forEach(post => {
+    (posts || []).forEach((post: { platform: string; engagement_metrics?: Record<string, number>; status?: string; created_at: string }) => {
       const metrics = post.engagement_metrics || {};
       const views = metrics.views || 0;
       const likes = metrics.likes || 0;
