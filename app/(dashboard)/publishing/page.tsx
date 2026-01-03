@@ -27,74 +27,6 @@ import { useV1Publications } from '@/lib/hooks/use-api';
 import { useCampaignProgress } from '@/lib/hooks/use-campaign-progress';
 import { LockedState } from '@/components/LockedState';
 
-// Mock variants data
-const mockVariants: Variant[] = [
-  {
-    variant_id: 'var_001',
-    video_id: 'video_001',
-    platform: 'tiktok',
-    aspect_ratio: '9:16',
-    duration_seconds: 30,
-    caption: 'The future is here #tech #innovation',
-    hashtags: ['tech', 'innovation'],
-    status: 'ready',
-    created_at: new Date().toISOString(),
-  },
-  {
-    variant_id: 'var_002',
-    video_id: 'video_001',
-    platform: 'instagram_reels',
-    aspect_ratio: '9:16',
-    duration_seconds: 30,
-    caption: 'Game changer! Link in bio',
-    hashtags: ['reels', 'trending'],
-    status: 'ready',
-    created_at: new Date().toISOString(),
-  },
-  {
-    variant_id: 'var_003',
-    video_id: 'video_001',
-    platform: 'youtube_shorts',
-    aspect_ratio: '9:16',
-    duration_seconds: 30,
-    caption: 'You need to see this! #shorts',
-    hashtags: ['shorts'],
-    status: 'ready',
-    created_at: new Date().toISOString(),
-  },
-];
-
-// Mock scheduled posts
-const mockScheduledPosts: (Publication & { variant?: Variant })[] = [
-  {
-    publication_id: 'pub_001',
-    variant_id: 'var_001',
-    platform: 'tiktok',
-    status: 'scheduled',
-    scheduled_time: new Date(Date.now() + 86400000).toISOString(), // Tomorrow
-    variant: mockVariants[0],
-  },
-  {
-    publication_id: 'pub_002',
-    variant_id: 'var_002',
-    platform: 'instagram',
-    status: 'scheduled',
-    scheduled_time: new Date(Date.now() + 172800000).toISOString(), // Day after tomorrow
-    variant: mockVariants[1],
-  },
-  {
-    publication_id: 'pub_003',
-    variant_id: 'var_003',
-    platform: 'youtube',
-    status: 'published',
-    scheduled_time: new Date(Date.now() - 86400000).toISOString(), // Yesterday
-    published_at: new Date(Date.now() - 86400000).toISOString(),
-    variant: mockVariants[2],
-    platform_post_id: 'yt_abc123',
-    engagement: { views: 1250, likes: 89, comments: 12, shares: 5 },
-  },
-];
-
 // Platform display names
 const PLATFORM_NAMES: Record<string, string> = {
   tiktok: 'TikTok',
@@ -323,8 +255,8 @@ export default function PublishingPage() {
         <Card>
           <CardContent className="p-4">
             <div className="flex items-center gap-3">
-              <div className="rounded-full bg-lamaSkyLight p-2">
-                <Clock className="h-5 w-5 text-lamaSky" />
+              <div className="rounded-full bg-lamaPurpleLight p-2">
+                <Clock className="h-5 w-5 text-lamaPurple" />
               </div>
               <div>
                 <p className="text-2xl font-bold text-slate-800">
@@ -432,7 +364,7 @@ export default function PublishingPage() {
                     onClick={() => setSelectedDate(date)}
                     className={`aspect-square rounded-lg p-1 text-sm transition-colors ${
                       isToday
-                        ? 'bg-lamaSkyLight font-bold text-lamaSky'
+                        ? 'bg-lamaPurpleLight font-bold text-lamaPurple'
                         : isSelected
                         ? 'bg-gray-100'
                         : 'hover:bg-gray-50'
@@ -448,8 +380,8 @@ export default function PublishingPage() {
                               className={`h-1.5 w-1.5 rounded-full ${
                                 post.status === 'published'
                                   ? 'bg-green-500'
-                                  : post.status === 'scheduled'
-                                  ? 'bg-lamaSky'
+                                    : post.status === 'scheduled'
+                                      ? 'bg-lamaPurple'
                                   : 'bg-red-500'
                               }`}
                             />
@@ -552,15 +484,12 @@ export default function PublishingPage() {
         <div className="space-y-4">
           <Select
             label="Select Variant"
-            options={mockVariants.map((v) => ({
-              value: v.variant_id,
-              label: `${PLATFORM_NAMES[v.platform] || v.platform} - ${v.duration_seconds}s`,
-            }))}
+            options={[]}
             value={scheduleForm.variantId}
             onChange={(e) =>
               setScheduleForm((prev) => ({ ...prev, variantId: e.target.value }))
             }
-            placeholder="Choose a variant"
+            placeholder="No variants available - generate variants first"
           />
 
           <div className="grid gap-4 sm:grid-cols-2">
@@ -600,6 +529,7 @@ export default function PublishingPage() {
               onClick={handleSchedule}
               disabled={!scheduleForm.variantId || !scheduleForm.date || isScheduling}
               isLoading={isScheduling}
+              className="bg-lamaPurple hover:bg-lamaPurple/90 text-white"
             >
               Schedule
             </Button>
@@ -730,6 +660,7 @@ export default function PublishingPage() {
                     }
                     isLoading={publishNowMutation.isPending}
                     disabled={isCancelling}
+                    className="bg-lamaPurple hover:bg-lamaPurple/90 text-white"
                   >
                     <Send className="h-4 w-4 mr-2" />
                     Publish Now
