@@ -5,10 +5,12 @@
  * Purpose:
  * - Translate orchestrator's AgentExecutionParams to strategist's interface
  * - Execute strategist agent tasks
+ * - Persist strategic briefs to database for n8n workflows
  * - Return standardized AgentExecutionResult
  */
 
 import { createStrategistAgent, StrategistAgent } from '@/lib/agents/managers/strategist';
+import { createAdminClient } from '@/lib/supabase/admin';
 import type { 
   AgentExecutionParams, 
   AgentExecutionResult,
@@ -53,28 +55,77 @@ export class StrategistAdapter {
         inputs: {},
       };
 
-      // Get brand context if available
-      const brandContext = this.extractBrandContext(params);
+      // Get brand context if available (now async to fetch assets)
+      const brandContext = await this.extractBrandContext(params);
 
-      // Execute strategist agent
+      // Execute strategist agent with userId from request owner
       const result = await this.agent.executeTask({
         task,
         intent,
         brandContext,
+        userId: params.request.created_by || undefined, // Pass request owner's user ID
       });
 
       // Build execution result
       if (result.success) {
         const agentResult = result.result as AgentResult;
+        
+        // NEW: Persist strategic brief to database for n8n workflows
+        let briefId: string | null = null;
+        try {
+          const supabase = createAdminClient();
+          const { data: brief, error: briefError } = await supabase
+            .from('creative_briefs')
+            .insert({
+              brand_id: params.request.brand_id,
+              campaign_request: {
+                title: params.request.title,
+                request_type: params.request.request_type,
+                prompt: (params.request as unknown as Record<string, unknown>).prompt,
+              },
+              creative_brief: {
+                content: agentResult?.content || '',
+                target_audience: intent.target_audience,
+                tone: intent.tone,
+                platform: intent.platform,
+                generated_at: new Date().toISOString(),
+              },
+              brand_alignment_score: 0.85, // Default score
+              approval_status: 'approved', // Auto-approve for orchestrator flow
+              metadata: {
+                model: agentResult?.model,
+                tokens_used: agentResult?.tokens_used,
+                request_id: params.request.id,
+                task_id: params.task.id,
+              },
+            })
+            .select('brief_id')
+            .single();
+
+          if (briefError) {
+            console.error('[StrategistAdapter] Failed to persist brief to database:', briefError.message);
+          } else {
+            briefId = brief?.brief_id || null;
+            console.log('[StrategistAdapter] Persisted strategic brief:', briefId);
+          }
+        } catch (dbError) {
+          console.error('[StrategistAdapter] Database error during persistence:', dbError);
+          // Continue execution - persistence failure should not block the pipeline
+        }
+        
         return {
           success: true,
-          output: result.result,
+          output: {
+            ...result.result as object,
+            brief_id: briefId, // NEW: Include brief_id for downstream tasks
+          },
           metadata: {
             agent: 'strategist',
             model: agentResult?.model || 'unknown',
             tokens_used: agentResult?.tokens_used || 0,
             execution_time_ms: Date.now() - startTime,
             timestamp: new Date().toISOString(),
+            brief_id: briefId, // Also in metadata for easy access
           },
         };
       } else {
@@ -123,10 +174,11 @@ export class StrategistAdapter {
   }
 
   /**
-   * Extract brand context from request
+   * Extract brand context from request (now async to fetch assets)
    */
-  private extractBrandContext(params: AgentExecutionParams): string | undefined {
+  private async extractBrandContext(params: AgentExecutionParams): Promise<string | undefined> {
     const metadata = params.request.metadata || {} as Record<string, unknown>;
+    const request = params.request as unknown as Record<string, unknown>;
 
     const brandElements: string[] = [];
 
@@ -154,6 +206,29 @@ export class StrategistAdapter {
     // Product/service info
     if (metadata.product_name) {
       brandElements.push(`Product: ${metadata.product_name}`);
+    }
+
+    // NEW: Fetch and include brand assets as reference images
+    const assetIds = (request.selected_asset_ids as string[]) || [];
+    if (assetIds.length > 0) {
+      try {
+        const supabase = createAdminClient();
+        const { data: assets, error } = await supabase
+          .from('brand_knowledge_base')
+          .select('file_name, file_url, asset_type')
+          .in('id', assetIds);
+
+        if (!error && assets?.length) {
+          const assetContext = assets.map(a => 
+            `- ${a.asset_type}: ${a.file_name} (URL: ${a.file_url})`
+          ).join('\n');
+          brandElements.push(`\nReference Brand Assets:\n${assetContext}`);
+          console.log(`[StrategistAdapter] Included ${assets.length} brand assets in context`);
+        }
+      } catch (err) {
+        console.error('[StrategistAdapter] Failed to fetch brand assets:', err);
+        // Continue without assets - don't block execution
+      }
     }
 
     return brandElements.length > 0 ? brandElements.join('\n') : undefined;
