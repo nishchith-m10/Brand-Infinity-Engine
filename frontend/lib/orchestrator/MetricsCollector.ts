@@ -221,12 +221,12 @@ export class MetricsCollector {
         ['intake', 'draft', 'production', 'qa', 'approval'].includes(r.status as string)
       ).length;
 
-      // Calculate completion times
+      // Calculate completion times using updated_at as proxy for completion
       const completionTimes = groupRequests
-        .filter(r => r.created_at && r.completed_at)
+        .filter(r => r.created_at && r.updated_at && r.status === 'published')
         .map(r => {
           const start = new Date(r.created_at).getTime();
-          const end = new Date(r.completed_at!).getTime();
+          const end = new Date(r.updated_at!).getTime();
           return end - start;
         });
 
@@ -283,11 +283,11 @@ export class MetricsCollector {
     // Group by agent role
     const agentGroups = new Map<string, RequestTask[]>();
     
-    for (const task of tasks as RequestTask[]) {
-      if (!agentGroups.has(task.assigned_to)) {
-        agentGroups.set(task.assigned_to, []);
+    for (const task of tasks as unknown as RequestTask[]) {
+      if (!agentGroups.has(task.agent_role)) {
+        agentGroups.set(task.agent_role, []);
       }
-      agentGroups.get(task.assigned_to)!.push(task);
+      agentGroups.get(task.agent_role)!.push(task);
     }
 
     // Calculate metrics for each agent
