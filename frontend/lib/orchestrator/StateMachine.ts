@@ -55,6 +55,11 @@ const STATUS_STAGES: Record<RequestStatus, StatusStage> = {
     stage: 'review',
     requiredTasks: ['qa'],
   },
+  approval: {
+    status: 'approval',
+    stage: 'review',
+    requiredTasks: [],
+  },
   published: {
     status: 'published',
     stage: 'complete',
@@ -383,6 +388,7 @@ export class StateMachine {
       draft: 40,
       production: 70,
       qa: 90,
+      approval: 95,
       published: 100,
       cancelled: 0,
     };

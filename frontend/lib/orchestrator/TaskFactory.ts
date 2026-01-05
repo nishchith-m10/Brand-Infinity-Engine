@@ -421,7 +421,7 @@ export class TaskFactory {
       throw new Error(`Failed to fetch tasks: ${error?.message}`);
     }
 
-    return tasks.every((t: RequestTask) => t.status === 'completed' || t.status === 'skipped');
+    return (tasks as unknown as RequestTask[]).every((t: RequestTask) => t.status === 'completed' || t.status === 'skipped');
   }
 
   /**
