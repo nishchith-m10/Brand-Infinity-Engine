@@ -8,13 +8,13 @@
         "authentication": "headerAuth",
         "options": {}
       },
-      "id": "webhook",
-      "name": "Webhook",
+      "id": "59dda684-a6fe-4f4c-9b49-93527b3eea42",
+      "name": "Webhook1",
       "type": "n8n-nodes-base.webhook",
       "typeVersion": 1.1,
       "position": [
-        112,
-        304
+        -64,
+        1632
       ],
       "webhookId": "production-dispatch",
       "credentials": {
@@ -29,13 +29,13 @@
         "workflowId": "y0c3JFOEAZFkvAjC",
         "options": {}
       },
-      "id": "validate",
-      "name": "Validate Schema",
+      "id": "10147c56-d3de-4b6d-8c53-8d18346c6422",
+      "name": "Validate Schema1",
       "type": "n8n-nodes-base.executeWorkflow",
       "typeVersion": 1,
       "position": [
-        304,
-        304
+        128,
+        1632
       ]
     },
     {
@@ -49,13 +49,13 @@
           ]
         }
       },
-      "id": "valid-check",
-      "name": "Valid?",
+      "id": "e543ed1c-00b7-4fbe-8433-e6dcfef90582",
+      "name": "Valid?1",
       "type": "n8n-nodes-base.if",
       "typeVersion": 1,
       "position": [
-        512,
-        304
+        336,
+        1632
       ]
     },
     {
@@ -66,13 +66,13 @@
           "responseCode": 400
         }
       },
-      "id": "return-400",
-      "name": "Return 400",
+      "id": "59d69bf1-669c-4566-a7e0-4ee8a0bc7c99",
+      "name": "Return ",
       "type": "n8n-nodes-base.respondToWebhook",
       "typeVersion": 1,
       "position": [
-        704,
-        464
+        528,
+        1792
       ]
     },
     {
@@ -80,13 +80,13 @@
         "workflowId": "lwHIR7PonbgLVkmJ",
         "options": {}
       },
-      "id": "acquire-lock",
-      "name": "Acquire Lock",
+      "id": "2cd9624b-b217-40cd-9ddf-491b5cbf3023",
+      "name": "Acquire Lock1",
       "type": "n8n-nodes-base.executeWorkflow",
       "typeVersion": 1,
       "position": [
-        704,
-        208
+        528,
+        1536
       ]
     },
     {
@@ -100,13 +100,13 @@
           ]
         }
       },
-      "id": "lock-check",
-      "name": "Locked?",
+      "id": "3faec84b-698b-4ae0-8c7a-0e1c435bc773",
+      "name": "Locked?1",
       "type": "n8n-nodes-base.if",
       "typeVersion": 1,
       "position": [
-        912,
-        208
+        736,
+        1536
       ]
     },
     {
@@ -117,13 +117,13 @@
           "responseCode": 409
         }
       },
-      "id": "return-409",
-      "name": "Return 409",
+      "id": "70e2c294-8e40-43f7-8e88-712790f5ea81",
+      "name": "Return 410",
       "type": "n8n-nodes-base.respondToWebhook",
       "typeVersion": 1,
       "position": [
-        1104,
-        352
+        928,
+        1680
       ]
     },
     {
@@ -132,15 +132,15 @@
         "tableId": "scripts",
         "limit": 1,
         "filterType": "string",
-        "filterString": "=id=eq.{{ $('Webhook').first().json.body.script_id }}"
+        "filterString": "=id=eq.{{ $('Webhook1').first().json.body.script_id }}"
       },
-      "id": "load-script",
-      "name": "Load Script",
+      "id": "0675027b-7ef2-4073-b698-c47b77d3d62e",
+      "name": "Load Script1",
       "type": "n8n-nodes-base.supabase",
       "typeVersion": 1,
       "position": [
-        1104,
-        112
+        928,
+        1440
       ],
       "credentials": {
         "supabaseApi": {
@@ -151,15 +151,15 @@
     },
     {
       "parameters": {
-        "jsCode": "// ============================================\n// PARSE SCENES AND PREPARE JOB TICKETS\n// Per Manifesto Section 5.1 - Job Ticket Lifecycle\n// ============================================\n\nconst input = $('Webhook').first().json.body;\nconst script = $input.all()[0].json;\n\nlet scenes = [];\ntry {\n  scenes = typeof script.scenes === 'string' ? JSON.parse(script.scenes) : script.scenes || [];\n} catch (e) {\n  scenes = [];\n}\n\n// If no scenes, create one from the full script\nif (scenes.length === 0 && script.script_content) {\n  scenes = [{\n    visual_prompt: 'Generate video for: ' + (script.hook || 'Brand content'),\n    duration_seconds: script.target_duration || 30\n  }];\n}\n\n// Budget tier determines provider priority per Section 5.2\nconst budgetTier = input.budget_tier || 'standard';\nconst providerPriority = {\n  'premium': ['sora', 'runway', 'pika'],\n  'standard': ['runway', 'pika', 'kling'],\n  'economy': ['kling', 'pika']\n};\n\nconst jobTickets = scenes.map((scene, idx) => ({\n  campaign_id: input.campaign_id,\n  script_id: input.script_id,\n  scene_id: `scene_${idx + 1}`,\n  scene_index: idx,\n  visual_prompt: scene.visual_prompt || scene.description || '',\n  duration_seconds: scene.duration_seconds || 5,\n  provider_priority: providerPriority[budgetTier],\n  status: 'queued',\n  created_at: new Date().toISOString()\n}));\n\nreturn jobTickets.map(ticket => ({ json: ticket }));"
+        "jsCode": "// ============================================\n// PARSE SCENES AND PREPARE JOB TICKETS\n// Per Manifesto Section 5.1 - Job Ticket Lifecycle\n// ============================================\n\nconst input = $('Webhook1').first().json.body;\nconst script = $input.all()[0].json;\n\nlet scenes = [];\ntry {\n  scenes = typeof script.scenes === 'string' ? JSON.parse(script.scenes) : script.scenes || [];\n} catch (e) {\n  scenes = [];\n}\n\n// If no scenes, create one from the full script\nif (scenes.length === 0 && script.script_content) {\n  scenes = [{\n    visual_prompt: 'Generate video for: ' + (script.hook || 'Brand content'),\n    duration_seconds: script.target_duration || 30\n  }];\n}\n\n// Budget tier determines provider priority per Section 5.2\n// Updated: Added Pollo AI for cost-effective video generation\nconst budgetTier = input.budget_tier || 'standard';\nconst providerPriority = {\n  'premium': ['runway', 'sora', 'pika'],\n  'standard': ['pollo', 'runway', 'pika'],\n  'economy': ['pollo', 'kling', 'pika']\n};\n\nconst jobTickets = scenes.map((scene, idx) => ({\n  campaign_id: input.campaign_id,\n  script_id: input.script_id,\n  scene_id: `scene_${idx + 1}`,\n  scene_index: idx,\n  visual_prompt: scene.visual_prompt || scene.description || '',\n  duration_seconds: scene.duration_seconds || 5,\n  provider_priority: providerPriority[budgetTier],\n  status: 'queued',\n  created_at: new Date().toISOString()\n}));\n\nreturn jobTickets.map(ticket => ({ json: ticket }));"
       },
-      "id": "create-tickets",
-      "name": "Create Job Tickets",
+      "id": "da88263b-074e-480a-959e-eba7c2960ec9",
+      "name": "Create Job Tickets1",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        1296,
-        112
+        1120,
+        1440
       ]
     },
     {
@@ -167,13 +167,13 @@
         "workflowId": "QOgvjzuDoykfiqvh",
         "options": {}
       },
-      "id": "check-circuit",
-      "name": "Check Circuit Breaker",
+      "id": "13e30711-f726-45f9-bf63-9dc0f95791e8",
+      "name": "Check Circuit Breaker1",
       "type": "n8n-nodes-base.executeWorkflow",
       "typeVersion": 1,
       "position": [
-        1504,
-        112
+        1328,
+        1440
       ]
     },
     {
@@ -187,39 +187,39 @@
           ]
         }
       },
-      "id": "circuit-open",
-      "name": "Circuit OK?",
+      "id": "4a53b6ca-1e87-45ca-96bc-e1129f05121c",
+      "name": "Circuit OK?1",
       "type": "n8n-nodes-base.if",
       "typeVersion": 1,
       "position": [
-        1712,
-        112
+        1536,
+        1440
       ]
     },
     {
       "parameters": {
-        "jsCode": "// Try next provider in priority list\nconst ticket = $('Create Job Tickets').first().json;\nconst providers = ticket.provider_priority;\n\n// Move to next provider\nconst nextProviders = providers.slice(1);\n\nif (nextProviders.length === 0) {\n  return [{ json: { ...ticket, error: 'ALL_PROVIDERS_CIRCUIT_OPEN', should_queue: true } }];\n}\n\nreturn [{ json: { ...ticket, provider_priority: nextProviders } }];"
+        "jsCode": "// Try next provider in priority list\nconst ticket = $('Create Job Tickets1').first().json;\nconst providers = ticket.provider_priority;\n\n// Move to next provider\nconst nextProviders = providers.slice(1);\n\nif (nextProviders.length === 0) {\n  return [{ json: { ...ticket, error: 'ALL_PROVIDERS_CIRCUIT_OPEN', should_queue: true } }];\n}\n\nreturn [{ json: { ...ticket, provider_priority: nextProviders } }];"
       },
-      "id": "try-next-provider",
-      "name": "Try Next Provider",
+      "id": "55689d20-e8d1-4ef7-ad5a-39154e02b682",
+      "name": "Try Next Provider1",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        1904,
-        256
+        1728,
+        1584
       ]
     },
     {
       "parameters": {
-        "jsCode": "// ============================================\n// MULTI-VENDOR ROUTING WITH MOCK MODE\n// Per Manifesto Section 5.2\n// MOCK_MODE: Set env var MOCK_MODE=true to skip real API calls\n// ============================================\n\nconst ticket = $('Create Job Tickets').first().json;\nconst provider = ticket.provider_priority[0];\nconst mockMode = true; // CHANGE TO FALSE when using real video APIs\n\n// MOCK MODE: Return fake response without calling API\nif (mockMode) {\n  return [{\n    json: {\n      ...ticket,\n      selected_provider: 'mock',\n      mock_mode: true,\n      api_config: null,\n      mock_response: {\n        id: 'mock_' + Date.now(),\n        status: 'completed',\n        output_url: 'https://storage.googleapis.com/gtv-videos-bucket/sample/BigBuckBunny.mp4'\n      }\n    }\n  }];\n}\n\n// REAL MODE: Build provider-specific API request\nconst providerConfigs = {\n  'sora': {\n    url: 'https://api.openai.com/v1/videos/generations',\n    method: 'POST',\n    body: {\n      prompt: ticket.visual_prompt,\n      duration: Math.min(ticket.duration_seconds, 20),\n      model: 'sora-1.0'\n    },\n    auth: 'openai'\n  },\n  'runway': {\n    url: 'https://api.runwayml.com/v1/generations',\n    method: 'POST',\n    body: {\n      prompt: ticket.visual_prompt,\n      duration: ticket.duration_seconds,\n      mode: 'gen3'\n    },\n    auth: 'runway'\n  },\n  'pika': {\n    url: 'https://api.pika.art/v1/generate',\n    method: 'POST',\n    body: {\n      prompt: ticket.visual_prompt,\n      duration: ticket.duration_seconds\n    },\n    auth: 'pika'\n  },\n  'kling': {\n    url: 'https://api.kling.ai/v1/videos',\n    method: 'POST',\n    body: {\n      prompt: ticket.visual_prompt,\n      duration: ticket.duration_seconds\n    },\n    auth: 'kling'\n  }\n};\n\nconst config = providerConfigs[provider] || providerConfigs['runway'];\n\nreturn [{\n  json: {\n    ...ticket,\n    selected_provider: provider,\n    mock_mode: false,\n    api_config: config\n  }\n}];"
+        "jsCode": "// ============================================\n// MULTI-VENDOR ROUTING WITH MOCK MODE\n// Per Manifesto Section 5.2\n// MOCK_MODE: Set env var MOCK_MODE=true to skip real API calls\n// ============================================\n\nconst ticket = $('Create Job Tickets1').first().json;\nconst provider = ticket.provider_priority[0];\nconst mockMode = true; // CHANGE TO FALSE when using real video APIs\n\n// MOCK MODE: Return fake response without calling API\nif (mockMode) {\n  return [{\n    json: {\n      ...ticket,\n      selected_provider: 'mock',\n      mock_mode: true,\n      api_config: null,\n      mock_response: {\n        id: 'mock_' + Date.now(),\n        status: 'completed',\n        output_url: 'https://storage.googleapis.com/gtv-videos-bucket/sample/BigBuckBunny.mp4'\n      }\n    }\n  }];\n}\n\n// REAL MODE: Build provider-specific API request\nconst providerConfigs = {\n  'sora': {\n    url: 'https://api.openai.com/v1/videos/generations',\n    method: 'POST',\n    body: {\n      prompt: ticket.visual_prompt,\n      duration: Math.min(ticket.duration_seconds, 20),\n      model: 'sora-1.0'\n    },\n    auth: 'openai'\n  },\n  'runway': {\n    url: 'https://api.runwayml.com/v1/generations',\n    method: 'POST',\n    body: {\n      prompt: ticket.visual_prompt,\n      duration: ticket.duration_seconds,\n      mode: 'gen3'\n    },\n    auth: 'runway'\n  },\n  'pika': {\n    url: 'https://api.pika.art/v1/generate',\n    method: 'POST',\n    body: {\n      prompt: ticket.visual_prompt,\n      duration: ticket.duration_seconds\n    },\n    auth: 'pika'\n  },\n  'kling': {\n    url: 'https://api.kling.ai/v1/videos',\n    method: 'POST',\n    body: {\n      prompt: ticket.visual_prompt,\n      duration: ticket.duration_seconds\n    },\n    auth: 'kling'\n  },\n  'pollo': {\n    url: 'https://api.pollo.ai/v1/task/create',\n    method: 'POST',\n    body: {\n      params: {\n        text_prompt: ticket.visual_prompt,\n        model: 'kling-v1-6',\n        duration: ticket.duration_seconds >= 10 ? 10 : 5,\n        aspect_ratio: '16:9'\n      }\n    },\n    auth: 'pollo',\n    headers: {\n      'X-API-KEY': '${POLLO_API_KEY}'\n    }\n  }\n};\n\nconst config = providerConfigs[provider] || providerConfigs['runway'];\n\nreturn [{\n  json: {\n    ...ticket,\n    selected_provider: provider,\n    mock_mode: false,\n    api_config: config\n  }\n}];"
       },
-      "id": "route-to-provider",
-      "name": "Route to Provider",
+      "id": "818eff11-50db-49d9-a748-a79a31000b50",
+      "name": "Route to Provider1",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        1904,
-        64
+        1728,
+        1392
       ]
     },
     {
@@ -235,13 +235,13 @@
           "timeout": 60000
         }
       },
-      "id": "submit-job",
-      "name": "Submit to Provider",
+      "id": "ce0e3e82-f65f-4036-be69-df8849dcc58f",
+      "name": "Submit to Provider1",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.1,
       "position": [
-        2112,
-        64
+        1936,
+        1392
       ],
       "credentials": {
         "httpHeaderAuth": {
@@ -253,15 +253,15 @@
     },
     {
       "parameters": {
-        "jsCode": "// Handle mock mode response\nconst routeData = $('Route to Provider').first().json;\nif (routeData.mock_mode) {\n  return [{\n    json: {\n      success: true,\n      campaign_id: routeData.campaign_id,\n      script_id: routeData.script_id,\n      scene_id: routeData.scene_id,\n      provider: 'mock',\n      provider_job_id: routeData.mock_response.id,\n      status: 'completed',\n      result_url: routeData.mock_response.output_url,\n      prompt: routeData.visual_prompt,\n      submitted_at: new Date().toISOString(),\n      mock_mode: true\n    }\n  }];\n}\n\n// Parse provider response and create job record\nconst ticket = $('Route to Provider').first().json;\nconst response = $input.all()[0].json;\n\nif (response.error) {\n  return [{\n    json: {\n      success: false,\n      error: 'PROVIDER_ERROR',\n      provider: ticket.selected_provider,\n      error_details: response.error,\n      ticket: ticket\n    }\n  }];\n}\n\n// Extract job ID (format varies by provider)\nconst jobId = response.id || response.job_id || response.generation_id || response.task_id;\n\nreturn [{\n  json: {\n    success: true,\n    campaign_id: ticket.campaign_id,\n    script_id: ticket.script_id,\n    scene_id: ticket.scene_id,\n    provider: ticket.selected_provider,\n    provider_job_id: jobId,\n    status: 'submitted',\n    prompt: ticket.visual_prompt,\n    submitted_at: new Date().toISOString(),\n    expected_completion: new Date(Date.now() + 5 * 60 * 1000).toISOString() // 5 min estimate\n  }\n}];"
+        "jsCode": "// Handle mock mode response\nconst routeData = $('Route to Provider1').first().json;\nif (routeData.mock_mode) {\n  return [{\n    json: {\n      success: true,\n      campaign_id: routeData.campaign_id,\n      script_id: routeData.script_id,\n      scene_id: routeData.scene_id,\n      provider: 'mock',\n      provider_job_id: routeData.mock_response.id,\n      status: 'completed',\n      result_url: routeData.mock_response.output_url,\n      prompt: routeData.visual_prompt,\n      submitted_at: new Date().toISOString(),\n      mock_mode: true\n    }\n  }];\n}\n\n// Parse provider response and create job record\nconst ticket = $('Route to Provider1').first().json;\nconst response = $input.all()[0].json;\n\nif (response.error) {\n  return [{\n    json: {\n      success: false,\n      error: 'PROVIDER_ERROR',\n      provider: ticket.selected_provider,\n      error_details: response.error,\n      ticket: ticket\n    }\n  }];\n}\n\n// Extract job ID (format varies by provider)\nconst jobId = response.id || response.job_id || response.generation_id || response.task_id;\n\nreturn [{\n  json: {\n    success: true,\n    campaign_id: ticket.campaign_id,\n    script_id: ticket.script_id,\n    scene_id: ticket.scene_id,\n    provider: ticket.selected_provider,\n    provider_job_id: jobId,\n    status: 'submitted',\n    prompt: ticket.visual_prompt,\n    submitted_at: new Date().toISOString(),\n    expected_completion: new Date(Date.now() + 5 * 60 * 1000).toISOString() // 5 min estimate\n  }\n}];"
       },
-      "id": "parse-response",
-      "name": "Parse Response",
+      "id": "efe1e640-d27c-454f-ad99-879bd03d453b",
+      "name": "Parse Response1",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        2352,
-        64
+        2176,
+        1392
       ]
     },
     {
@@ -275,13 +275,13 @@
           ]
         }
       },
-      "id": "submit-success",
-      "name": "Submitted?",
+      "id": "6d3dc4a8-bd2e-4972-af31-901b4017713d",
+      "name": "Submitted?1",
       "type": "n8n-nodes-base.if",
       "typeVersion": 1,
       "position": [
-        2560,
-        64
+        2384,
+        1392
       ]
     },
     {
@@ -328,13 +328,13 @@
           ]
         }
       },
-      "id": "store-job",
-      "name": "Store Job Record",
+      "id": "e9bcbf06-88ca-4b89-8a26-34aeb02c99c0",
+      "name": "Store Job Record1",
       "type": "n8n-nodes-base.supabase",
       "typeVersion": 1,
       "position": [
-        2752,
-        -128
+        2576,
+        1200
       ],
       "credentials": {
         "supabaseApi": {
@@ -348,43 +348,43 @@
         "workflowId": "4OuxyvQvJ9GV3yD1",
         "options": {}
       },
-      "id": "log-cost",
-      "name": "Log Submission Cost",
+      "id": "581d2d99-d0da-4ed9-a38f-88241caf3378",
+      "name": "Log Submission Cost1",
       "type": "n8n-nodes-base.executeWorkflow",
       "typeVersion": 1,
       "position": [
-        2768,
-        48
+        2592,
+        1376
       ]
     },
     {
       "parameters": {
         "respondWith": "json",
-        "responseBody": "={{ JSON.stringify({ success: true, campaign_id: $('Webhook').first().json.body.campaign_id, jobs_submitted: 1, job_id: $('Store Job Record').first().json.id }) }}",
+        "responseBody": "={{ JSON.stringify({ success: true, campaign_id: $('Webhook1').first().json.body.campaign_id, jobs_submitted: 1, job_id: $('Store Job Record1').first().json.id }) }}",
         "options": {
           "responseCode": 202
         }
       },
-      "id": "return-success",
-      "name": "Return 202",
+      "id": "aa268e1b-c29d-4567-b19d-6c98ed7b48e2",
+      "name": "Return 203",
       "type": "n8n-nodes-base.respondToWebhook",
       "typeVersion": 1,
       "position": [
-        3008,
-        48
+        2832,
+        1376
       ]
     },
     {
       "parameters": {
         "jsCode": "// Handle provider submission failure\nconst data = $input.all()[0].json;\n\n// Log for retry later\nconsole.error(`Provider ${data.provider} failed: ${JSON.stringify(data.error_details)}`);\n\nreturn [{\n  json: {\n    campaign_id: data.ticket.campaign_id,\n    script_id: data.ticket.script_id,\n    scene_id: data.ticket.scene_id,\n    provider: data.provider,\n    status: 'failed',\n    error_message: JSON.stringify(data.error_details)\n  }\n}];"
       },
-      "id": "handle-failure",
-      "name": "Handle Failure",
+      "id": "e6d19e8a-a95d-4e0f-95f6-9061cb1f9dfd",
+      "name": "Handle Failure1",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        2752,
-        304
+        2576,
+        1632
       ]
     },
     {
@@ -423,13 +423,13 @@
           ]
         }
       },
-      "id": "store-failed",
-      "name": "Store Failed Job",
+      "id": "89bbd64d-146a-41ac-abab-35bd444263d6",
+      "name": "Store Failed Job1",
       "type": "n8n-nodes-base.supabase",
       "typeVersion": 1,
       "position": [
-        2960,
-        304
+        2784,
+        1632
       ],
       "credentials": {
         "supabaseApi": {
@@ -443,13 +443,13 @@
         "workflowId": "uCTePCAfvuecs7La",
         "options": {}
       },
-      "id": "alert-failure",
-      "name": "Alert Failure",
+      "id": "981e111e-7488-4054-9397-6312d554b6de",
+      "name": "Alert Failure1",
       "type": "n8n-nodes-base.executeWorkflow",
       "typeVersion": 1,
       "position": [
-        3152,
-        304
+        2976,
+        1632
       ]
     },
     {
@@ -460,254 +460,254 @@
           "responseCode": 500
         }
       },
-      "id": "return-500",
-      "name": "Return 500",
+      "id": "69aa0116-5564-4b52-8958-cae9e83ce104",
+      "name": "Return 501",
       "type": "n8n-nodes-base.respondToWebhook",
       "typeVersion": 1,
       "position": [
-        3360,
-        304
+        3184,
+        1632
       ]
     }
   ],
   "pinData": {},
   "connections": {
-    "Webhook": {
+    "Webhook1": {
       "main": [
         [
           {
-            "node": "Validate Schema",
+            "node": "Validate Schema1",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "Validate Schema": {
+    "Validate Schema1": {
       "main": [
         [
           {
-            "node": "Valid?",
+            "node": "Valid?1",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "Valid?": {
+    "Valid?1": {
       "main": [
         [
           {
-            "node": "Acquire Lock",
+            "node": "Acquire Lock1",
             "type": "main",
             "index": 0
           }
         ],
         [
           {
-            "node": "Return 400",
+            "node": "Return ",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "Acquire Lock": {
+    "Acquire Lock1": {
       "main": [
         [
           {
-            "node": "Locked?",
+            "node": "Locked?1",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "Locked?": {
+    "Locked?1": {
       "main": [
         [
           {
-            "node": "Load Script",
+            "node": "Load Script1",
             "type": "main",
             "index": 0
           }
         ],
         [
           {
-            "node": "Return 409",
+            "node": "Return 410",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "Load Script": {
+    "Load Script1": {
       "main": [
         [
           {
-            "node": "Create Job Tickets",
+            "node": "Create Job Tickets1",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "Create Job Tickets": {
+    "Create Job Tickets1": {
       "main": [
         [
           {
-            "node": "Check Circuit Breaker",
+            "node": "Check Circuit Breaker1",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "Check Circuit Breaker": {
+    "Check Circuit Breaker1": {
       "main": [
         [
           {
-            "node": "Circuit OK?",
+            "node": "Circuit OK?1",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "Circuit OK?": {
+    "Circuit OK?1": {
       "main": [
         [
           {
-            "node": "Route to Provider",
+            "node": "Route to Provider1",
             "type": "main",
             "index": 0
           }
         ],
         [
           {
-            "node": "Try Next Provider",
+            "node": "Try Next Provider1",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "Try Next Provider": {
+    "Try Next Provider1": {
       "main": [
         [
           {
-            "node": "Check Circuit Breaker",
+            "node": "Check Circuit Breaker1",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "Route to Provider": {
+    "Route to Provider1": {
       "main": [
         [
           {
-            "node": "Submit to Provider",
+            "node": "Submit to Provider1",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "Submit to Provider": {
+    "Submit to Provider1": {
       "main": [
         [
           {
-            "node": "Parse Response",
+            "node": "Parse Response1",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "Parse Response": {
+    "Parse Response1": {
       "main": [
         [
           {
-            "node": "Submitted?",
+            "node": "Submitted?1",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "Submitted?": {
+    "Submitted?1": {
       "main": [
         [
           {
-            "node": "Store Job Record",
+            "node": "Store Job Record1",
             "type": "main",
             "index": 0
           },
           {
-            "node": "Log Submission Cost",
+            "node": "Log Submission Cost1",
             "type": "main",
             "index": 0
           }
         ],
         [
           {
-            "node": "Handle Failure",
+            "node": "Handle Failure1",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "Store Job Record": {
+    "Store Job Record1": {
       "main": [
         [
           {
-            "node": "Return 202",
+            "node": "Return 203",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "Handle Failure": {
+    "Log Submission Cost1": {
       "main": [
         [
           {
-            "node": "Store Failed Job",
+            "node": "Return 203",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "Store Failed Job": {
+    "Handle Failure1": {
       "main": [
         [
           {
-            "node": "Alert Failure",
+            "node": "Store Failed Job1",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "Alert Failure": {
+    "Store Failed Job1": {
       "main": [
         [
           {
-            "node": "Return 500",
+            "node": "Alert Failure1",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "Log Submission Cost": {
+    "Alert Failure1": {
       "main": [
         [
           {
-            "node": "Return 202",
+            "node": "Return 501",
             "type": "main",
             "index": 0
           }
@@ -721,7 +721,7 @@
     "callerPolicy": "workflowsFromSameOwner",
     "availableInMCP": false
   },
-  "versionId": "7663b7e1-9dd4-4c1f-916b-0fd349ff45f3",
+  "versionId": "c0f8f5ac-a7c8-4bb9-8452-da41db82de73",
   "meta": {
     "templateCredsSetupCompleted": true,
     "instanceId": "fb0f3042150127121074617aaee31b106c313805cbc452132240d35f72eba898"
