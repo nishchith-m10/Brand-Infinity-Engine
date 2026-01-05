@@ -22,14 +22,15 @@
   --card: 255 255 255;
   --card-foreground: 15 23 42;
   
-  --primary: 99 102 241;
+  /* Llama Sector — light mode */
+  --primary: 14 165 233; /* lamaSky (sky blue) */
   --primary-foreground: 255 255 255;
   
   --secondary: 241 245 249;
   --secondary-foreground: 15 23 42;
   
   --muted: 241 245 249;
-  --muted-foreground: 100 116 139;
+  --muted-foreground: 71 85 105; /* slate-600 instead of slate-500 for better contrast */
   
   --accent: 241 245 249;
   --accent-foreground: 15 23 42;
@@ -39,23 +40,247 @@
   
   --border: 226 232 240;
   --input: 226 232 240;
-  --ring: 99 102 241;
+  --ring: 139 92 246; /* lamaPurple (focus/ring) */
   
+  /* Popover base */
+  --popover: 255 255 255;
+  --popover-foreground: 15 23 42;
+
   --radius: 0.75rem;
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --foreground-rgb: 255, 255, 255;
-    --background-start-rgb: 0, 0, 0;
-    --background-end-rgb: 0, 0, 0;
-  }
+/* ========================================
+   LIGHT MODE TEXT IMPROVEMENTS
+   Make gray text darker for better readability
+   ======================================== */
+.text-slate-400 { color: rgb(100 116 139) !important; } /* Darken from slate-400 to slate-500 */
+.text-slate-500 { color: rgb(71 85 105) !important; }   /* Darken from slate-500 to slate-600 */
+.text-gray-400 { color: rgb(100 116 139) !important; }
+.text-gray-500 { color: rgb(71 85 105) !important; }
+
+/* Dark mode (both system preference and manual toggle work via .dark class added by next-themes) */
+.dark {
+  --foreground-rgb: 255, 255, 255;
+  --background-start-rgb: 15, 15, 15;
+  --background-end-rgb: 15, 15, 15;
+
+  /* shadcn/ui dark mode colors - Near-black theme */
+  --background: 15 15 15;        /* Near-black background */
+  --foreground: 250 250 250;     /* Bright white text */
+  
+  --card: 23 23 23;              /* Slightly lighter cards */
+  --card-foreground: 250 250 250;
+  
+  --primary: 139 92 246;         /* lamaPurple */
+  --primary-foreground: 255 255 255;
+  
+  --secondary: 38 38 38;         /* Dark gray */
+  --secondary-foreground: 250 250 250;
+  
+  --muted: 38 38 38;             /* Muted backgrounds */
+  --muted-foreground: 163 163 163; /* Muted text */
+  
+  --accent: 38 38 38;            /* Accent backgrounds */
+  --accent-foreground: 250 250 250;
+  
+  --destructive: 127 29 29;      /* red-900 */
+  --destructive-foreground: 250 250 250;
+  
+  --border: 38 38 38;            /* Subtle borders */
+  --input: 38 38 38;
+  --ring: 167 139 250;           /* Lighter purple ring */
+  
+  /* Popover overrides for dark mode */
+  --popover: 23 23 23;
+  --popover-foreground: 250 250 250;
+
+  /* Chart tooltip for dark mode */
+  --tooltip-bg: rgb(23 23 23 / 0.95);
+  --tooltip-border: rgb(38 38 38);
+  --tooltip-text: rgb(250 250 250);
 }
 
 body {
   color: rgb(var(--foreground-rgb));
-  background: white;
+  background: rgb(var(--background));
 }
+
+/* ========================================
+   DARK MODE AUTO-TRANSFORMATIONS
+   All slate/gray/neutral colors automatically adapt in dark mode
+   ======================================== */
+
+/* Background colors - light backgrounds become dark */
+.dark .bg-white { background-color: rgb(23 23 23) !important; }
+.dark .bg-slate-50 { background-color: rgb(15 15 15) !important; }
+.dark .bg-slate-100 { background-color: rgb(38 38 38) !important; }
+.dark .bg-slate-200 { background-color: rgb(51 51 51) !important; }
+.dark .bg-gray-50 { background-color: rgb(23 23 23) !important; }
+.dark .bg-gray-100 { background-color: rgb(38 38 38) !important; }
+.dark .bg-gray-200 { background-color: rgb(51 51 51) !important; }
+.dark .bg-neutral-50 { background-color: rgb(23 23 23) !important; }
+.dark .bg-neutral-100 { background-color: rgb(38 38 38) !important; }
+.dark .bg-zinc-50 { background-color: rgb(23 23 23) !important; }
+.dark .bg-zinc-100 { background-color: rgb(38 38 38) !important; }
+
+/* Icon container backgrounds - keep subtle in dark mode */
+.dark .bg-lamaSkyLight { background-color: rgba(14, 165, 233, 0.15) !important; }
+.dark .bg-lamaPurpleLight { background-color: rgba(139, 92, 246, 0.15) !important; }
+.dark .bg-lamaYellowLight { background-color: rgba(234, 179, 8, 0.15) !important; }
+
+/* Text colors - dark text becomes light */
+.dark .text-slate-50 { color: rgb(250 250 250) !important; }
+.dark .text-slate-100 { color: rgb(241 245 249) !important; }
+.dark .text-slate-200 { color: rgb(226 232 240) !important; }
+.dark .text-slate-300 { color: rgb(203 213 225) !important; }
+.dark .text-slate-400 { color: rgb(163 163 163) !important; }
+.dark .text-slate-500 { color: rgb(163 163 163) !important; }
+.dark .text-slate-600 { color: rgb(212 212 212) !important; }
+.dark .text-slate-700 { color: rgb(229 229 229) !important; }
+.dark .text-slate-800 { color: rgb(245 245 245) !important; }
+.dark .text-slate-900 { color: rgb(250 250 250) !important; }
+.dark .text-gray-400 { color: rgb(163 163 163) !important; }
+.dark .text-gray-500 { color: rgb(163 163 163) !important; }
+.dark .text-gray-600 { color: rgb(212 212 212) !important; }
+.dark .text-gray-700 { color: rgb(229 229 229) !important; }
+.dark .text-gray-800 { color: rgb(245 245 245) !important; }
+.dark .text-gray-900 { color: rgb(250 250 250) !important; }
+
+/* Border colors - all white/light borders become subtle dark */
+.dark .border-white { border-color: rgb(38 38 38) !important; }
+.dark .border-slate-50 { border-color: rgb(38 38 38) !important; }
+.dark .border-slate-100 { border-color: rgb(38 38 38) !important; }
+.dark .border-slate-200 { border-color: rgb(38 38 38) !important; }
+.dark .border-slate-300 { border-color: rgb(51 51 51) !important; }
+.dark .border-gray-100 { border-color: rgb(38 38 38) !important; }
+.dark .border-gray-200 { border-color: rgb(38 38 38) !important; }
+.dark .border-gray-300 { border-color: rgb(51 51 51) !important; }
+
+/* Dashed borders - these are especially visible in Videos page */
+.dark [class*="border-dashed"] { border-color: rgb(51 51 51) !important; }
+
+/* Ring colors */
+.dark .ring-white { --tw-ring-color: rgb(38 38 38) !important; }
+.dark .ring-slate-100 { --tw-ring-color: rgb(38 38 38) !important; }
+
+/* Input/focus styling */
+.dark input, .dark textarea, .dark select {
+  background-color: rgb(23 23 23) !important;
+  border-color: rgb(51 51 51) !important;
+  color: rgb(250 250 250) !important;
+}
+.dark input::placeholder, .dark textarea::placeholder {
+  color: rgb(115 115 115) !important;
+}
+
+/* Hover states */
+.dark .hover\:bg-white:hover { background-color: rgb(38 38 38) !important; }
+.dark .hover\:bg-slate-50:hover { background-color: rgb(38 38 38) !important; }
+.dark .hover\:bg-slate-100:hover { background-color: rgb(51 51 51) !important; }
+.dark .hover\:bg-gray-50:hover { background-color: rgb(38 38 38) !important; }
+.dark .hover\:bg-gray-100:hover { background-color: rgb(51 51 51) !important; }
+.dark .hover\:text-slate-600:hover { color: rgb(212 212 212) !important; }
+.dark .hover\:text-slate-700:hover { color: rgb(229 229 229) !important; }
+.dark .hover\:text-slate-900:hover { color: rgb(250 250 250) !important; }
+.dark .hover\:border-slate-300:hover { border-color: rgb(51 51 51) !important; }
+
+/* ========================================
+   CATCH-ALL BORDER FIX
+   Any element with a border gets dark mode appropriate color
+   ======================================== */
+.dark [class*="border"]:not([class*="border-transparent"]):not([class*="border-lamaPurple"]):not([class*="border-lamaSky"]):not([class*="border-lamaYellow"]):not([class*="border-red"]):not([class*="border-green"]):not([class*="border-blue"]):not([class*="border-indigo"]):not([class*="border-emerald"]):not([class*="border-amber"]):not([class*="border-rose"]) {
+  border-color: rgb(38 38 38) !important;
+}
+
+/* ========================================
+   COLORED LIGHT BACKGROUNDS - All need dark mode variants
+   ======================================== */
+/* Purple/violet/indigo light backgrounds */
+.dark .bg-purple-50, .dark .bg-purple-100 { background-color: rgba(139, 92, 246, 0.12) !important; }
+.dark .bg-violet-50, .dark .bg-violet-100 { background-color: rgba(139, 92, 246, 0.12) !important; }
+.dark .bg-indigo-50, .dark .bg-indigo-100 { background-color: rgba(99, 102, 241, 0.12) !important; }
+.dark .bg-fuchsia-50, .dark .bg-fuchsia-100 { background-color: rgba(192, 38, 211, 0.12) !important; }
+.dark .bg-pink-50, .dark .bg-pink-100 { background-color: rgba(236, 72, 153, 0.12) !important; }
+
+/* Blue light backgrounds */
+.dark .bg-blue-50, .dark .bg-blue-100 { background-color: rgba(59, 130, 246, 0.12) !important; }
+.dark .bg-sky-50, .dark .bg-sky-100 { background-color: rgba(14, 165, 233, 0.12) !important; }
+.dark .bg-cyan-50, .dark .bg-cyan-100 { background-color: rgba(6, 182, 212, 0.12) !important; }
+
+/* Green light backgrounds */
+.dark .bg-green-50, .dark .bg-green-100 { background-color: rgba(34, 197, 94, 0.12) !important; }
+.dark .bg-emerald-50, .dark .bg-emerald-100 { background-color: rgba(16, 185, 129, 0.12) !important; }
+.dark .bg-teal-50, .dark .bg-teal-100 { background-color: rgba(20, 184, 166, 0.12) !important; }
+
+/* Yellow/orange light backgrounds */
+.dark .bg-yellow-50, .dark .bg-yellow-100 { background-color: rgba(234, 179, 8, 0.12) !important; }
+.dark .bg-amber-50, .dark .bg-amber-100 { background-color: rgba(245, 158, 11, 0.12) !important; }
+.dark .bg-orange-50, .dark .bg-orange-100 { background-color: rgba(249, 115, 22, 0.12) !important; }
+
+/* Red light backgrounds */
+.dark .bg-red-50, .dark .bg-red-100 { background-color: rgba(239, 68, 68, 0.12) !important; }
+.dark .bg-rose-50, .dark .bg-rose-100 { background-color: rgba(244, 63, 94, 0.12) !important; }
+
+/* ========================================
+   SPECIFIC COMPONENT FIXES
+   ======================================== */
+/* Cards and panels - catch any that might use opacity or semi-transparent white */
+.dark [class*="bg-white/"], .dark [class*="bg-slate-50/"], .dark [class*="bg-gray-50/"] {
+  background-color: rgba(23, 23, 23, 0.8) !important;
+}
+
+/* Any remaining dividers */
+.dark .divide-slate-100 > * + *, .dark .divide-slate-200 > * + *, .dark .divide-gray-100 > * + *, .dark .divide-gray-200 > * + * {
+  border-color: rgb(38 38 38) !important;
+}
+
+/* Shadow adjustments for dark mode */
+.dark .shadow-sm, .dark .shadow, .dark .shadow-md, .dark .shadow-lg {
+  --tw-shadow-color: rgba(0, 0, 0, 0.5);
+}
+
+/* ========================================
+   GRADIENT BACKGROUNDS FIX
+   Light gradients become dark subtle gradients
+   ======================================== */
+/* Override any light gradient backgrounds entirely */
+.dark [class*="bg-gradient-to-r"][class*="from-indigo-50"],
+.dark [class*="bg-gradient-to-r"][class*="from-purple-50"],
+.dark [class*="bg-gradient-to-r"][class*="from-violet-50"],
+.dark [class*="bg-gradient-to-r"][class*="from-sky-50"],
+.dark [class*="bg-gradient-to-r"][class*="from-blue-50"],
+.dark [class*="bg-gradient-to-r"][class*="from-pink-50"],
+.dark [class*="bg-gradient-to-r"][class*="from-rose-50"],
+.dark [class*="bg-gradient-to-r"][class*="from-green-50"],
+.dark [class*="bg-gradient-to-r"][class*="from-amber-50"],
+.dark [class*="bg-gradient-to-r"][class*="from-slate-50"],
+.dark [class*="bg-gradient-to-b"][class*="from-indigo-50"],
+.dark [class*="bg-gradient-to-b"][class*="from-purple-50"],
+.dark [class*="bg-gradient-to-b"][class*="from-slate-50"] {
+  background: rgba(38, 38, 38, 0.5) !important;
+}
+
+/* Override gradient stops directly for better coverage */
+.dark .from-indigo-50 { --tw-gradient-from: rgba(99, 102, 241, 0.1) !important; }
+.dark .from-purple-50 { --tw-gradient-from: rgba(139, 92, 246, 0.1) !important; }
+.dark .from-violet-50 { --tw-gradient-from: rgba(139, 92, 246, 0.1) !important; }
+.dark .from-pink-50 { --tw-gradient-from: rgba(236, 72, 153, 0.1) !important; }
+.dark .from-sky-50 { --tw-gradient-from: rgba(14, 165, 233, 0.1) !important; }
+.dark .from-blue-50 { --tw-gradient-from: rgba(59, 130, 246, 0.1) !important; }
+.dark .from-green-50 { --tw-gradient-from: rgba(34, 197, 94, 0.1) !important; }
+.dark .from-amber-50 { --tw-gradient-from: rgba(245, 158, 11, 0.1) !important; }
+.dark .from-slate-50 { --tw-gradient-from: rgba(38, 38, 38, 1) !important; }
+
+.dark .to-indigo-50 { --tw-gradient-to: rgba(99, 102, 241, 0.1) !important; }
+.dark .to-purple-50 { --tw-gradient-to: rgba(139, 92, 246, 0.1) !important; }
+.dark .to-violet-50 { --tw-gradient-to: rgba(139, 92, 246, 0.1) !important; }
+.dark .to-pink-50 { --tw-gradient-to: rgba(236, 72, 153, 0.1) !important; }
+.dark .to-sky-50 { --tw-gradient-to: rgba(14, 165, 233, 0.1) !important; }
+.dark .to-blue-50 { --tw-gradient-to: rgba(59, 130, 246, 0.1) !important; }
+.dark .to-green-50 { --tw-gradient-to: rgba(34, 197, 94, 0.1) !important; }
+.dark .to-amber-50 { --tw-gradient-to: rgba(245, 158, 11, 0.1) !important; }
+.dark .to-slate-50 { --tw-gradient-to: rgba(38, 38, 38, 1) !important; }
+
 
 /* Ensure all text is visible on light backgrounds */
 .text-foreground { color: rgb(var(--foreground)); }
@@ -77,5 +302,6 @@ body {
 .ring-offset-background { --tw-ring-offset-color: rgb(var(--background)); }
 
 /* Popover (dropdown menus) */
-.bg-popover { background-color: white; }
-.text-popover-foreground { color: rgb(var(--foreground)); }
+/* Popover (dropdown menus) */
+.bg-popover { background-color: rgb(var(--popover)); }
+.text-popover-foreground { color: rgb(var(--popover-foreground)); }
