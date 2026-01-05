@@ -23,7 +23,7 @@ export interface DLQEntry {
   request_id: string;
   task_id: string;
   task_name: string;
-  assigned_to: string;
+  agent_role: string;
   failure_reason: string;
   retry_count: number;
   max_retries: number;
@@ -86,7 +86,7 @@ export class DeadLetterQueue {
         request_id: task.request_id,
         task_id: task.id,
         task_name: task.task_name,
-        assigned_to: task.agent_role,
+        agent_role: task.agent_role,
         failure_reason: task.error_message || 'Unknown error',
         retry_count: task.retry_count,
         max_retries: MAX_RETRIES,
@@ -163,7 +163,7 @@ export class DeadLetterQueue {
       task_data: {
         id: task.id,
         task_name: task.task_name,
-        assigned_to: task.agent_role,
+        agent_role: task.agent_role,
         status: task.status,
         input_data: task.input_data,
         output_data: task.output_data,
@@ -188,7 +188,7 @@ export class DeadLetterQueue {
    */
   async getDLQEntries(filters?: {
     resolution_status?: DLQEntry['resolution_status'];
-    assigned_to?: string;
+    agent_role?: string;
     since?: string;
   }): Promise<DLQEntry[]> {
     const supabase = await createClient();
@@ -218,8 +218,8 @@ export class DeadLetterQueue {
       entries = entries.filter(e => e.resolution_status === filters.resolution_status);
     }
 
-    if (filters?.assigned_to) {
-      entries = entries.filter(e => e.assigned_to === filters.assigned_to);
+    if (filters?.agent_role) {
+      entries = entries.filter(e => e.agent_role === filters.agent_role);
     }
 
     return entries;
@@ -306,7 +306,7 @@ export class DeadLetterQueue {
 
     // Count by agent role
     for (const entry of entries) {
-      stats.by_agent[entry.assigned_to] = (stats.by_agent[entry.assigned_to] || 0) + 1;
+      stats.by_agent[entry.agent_role] = (stats.by_agent[entry.agent_role] || 0) + 1;
     }
 
     return stats;

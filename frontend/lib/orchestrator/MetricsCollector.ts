@@ -19,7 +19,7 @@ import type { RequestTask, ContentRequest, AgentRole } from './types';
  */
 export interface TaskMetrics {
   task_name: string;
-  assigned_to: AgentRole;
+  agent_role: AgentRole;
   total_executions: number;
   successful_executions: number;
   failed_executions: number;
@@ -115,7 +115,7 @@ export class MetricsCollector {
 
     let query = supabase
       .from('request_tasks')
-      .select('task_name, assigned_to, status, started_at, completed_at, metadata');
+      .select('task_name, agent_role, status, started_at, completed_at, metadata');
 
     if (since) {
       query = query.gte('created_at', since);
@@ -140,7 +140,7 @@ export class MetricsCollector {
     const metrics: TaskMetrics[] = [];
 
     for (const [key, groupTasks] of taskGroups.entries()) {
-      const [task_name, assigned_to] = key.split(':');
+      const [task_name, agent_role] = key.split(':');
       const total = groupTasks.length;
       const successful = groupTasks.filter(t => t.status === 'completed').length;
       const failed = groupTasks.filter(t => t.status === 'failed').length;
@@ -161,7 +161,7 @@ export class MetricsCollector {
 
       metrics.push({
         task_name,
-        assigned_to: assigned_to as AgentRole,
+        agent_role: agent_role as AgentRole,
         total_executions: total,
         successful_executions: successful,
         failed_executions: failed,
@@ -270,7 +270,7 @@ export class MetricsCollector {
 
     let query = supabase
       .from('request_tasks')
-      .select('assigned_to, status, started_at, completed_at, output_data');
+      .select('agent_role, status, started_at, completed_at, output_data');
 
     if (since) {
       query = query.gte('created_at', since);

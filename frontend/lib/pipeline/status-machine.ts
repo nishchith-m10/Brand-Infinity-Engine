@@ -10,7 +10,8 @@ const VALID_TRANSITIONS: Record<RequestStatus, RequestStatus[]> = {
   intake: ['draft', 'cancelled'],
   draft: ['production', 'cancelled'],
   production: ['qa', 'cancelled'],
-  qa: ['published', 'draft', 'cancelled'], // Can go back to draft for revisions
+  qa: ['approval', 'draft', 'cancelled'], // Can go to approval or back to draft
+  approval: ['published', 'draft', 'cancelled'], // Can approve, reject, or cancel
   published: [], // Terminal state
   cancelled: [], // Terminal state
 };
@@ -51,6 +52,7 @@ export function getStageForStatus(
     case 'production':
       return 'creating';
     case 'qa':
+    case 'approval':
       return 'reviewing';
     case 'published':
     case 'cancelled':
@@ -74,6 +76,7 @@ export function getStatusLabel(status: RequestStatus): string {
     draft: 'Drafting',
     production: 'In Production',
     qa: 'Quality Review',
+    approval: 'Pending Approval',
     published: 'Published',
     cancelled: 'Cancelled',
   };
@@ -91,6 +94,7 @@ export function getStatusColor(
     draft: 'blue',
     production: 'yellow',
     qa: 'yellow',
+    approval: 'yellow',
     published: 'green',
     cancelled: 'red',
   };
