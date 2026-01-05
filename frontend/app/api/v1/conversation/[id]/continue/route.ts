@@ -129,20 +129,7 @@ export async function POST(
       );
     }
 
-    // Validate model - block known broken models
-    const BLOCKED_MODELS = ['gpt-oss-120b', 'test-model'];
-    if (body.model_id && BLOCKED_MODELS.some(blocked => body.model_id!.includes(blocked))) {
-      return NextResponse.json(
-        {
-          success: false,
-          error: {
-            code: "INVALID_MODEL",
-            message: `Model "${body.model_id}" is currently unavailable. Please select a different model.`,
-          },
-        },
-        { status: 400 }
-      );
-    }
+    // Note: All models are now allowed - blocking removed per audit fix
 
     // Step 5: Store user message
     await createMessage({
