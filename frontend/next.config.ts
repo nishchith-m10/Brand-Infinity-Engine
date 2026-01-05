@@ -5,6 +5,11 @@ const nextConfig: NextConfig = {
   /* config options here */
   reactCompiler: true,
 
+  turbopack: {
+    // Disable the workspace root warning by explicitly setting root
+    root: process.cwd(),
+  },
+
   images: {
     remotePatterns: [
       {
