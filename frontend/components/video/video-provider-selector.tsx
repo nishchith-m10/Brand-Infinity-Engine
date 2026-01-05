@@ -1,9 +1,9 @@
 'use client';
 
 import { useState } from 'react';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Select } from '@/components/ui/select';
 import { Badge } from '@/components/ui/badge';
-import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
+import { Tooltip } from '@/components/ui/tooltip';
 
 export type VideoProvider = 'pollo' | 'runway' | 'pika' | 'kling' | 'sora';
 
@@ -93,7 +93,6 @@ export function VideoProviderSelector({
   };
 
   return (
-    <TooltipProvider>
       <div className="space-y-2">
         <label className="text-sm font-medium text-muted-foreground">
           Video Provider
@@ -113,15 +112,8 @@ export function VideoProviderSelector({
                 <Badge variant="outline" className={`text-xs ${getQualityColor(provider.quality)}`}>
                   {provider.quality}
                 </Badge>
-                <Tooltip>
-                  <TooltipProvider>
-                    <TooltipTrigger>
-                      <span className="text-xs text-muted-foreground">{provider.cost}</span>
-                    </TooltipTrigger>
-                    <TooltipContent>
-                      <p>Estimated cost per 30-second video</p>
-                    </TooltipContent>
-                  </TooltipProvider>
+                <Tooltip content="Estimated cost per 30-second video">
+                  <span className="text-xs text-muted-foreground">{provider.cost}</span>
                 </Tooltip>
               </div>
             )
