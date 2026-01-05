@@ -32,7 +32,7 @@ const TabsList = React.forwardRef<
   <div
     ref={ref}
     className={cn(
-      "inline-flex h-10 items-center justify-center rounded-lg bg-slate-100 p-1 text-slate-500",
+      "inline-flex h-10 items-center justify-center rounded-lg bg-slate-100 dark:bg-muted p-1 text-slate-500 dark:text-muted-foreground",
       className
     )}
     {...props}
@@ -54,7 +54,7 @@ const TabsTrigger = React.forwardRef<
       ref={ref}
       className={cn(
         "relative inline-flex items-center justify-center whitespace-nowrap rounded-md px-3 py-1.5 text-sm font-medium ring-offset-background transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50",
-        isActive ? "text-slate-900" : "hover:text-slate-700",
+        isActive ? "text-slate-900 dark:text-foreground" : "hover:text-slate-700 dark:hover:text-slate-300",
         className
       )}
       onClick={() => context.onValueChange(value)}
@@ -63,7 +63,7 @@ const TabsTrigger = React.forwardRef<
         {isActive && (
             <motion.div
                 layoutId="active-tab-bg"
-                className="absolute inset-0 bg-white rounded-md shadow-sm z-0"
+                className="absolute inset-0 bg-white dark:bg-accent rounded-md shadow-sm z-0"
                 transition={{ type: "spring", bounce: 0.2, duration: 0.6 }}
             />
         )}
