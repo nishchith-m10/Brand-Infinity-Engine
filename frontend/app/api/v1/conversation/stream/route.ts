@@ -11,6 +11,19 @@ import { getLLMService } from '@/lib/llm';
 
 export const runtime = 'edge'; // Use edge runtime for streaming
 
+interface ContextPayload {
+  campaign_id?: string;
+  campaign_name?: string;
+  kb_ids?: string[];
+  identity?: {
+    brand_name?: string;
+    brand_voice?: string;
+    tagline?: string;
+    target_audience?: string;
+    tone_style?: string;
+  } | null;
+}
+
 interface StreamRequest {
   session_id: string;
   message: string;
@@ -18,13 +31,14 @@ interface StreamRequest {
   model_id?: string;
   openrouter_api_key?: string;
   system_prompt?: string;
+  context?: ContextPayload; // Added for brand context support
 }
 
 export async function POST(request: NextRequest) {
   try {
     // Parse request
     const body: StreamRequest = await request.json();
-    const { session_id, message, provider, model_id, openrouter_api_key, system_prompt } = body;
+    const { session_id, message, provider, model_id, openrouter_api_key, system_prompt, context } = body;
 
     if (!session_id || !message) {
       return new Response(
@@ -65,21 +79,30 @@ export async function POST(request: NextRequest) {
       ? `${provider || 'openrouter'}/${model_id}`
       : 'anthropic/claude-3-5-sonnet-20241022';
 
-    // Validate model BEFORE streaming (Bug 1.2 fix - must be before API call)
-    const BLOCKED_MODELS = ['gpt-oss-120b', 'test-model'];
-    if (BLOCKED_MODELS.some(blocked => modelToUse.includes(blocked))) {
-      return new Response(
-        JSON.stringify({ error: `Model "${model_id}" is currently unavailable. Please select a different model.` }),
-        { status: 400, headers: { 'Content-Type': 'application/json' } }
-      );
-    }
-
     // Create readable stream
     const encoder = new TextEncoder();
     
     const stream = new ReadableStream({
       async start(controller) {
         try {
+          // Build system prompt with context if available
+          let fullSystemPrompt = system_prompt || 'You are a helpful Creative Director assistant.';
+          
+          if (context?.identity) {
+            const { brand_name, brand_voice, target_audience, tone_style } = context.identity;
+            const contextParts = [];
+            if (brand_name) contextParts.push(`Brand: ${brand_name}`);
+            if (brand_voice) contextParts.push(`Voice: ${brand_voice}`);
+            if (target_audience) contextParts.push(`Target Audience: ${target_audience}`);
+            if (tone_style) contextParts.push(`Tone: ${tone_style}`);
+            if (contextParts.length > 0) {
+              fullSystemPrompt += `\n\n--- Brand Context ---\n${contextParts.join('\n')}`;
+            }
+          }
+          if (context?.campaign_name) {
+            fullSystemPrompt += `\n\nCampaign: ${context.campaign_name}`;
+          }
+
           // Stream from LLM with conversation history
           const generator = llmService.streamCompletion({
             userId: user.id,
@@ -87,7 +110,7 @@ export async function POST(request: NextRequest) {
             messages: [
               { 
                 role: 'system', 
-                content: system_prompt || 'You are a helpful Creative Director assistant.' 
+                content: fullSystemPrompt 
               },
               ...conversationHistory, // Include conversation history
               { role: 'user', content: message },
@@ -99,9 +122,80 @@ export async function POST(request: NextRequest) {
             apiKey: openrouter_api_key,
           });
 
-          // Yield chunks as SSE (direct passthrough)
+          // Yield chunks as SSE using robust buffering to strip echoes
+          let buffer = '';
+          let checksComplete = false;
+          let totalContent = ''; // Track total content to detect empty responses
+          const CHECK_THRESHOLD = 100; // Characters to buffer before checking
+          
+          // Generic pattern to match ANY model echo: "provider/model-name 0" or similar
+          // Examples: "openai/gpt-oss-120b 0", "meta-llama/llama-3.2-3b-instruct 0"
+          const modelEchoPattern = /^[a-z0-9-]+\/[a-z0-9.-]+\s*\d*\s*/i;
+
           for await (const chunk of generator) {
-            const sseData = `data: ${JSON.stringify({ content: chunk })}\n\n`;
+            if (checksComplete) {
+              // Check each chunk for model echo pattern
+              const cleanChunk = chunk.replace(modelEchoPattern, '');
+              if (cleanChunk.length > 0) {
+                totalContent += cleanChunk;
+                const sseData = `data: ${JSON.stringify({ content: cleanChunk })}\n\n`;
+                controller.enqueue(encoder.encode(sseData));
+              }
+              continue;
+            }
+
+            buffer += chunk;
+
+            // Check if we have enough data or a newline to make a decision
+            if (buffer.length >= CHECK_THRESHOLD || buffer.includes('\n')) {
+              // Strip model echo pattern
+              let cleanBuffer = buffer.replace(modelEchoPattern, '');
+              
+              // Also try stripping full model path
+              if (cleanBuffer.startsWith(modelToUse) || (model_id && cleanBuffer.startsWith(model_id))) {
+                 console.warn('[Stream] Detected model echo in buffer, stripping:', buffer.substring(0, 50));
+                 cleanBuffer = cleanBuffer
+                   .replace(modelToUse, '')
+                   .replace(model_id || '_____', '')
+                   .replace(/^\s+\d+\s*/, '')
+                   .trimStart();
+              }
+              
+              // Flush buffer
+              if (cleanBuffer.length > 0) {
+                totalContent += cleanBuffer;
+                const sseData = `data: ${JSON.stringify({ content: cleanBuffer })}\n\n`;
+                controller.enqueue(encoder.encode(sseData));
+              }
+              buffer = '';
+              checksComplete = true;
+            }
+          }
+
+          // Handle any remaining buffer if stream ended early (short response)
+          if (!checksComplete && buffer.length > 0) {
+              // Strip model echo pattern
+              let cleanBuffer = buffer.replace(modelEchoPattern, '');
+              if (cleanBuffer.startsWith(modelToUse) || (model_id && cleanBuffer.startsWith(model_id))) {
+                 console.warn('[Stream] Detected model echo in final buffer, stripping.');
+                 cleanBuffer = cleanBuffer
+                   .replace(modelToUse, '')
+                   .replace(model_id || '_____', '')
+                   .replace(/^\s+\d+\s*/, '')
+                   .trimStart();
+              }
+              if (cleanBuffer.length > 0) {
+                totalContent += cleanBuffer;
+                const sseData = `data: ${JSON.stringify({ content: cleanBuffer })}\n\n`;
+                controller.enqueue(encoder.encode(sseData));
+              }
+          }
+
+          // If no content was generated (model returned only echo), send error message
+          if (totalContent.length === 0) {
+            console.warn('[Stream] Model returned empty response after sanitization');
+            const fallbackMsg = 'I apologize, but I was unable to generate a response. Please try again or select a different model.';
+            const sseData = `data: ${JSON.stringify({ content: fallbackMsg })}\n\n`;
             controller.enqueue(encoder.encode(sseData));
           }
 
