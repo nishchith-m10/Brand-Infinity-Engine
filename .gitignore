@@ -222,3 +222,4 @@ n8n_data/
 .env.local
 mcp_config.json
 .vercel
+.vercel_env
