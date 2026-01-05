@@ -100,7 +100,13 @@ Return ONLY valid JSON matching this structure.`;
     });
 
     try {
-      const parsed = JSON.parse(response.content);
+      // Sanitize Content (Fix for gpt-oss-120b leak)
+      let content = response.content;
+      if (content.match(/^(openai\/)?gpt-oss-120b\s+\d+\s*/)) {
+        content = content.replace(/^(openai\/)?gpt-oss-120b\s+\d+\s*/, '');
+      }
+      
+      const parsed = JSON.parse(content);
       return {
         content_type: parsed.content_type || parsed.content_types?.[0],
         platform: parsed.platform || parsed.platforms?.[0],
@@ -284,7 +290,12 @@ Be encouraging and specific about what they'll receive.`;
       apiKey: this.apiKey,
     });
 
-    return response.content;
+    // Sanitize Content (Fix for gpt-oss-120b leak)
+    let content = response.content;
+    if (content.match(/^(openai\/)?gpt-oss-120b\s+\d+\s*/)) {
+      content = content.replace(/^(openai\/)?gpt-oss-120b\s+\d+\s*/, '');
+    }
+    return content;
   }
 
   /**
