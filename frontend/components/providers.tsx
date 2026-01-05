@@ -6,8 +6,9 @@ import { AuthProvider } from '@/lib/auth/auth-provider';
 import { SWRProvider } from '@/lib/swr-provider';
 import { SidebarProvider } from '@/lib/context/sidebar-context';
 import { ApiKeysProvider } from '@/contexts/api-keys-context';
+import { ThemeProvider as NextThemesProvider } from 'next-themes';
 
-export function Providers({ children }: { children: React.ReactNode }) {
+export function Providers({ children, initialTheme }: { children: React.ReactNode; initialTheme?: string }) {
   const [queryClient] = useState(
     () =>
       new QueryClient({
@@ -26,7 +27,14 @@ export function Providers({ children }: { children: React.ReactNode }) {
         <AuthProvider>
           <ApiKeysProvider>
             <SidebarProvider>
-              {children}
+              <NextThemesProvider
+                attribute="class"
+                defaultTheme={initialTheme ?? 'system'}
+                enableSystem={true}
+                disableTransitionOnChange={false}
+              >
+                {children}
+              </NextThemesProvider>
             </SidebarProvider>
           </ApiKeysProvider>
         </AuthProvider>
