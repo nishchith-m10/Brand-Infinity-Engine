@@ -253,7 +253,7 @@ export class TaskFactory {
 
       if (template.dependencies && template.dependencies.length > 0) {
         const dependsOnIds = template.dependencies
-          .map((role) => taskIdsByRole[role])
+          .map((role: string) => taskIdsByRole[role])
           .filter(Boolean);
 
         const { error: updateError } = await supabase
@@ -511,7 +511,7 @@ export class TaskFactory {
     const templates = TASK_TEMPLATES[requestType];
     if (!templates) return 0;
 
-    return templates.reduce((sum, t) => sum + t.estimatedDurationSeconds, 0);
+    return templates.reduce((sum: number, t: any) => sum + t.estimatedDurationSeconds, 0);
   }
 
   /**
@@ -525,7 +525,7 @@ export class TaskFactory {
     const templates = TASK_TEMPLATES[requestType];
     if (!templates) return 0;
 
-    const template = templates.find((t) => t.agent_role === agentRole);
+    const template = templates.find((t: any) => t.agent_role === agentRole);
     return template?.estimatedDurationSeconds || 0;
   }
 

@@ -187,7 +187,7 @@ export class StateMachine {
       return true;
     }
 
-    return stage.requiredTasks.every((role) => {
+    return stage.requiredTasks.every((role: string) => {
       const task = tasks.find((t) => t.agent_role === role);
       return task && task.status === 'completed';
     });
@@ -210,11 +210,11 @@ export class StateMachine {
     }
 
     return stage.requiredTasks
-      .filter((role) => {
+      .filter((role: string) => {
         const task = tasks.find((t) => t.agent_role === role);
         return !task || task.status !== 'completed';
       })
-      .map((role) => {
+      .map((role: string) => {
         const task = tasks.find((t) => t.agent_role === role);
         if (!task) {
           return `${role} (missing)`;

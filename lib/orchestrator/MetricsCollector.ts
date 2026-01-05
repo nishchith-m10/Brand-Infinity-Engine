@@ -372,7 +372,7 @@ export class MetricsCollector {
       const total = groupMetadata.length;
       
       // Count successes/failures from metadata
-      const successful = groupMetadata.filter(m => 
+      const successful = groupMetadata.filter((m: any) => 
         (m.metadata as any)?.status === 'completed' ||
         (m.metadata as any)?.completed_at
       ).length;
@@ -438,7 +438,7 @@ export class MetricsCollector {
     // Get circuit breaker status
     const circuitStats = circuitBreakerManager.getAllStats();
     const openCircuits = Array.from(circuitStats.values()).filter(
-      s => s.state === 'OPEN'
+      (s: unknown) => (s as any).state === 'OPEN'
     ).length;
 
     // Calculate uptime
