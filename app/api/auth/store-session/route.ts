@@ -17,9 +17,17 @@ export async function POST(request: NextRequest) {
     // We need to build the response object and let Supabase set cookies on it
     const cookiesToSet: Array<{ name: string; value: string; options: any }> = [];
 
+    const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || process.env.SUPABASE_URL;
+    const anonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || process.env.SUPABASE_ANON_KEY;
+
+    if (!supabaseUrl || !anonKey) {
+      console.error('[Auth:store-session] Missing Supabase URL or anon key');
+      return NextResponse.json({ success: false, error: 'Missing Supabase URL or anon key' }, { status: 500 });
+    }
+
     const supabase = createServerClient(
-      process.env.NEXT_PUBLIC_SUPABASE_URL!,
-      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+      supabaseUrl,
+      anonKey,
       {
         cookies: {
           getAll() {
