@@ -4,7 +4,7 @@ import { role } from "@/lib/data";
 import { 
   Video, Megaphone, BarChart3, Settings, 
   Share2, Radio, PenTool, LayoutDashboard,
-  Wand2, Archive
+  Wand2, Archive, Kanban
 } from "lucide-react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
@@ -24,7 +24,7 @@ const menuItems = [
         icon: Wand2,
         label: "Creative Director",
         href: "/director",
-        visible: ["admin", "strategist"],
+        visible: ["admin", "strategist", "copywriter", "producer"],
       },
       {
         icon: Archive,
