@@ -10,14 +10,14 @@ export const CampaignCreateSchema = z.object({
   campaign_name: z.string().min(1).max(200),
   brand_id: z.string().uuid(),
   budget_limit_usd: z.number().min(0).optional(),
-  metadata: z.record(z.unknown()).optional(),
+  metadata: z.record(z.string(), z.unknown()).optional(),
 });
 
 export const CampaignUpdateSchema = z.object({
   campaign_name: z.string().min(1).max(200).optional(),
   status: z.enum(['draft', 'active', 'paused', 'completed', 'archived', 'pending_deletion']).optional(),
   budget_limit_usd: z.number().min(0).optional(),
-  metadata: z.record(z.unknown()).optional(),
+  metadata: z.record(z.string(), z.unknown()).optional(),
 });
 
 // Director chat validation
@@ -58,7 +58,7 @@ export const ImageGenerationSchema = z.object({
 export const PipelineGenerationSchema = z.object({
   campaign_id: z.string().uuid(),
   workflow_type: z.enum(['brief', 'script', 'video', 'full_pipeline']),
-  parameters: z.record(z.unknown()).optional(),
+  parameters: z.record(z.string(), z.unknown()).optional(),
 });
 
 // Helper function to validate and return errors
