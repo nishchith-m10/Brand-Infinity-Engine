@@ -248,7 +248,7 @@ export function Sidebar() {
       </div>
 
       {/* Navigation */}
-      <nav className="flex-1 space-y-1 px-3 py-4 overflow-y-auto overflow-x-hidden custom-scrollbar">
+      <nav className="flex-1 space-y-1 px-4 py-4 overflow-y-auto overflow-x-hidden custom-scrollbar">
         {/* Dashboard - always at top */}
         {renderNavItem({ name: 'Dashboard', href: '/dashboard', icon: LayoutDashboard })}
         

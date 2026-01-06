@@ -18,6 +18,7 @@ import { createClient } from '@/lib/supabase/client';
 import RequestCard from './RequestCard';
 import RequestDetailModal from './RequestDetailModal';
 import type { ContentRequest } from '@/lib/orchestrator/types';
+import { Tooltip } from '@/components/ui/tooltip';
 
 type PipelineStatus = 'intake' | 'draft' | 'production' | 'qa' | 'approval' | 'published';
 
@@ -30,12 +31,12 @@ interface ColumnData {
 
 export default function PipelineBoard() {
   const [columns, setColumns] = useState<ColumnData[]>([
-    { id: 'intake', title: 'Intake', color: '#6366f1', requests: [] },
-    { id: 'draft', title: 'Draft', color: '#3b82f6', requests: [] },
-    { id: 'production', title: 'Production', color: '#f97316', requests: [] },
-    { id: 'qa', title: 'QA', color: '#a855f7', requests: [] },
-    { id: 'approval', title: 'Approval', color: '#14b8a6', requests: [] },
-    { id: 'published', title: 'Published', color: '#10b981', requests: [] },
+    { id: 'intake', title: 'Intake', color: 'hsl(var(--primary))', requests: [] },
+    { id: 'draft', title: 'Draft', color: 'hsl(var(--blue))', requests: [] },
+    { id: 'production', title: 'Production', color: 'hsl(var(--orange))', requests: [] },
+    { id: 'qa', title: 'QA', color: 'hsl(var(--lama-purple))', requests: [] },
+    { id: 'approval', title: 'Approval', color: 'hsl(var(--teal))', requests: [] },
+    { id: 'published', title: 'Published', color: 'hsl(var(--success))', requests: [] },
   ]);
 
   const [selectedRequest, setSelectedRequest] = useState<ContentRequest | null>(null);
@@ -110,26 +111,30 @@ export default function PipelineBoard() {
         <h1 className="text-2xl font-bold text-gray-900">Pipeline</h1>
         
         <div className="flex items-center gap-3">
-          <button
-            onClick={() => setFilter('all')}
-            className={`px-4 py-2 text-sm font-medium rounded-lg transition-colors ${
-              filter === 'all'
-                ? 'bg-indigo-600 text-white'
-                : 'bg-white text-gray-700 border border-gray-300 hover:bg-gray-50'
-            }`}
-          >
-            All Requests
-          </button>
-          <button
-            onClick={() => setFilter('mine')}
-            className={`px-4 py-2 text-sm font-medium rounded-lg transition-colors ${
-              filter === 'mine'
-                ? 'bg-indigo-600 text-white'
-                : 'bg-white text-gray-700 border border-gray-300 hover:bg-gray-50'
-            }`}
-          >
-            My Requests
-          </button>
+          <Tooltip content="Show all content requests" position="bottom">
+            <button
+              onClick={() => setFilter('all')}
+              className={`px-4 py-2 text-sm font-medium rounded-lg transition-colors ${
+                filter === 'all'
+                  ? 'bg-indigo-600 text-white'
+                  : 'bg-white text-gray-700 border border-gray-300 hover:bg-gray-50'
+              }`}
+            >
+              All Requests
+            </button>
+          </Tooltip>
+          <Tooltip content="Show only your requests" position="bottom">
+            <button
+              onClick={() => setFilter('mine')}
+              className={`px-4 py-2 text-sm font-medium rounded-lg transition-colors ${
+                filter === 'mine'
+                  ? 'bg-indigo-600 text-white'
+                  : 'bg-white text-gray-700 border border-gray-300 hover:bg-gray-50'
+              }`}
+            >
+              My Requests
+            </button>
+          </Tooltip>
         </div>
       </div>
 

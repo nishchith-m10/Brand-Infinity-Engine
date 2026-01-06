@@ -3,6 +3,7 @@ import { createClient } from '@/lib/supabase/server';
 import { getBrandContext } from '@/lib/ai/rag';
 import { n8nClient } from '@/lib/n8n/client';
 import { z } from 'zod';
+import { logger } from '@/lib/monitoring/logger';
 
 const LaunchCampaignSchema = z.object({
   parsed_intent: z.object({
@@ -24,12 +25,30 @@ const LaunchCampaignSchema = z.object({
  */
 export async function POST(request: NextRequest) {
   try {
+    // Authenticate user
+    const supabase = await createClient();
+    const { data: { user }, error: authError } = await supabase.auth.getUser();
+    
+    if (authError || !user) {
+      return NextResponse.json(
+        { success: false, error: { code: 'UNAUTHORIZED', message: 'Not authenticated' } },
+        { status: 401 }
+      );
+    }
+
     const body = await request.json();
     const validation = LaunchCampaignSchema.safeParse(body);
 
     if (!validation.success) {
       return NextResponse.json(
-        { error: 'Validation failed', details: validation.error.issues },
+        { 
+          success: false,
+          error: { 
+            code: 'VALIDATION_ERROR',
+            message: 'Validation failed', 
+            details: validation.error.issues 
+          }
+        },
         { status: 400 }
       );
     }
@@ -37,10 +56,11 @@ export async function POST(request: NextRequest) {
     const { parsed_intent, brand_id, confirmed } = validation.data;
 
     if (!confirmed) {
-      return NextResponse.json({ error: 'Confirmation required' }, { status: 400 });
+      return NextResponse.json({ 
+        success: false,
+        error: { code: 'CONFIRMATION_REQUIRED', message: 'Confirmation required' } 
+      }, { status: 400 });
     }
-
-    const supabase = await createClient();
 
     // Get brand context for enriched prompt
     let brandContext = null;
@@ -72,7 +92,11 @@ export async function POST(request: NextRequest) {
       .single();
 
     if (error) {
-      return NextResponse.json({ error: error.message }, { status: 500 });
+      logger.error('DirectorLaunch', 'Campaign creation failed', error);
+      return NextResponse.json({ 
+        success: false,
+        error: { code: 'DB_ERROR', message: error.message } 
+      }, { status: 500 });
     }
 
     // For video content, trigger n8n Strategist workflow
@@ -81,9 +105,14 @@ export async function POST(request: NextRequest) {
         campaign_id: campaign.campaign_id,
         brand_id: brand_id,
         brand_context: brandContext,
-        ...parsed_intent,
       });
     }
+    
+    logger.info('DirectorLaunch', 'Campaign launched successfully', { 
+      userId: user.id,
+      campaignId: campaign.campaign_id,
+      contentType: parsed_intent.content_type 
+    });
 
     return NextResponse.json({
       success: true,
@@ -98,9 +127,15 @@ export async function POST(request: NextRequest) {
       },
     });
   } catch (error) {
-    console.error('Director launch error:', error);
+    logger.error('DirectorLaunch', 'Director launch error', error);
     return NextResponse.json(
-      { error: error instanceof Error ? error.message : 'Failed to launch campaign' },
+      { 
+        success: false,
+        error: { 
+          code: 'LAUNCH_FAILED',
+          message: error instanceof Error ? error.message : 'Failed to launch campaign' 
+        }
+      },
       { status: 500 }
     );
   }

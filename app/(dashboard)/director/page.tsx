@@ -9,11 +9,12 @@
  * - Real-time updates and request detail modal
  */
 
-import { useState } from 'react';
+import { useState, Suspense } from 'react';
 import RequestForm from '@/components/pipeline/RequestForm';
 import PipelineBoard from '@/components/pipeline/PipelineBoard';
+import { DashboardSkeleton } from '@/components/ui/skeleton';
 
-export default function DirectorPage() {
+function DirectorContent() {
   const [refreshKey, setRefreshKey] = useState(0);
 
   const handleRequestCreated = () => {
@@ -27,5 +28,13 @@ export default function DirectorPage() {
         <PipelineBoard key={refreshKey} />
       </div>
     </div>
+  );
+}
+
+export default function DirectorPage() {
+  return (
+    <Suspense fallback={<div className="p-6"><DashboardSkeleton /></div>}>
+      <DirectorContent />
+    </Suspense>
   );
 }

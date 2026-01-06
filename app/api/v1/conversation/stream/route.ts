@@ -8,6 +8,9 @@
 import { NextRequest } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
 import { getLLMService } from '@/lib/llm';
+import { rateLimiters, checkRateLimit } from '@/lib/utils/rate-limit-helpers';
+import { DirectorChatSchema } from '@/lib/validations/api-schemas';
+import { logger } from '@/lib/monitoring/logger';
 
 export const runtime = 'edge'; // Use edge runtime for streaming
 
@@ -36,27 +39,58 @@ interface StreamRequest {
 
 export async function POST(request: NextRequest) {
   try {
-    // Parse request
-    const body: StreamRequest = await request.json();
-    const { session_id, message, provider, model_id, openrouter_api_key, system_prompt, context } = body;
-
-    if (!session_id || !message) {
-      return new Response(
-        JSON.stringify({ error: 'Missing session_id or message' }),
-        { status: 400, headers: { 'Content-Type': 'application/json' } }
-      );
-    }
-
-    // Authenticate
+    // Authenticate first
     const supabase = await createClient();
     const { data: { user }, error: authError } = await supabase.auth.getUser();
     
     if (authError || !user) {
       return new Response(
-        JSON.stringify({ error: 'Unauthorized' }),
+        JSON.stringify({ 
+          success: false,
+          error: { code: 'UNAUTHORIZED', message: 'Not authenticated' } 
+        }),
         { status: 401, headers: { 'Content-Type': 'application/json' } }
       );
     }
+
+    // Check rate limit (30 requests/minute for director chat)
+    const rateLimitResponse = await checkRateLimit(rateLimiters.directorChat, user.id);
+    if (rateLimitResponse) {
+      logger.warn('DirectorChat', 'Rate limit exceeded', { userId: user.id });
+      return new Response(
+        JSON.stringify({
+          success: false,
+          error: { 
+            code: 'RATE_LIMIT_EXCEEDED',
+            message: 'Too many requests. Please try again later.' 
+          }
+        }),
+        { 
+          status: 429, 
+          headers: rateLimitResponse.headers 
+        }
+      );
+    }
+
+    // Parse and validate request
+    const body = await request.json();
+    const validation = DirectorChatSchema.safeParse(body);
+
+    if (!validation.success) {
+      return new Response(
+        JSON.stringify({ 
+          success: false,
+          error: { 
+            code: 'VALIDATION_ERROR',
+            message: 'Invalid request', 
+            details: validation.error.issues 
+          } 
+        }),
+        { status: 400, headers: { 'Content-Type': 'application/json' } }
+      );
+    }
+
+    const { session_id, message, provider, model_id, openrouter_api_key, system_prompt, context } = validation.data;
 
     // Get LLM service
     const llmService = getLLMService();
@@ -202,7 +236,15 @@ export async function POST(request: NextRequest) {
           // Send done signal
           controller.enqueue(encoder.encode('data: [DONE]\n\n'));
           controller.close();
+
+          // Log successful completion
+          logger.info('DirectorChat', 'Streaming response completed', { 
+            userId: user.id,
+            sessionId: session_id,
+            messageLength: totalContent.length 
+          });
         } catch (error) {
+          logger.error('DirectorChat', 'Stream error', error);
           console.error('[Stream] Error:', error);
           const errorData = `data: ${JSON.stringify({ error: 'Stream failed' })}\n\n`;
           controller.enqueue(encoder.encode(errorData));
@@ -219,9 +261,16 @@ export async function POST(request: NextRequest) {
       },
     });
   } catch (error) {
+    logger.error('DirectorChat', 'Fatal streaming error', error);
     console.error('[Stream] Fatal error:', error);
     return new Response(
-      JSON.stringify({ error: 'Internal server error' }),
+      JSON.stringify({ 
+        success: false,
+        error: { 
+          code: 'STREAM_FAILED',
+          message: error instanceof Error ? error.message : 'Internal server error' 
+        }
+      }),
       { status: 500, headers: { 'Content-Type': 'application/json' } }
     );
   }

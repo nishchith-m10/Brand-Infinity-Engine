@@ -20,6 +20,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
 import { eventLogger } from '@/lib/orchestrator/EventLogger';
 import { requestOrchestrator } from '@/lib/orchestrator/RequestOrchestrator';
+import crypto from 'crypto';
 
 interface N8nCallbackPayload {
   requestId: string;
@@ -41,8 +42,47 @@ interface N8nCallbackPayload {
 
 export async function POST(request: NextRequest) {
   try {
-    // Parse callback payload
-    const payload = await request.json() as N8nCallbackPayload;
+    // **SECURITY: Verify webhook signature to prevent unauthorized triggers**
+    const signature = request.headers.get('x-n8n-signature');
+    const webhookSecret = process.env.N8N_WEBHOOK_SECRET;
+    
+    if (!webhookSecret) {
+      console.error('[n8n Callback] N8N_WEBHOOK_SECRET not configured!');
+      return NextResponse.json(
+        { success: false, error: 'Webhook authentication not configured' },
+        { status: 500 }
+      );
+    }
+    
+    if (!signature) {
+      console.error('[n8n Callback] Missing signature header');
+      return NextResponse.json(
+        { success: false, error: 'Missing webhook signature' },
+        { status: 401 }
+      );
+    }
+    
+    // Read raw body for signature validation
+    const rawBody = await request.text();
+    const expectedSignature = crypto
+      .createHmac('sha256', webhookSecret)
+      .update(rawBody)
+      .digest('hex');
+    
+    // Constant-time comparison to prevent timing attacks
+    if (!crypto.timingSafeEqual(
+      Buffer.from(signature),
+      Buffer.from(expectedSignature)
+    )) {
+      console.error('[n8n Callback] Invalid signature');
+      return NextResponse.json(
+        { success: false, error: 'Invalid webhook signature' },
+        { status: 401 }
+      );
+    }
+    
+    // Parse callback payload after validation
+    const payload = JSON.parse(rawBody) as N8nCallbackPayload;
 
     // Validate required fields
     if (!payload.requestId || !payload.taskId || !payload.status) {

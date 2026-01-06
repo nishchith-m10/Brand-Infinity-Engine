@@ -14,6 +14,9 @@ import { useCampaigns } from "@/lib/hooks/use-campaigns";
 import { useModal } from "@/lib/hooks/use-modal";
 import { useToast } from "@/lib/hooks/use-toast";
 import { useV1Campaigns } from "@/lib/hooks/use-api";
+import { CampaignSkeleton } from "@/components/ui/skeleton";
+import { Tooltip } from "@/components/ui/tooltip";
+import { ErrorBoundary } from "@/components/ui/error-boundary";
 
 // Campaign type from API
 interface Campaign {
@@ -78,6 +81,19 @@ export default function CampaignsPage() {
   const defaultBrandId = typeof window !== 'undefined' ? crypto.randomUUID() : '00000000-0000-0000-0000-000000000001';
   const [createForm, setCreateForm] = useState({ name: '', brand_id: defaultBrandId, budget_tier: 'medium', custom_budget: '150' });
   const [editForm, setEditForm] = useState<{ name: string; status: string; budget_limit_usd: number }>({ name: '', status: 'draft', budget_limit_usd: 0 });
+  
+  // Show loading skeleton
+  if (isLoading) {
+    return (
+      <div className="p-4 sm:p-6">
+        <div className="mb-6">
+          <h1 className="text-2xl font-bold text-slate-900 dark:text-white">Campaigns</h1>
+          <p className="text-sm text-slate-500 dark:text-slate-400">Loading campaigns...</p>
+        </div>
+        <CampaignSkeleton />
+      </div>
+    );
+  }
   
   // Use real API data only - no mock fallback
   const rawCampaigns: Campaign[] = apiCampaigns || [];
@@ -279,28 +295,32 @@ export default function CampaignsPage() {
   };
 
   return (
+    <ErrorBoundary>
     <div className="bg-white p-4 rounded-3xl m-4 flex-1 shadow-sm border border-slate-100/50">
        
        {/* TOP SECTION */}
        <div className="flex items-center justify-between mb-8">
           <h1 className="hidden md:block text-2xl font-bold text-slate-800">Campaigns</h1>
           <div className="flex items-center gap-4">
-                 <button 
-                   onClick={handleFilter}
-                   className="w-9 h-9 flex items-center justify-center rounded-full bg-amber-100 text-amber-700 hover:bg-amber-500 hover:text-white transition-colors relative"
-                 >
-                    <SlidersHorizontal size={18} />
-                    {hasActiveFilters && (
-                      <span className="absolute -top-1 -right-1 h-3 w-3 bg-lamaPurple rounded-full border-2 border-white"></span>
-                    )}
-                 </button>
-                 <button 
-                   onClick={createModal.open}
-                   className="w-9 h-9 flex items-center justify-center rounded-full bg-lamaPurpleLight text-slate-600 hover:bg-lamaPurple hover:text-white transition-colors"
-                   title="Add new campaign"
-                 >
-                    <Plus size={18} />
-                 </button>
+                 <Tooltip content="Filter campaigns" position="bottom">
+                   <button 
+                     onClick={handleFilter}
+                     className="w-9 h-9 flex items-center justify-center rounded-full bg-amber-100 text-amber-700 hover:bg-amber-500 hover:text-white transition-colors relative"
+                   >
+                      <SlidersHorizontal size={18} />
+                      {hasActiveFilters && (
+                        <span className="absolute -top-1 -right-1 h-3 w-3 bg-lamaPurple rounded-full border-2 border-white"></span>
+                      )}
+                   </button>
+                 </Tooltip>
+                 <Tooltip content="Add new campaign" position="bottom">
+                   <button 
+                     onClick={createModal.open}
+                     className="w-9 h-9 flex items-center justify-center rounded-full bg-lamaPurpleLight text-slate-600 hover:bg-lamaPurple hover:text-white transition-colors"
+                   >
+                      <Plus size={18} />
+                   </button>
+                 </Tooltip>
           </div>
        </div>
 
@@ -391,48 +411,51 @@ export default function CampaignsPage() {
                              <div className="flex items-center justify-end gap-2">
                                 {/* Restore button - for pending_deletion AND archived */}
                                 {(campaign.status === 'pending_deletion' || campaign.status === 'archived') && (
-                                  <button 
-                                    onClick={() => handleRestore(campaign)}
-                                    disabled={restoringId === (campaign.campaign_id || campaign.id)}
-                                    className={`p-2 hover:bg-emerald-50 rounded-full text-emerald-500 hover:text-emerald-600 transition-colors ${
-                                      restoringId === (campaign.campaign_id || campaign.id) ? 'opacity-50 cursor-wait' : ''
-                                    }`}
-                                    title={campaign.status === 'pending_deletion' ? "Restore from deletion" : "Unarchive campaign"}
-                                  >
-                                     {restoringId === (campaign.campaign_id || campaign.id) ? (
-                                       <Loader2 size={16} className="animate-spin" />
-                                     ) : (
-                                       <RotateCcw size={16} />
-                                     )}
-                                  </button>
+                                  <Tooltip content={campaign.status === 'pending_deletion' ? "Restore from deletion" : "Unarchive campaign"} position="top">
+                                    <button 
+                                      onClick={() => handleRestore(campaign)}
+                                      disabled={restoringId === (campaign.campaign_id || campaign.id)}
+                                      className={`p-2 hover:bg-emerald-50 rounded-full text-emerald-500 hover:text-emerald-600 transition-colors ${
+                                        restoringId === (campaign.campaign_id || campaign.id) ? 'opacity-50 cursor-wait' : ''
+                                      }`}
+                                    >
+                                       {restoringId === (campaign.campaign_id || campaign.id) ? (
+                                         <Loader2 size={16} className="animate-spin" />
+                                       ) : (
+                                         <RotateCcw size={16} />
+                                       )}
+                                    </button>
+                                  </Tooltip>
                                 )}
                                 {/* Edit button - disabled for archived/pending_deletion */}
-                                <button 
-                                  onClick={() => handleEditClick(campaign)}
-                                  className={`p-2 rounded-full transition-colors ${
-                                    campaign.status === 'archived' || campaign.status === 'pending_deletion'
-                                      ? 'text-slate-300 cursor-not-allowed'
-                                      : 'text-slate-400 hover:bg-lamaSkyLight hover:text-lamaSky'
-                                  }`}
-                                  title={campaign.status === 'archived' || campaign.status === 'pending_deletion' 
-                                    ? 'Cannot edit archived campaigns' 
-                                    : 'Edit campaign'}
-                                  disabled={isUpdating || campaign.status === 'archived' || campaign.status === 'pending_deletion'}
-                                >
-                                   <Edit size={16} />
-                                </button>
+                                <Tooltip content={campaign.status === 'archived' || campaign.status === 'pending_deletion' 
+                                  ? 'Cannot edit archived campaigns' 
+                                  : 'Edit campaign'} position="top">
+                                  <button 
+                                    onClick={() => handleEditClick(campaign)}
+                                    className={`p-2 rounded-full transition-colors ${
+                                      campaign.status === 'archived' || campaign.status === 'pending_deletion'
+                                        ? 'text-slate-300 cursor-not-allowed'
+                                        : 'text-slate-400 hover:bg-lamaSkyLight hover:text-lamaSky'
+                                    }`}
+                                    disabled={isUpdating || campaign.status === 'archived' || campaign.status === 'pending_deletion'}
+                                  >
+                                     <Edit size={16} />
+                                  </button>
+                                </Tooltip>
                                 {/* Delete button - hide for pending_deletion (they need to restore or wait) */}
                                 {campaign.status !== 'pending_deletion' && (
-                                  <button 
-                                    onClick={() => handleDeleteClick(campaign)}
-                                    className="p-2 hover:bg-red-50 rounded-full text-slate-400 hover:text-red-500 transition-colors"
-                                    title={campaign.status === 'archived' 
-                                      ? 'Schedule permanent deletion (7-day grace period)' 
-                                      : 'Archive campaign'}
-                                    disabled={isDeleting}
-                                  >
-                                     <Trash2 size={16} />
-                                  </button>
+                                  <Tooltip content={campaign.status === 'archived' 
+                                    ? 'Schedule permanent deletion (7-day grace period)' 
+                                    : 'Archive campaign'} position="top">
+                                    <button 
+                                      onClick={() => handleDeleteClick(campaign)}
+                                      className="p-2 hover:bg-red-50 rounded-full text-slate-400 hover:text-red-500 transition-colors"
+                                      disabled={isDeleting}
+                                    >
+                                       <Trash2 size={16} />
+                                    </button>
+                                  </Tooltip>
                                 )}
                              </div>
                           </td>
@@ -597,5 +620,6 @@ export default function CampaignsPage() {
        <ToastContainer toasts={toasts} onDismiss={dismissToast} />
 
     </div>
+    </ErrorBoundary>
   );
 }

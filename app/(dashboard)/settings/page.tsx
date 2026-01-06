@@ -38,7 +38,7 @@ export default function SettingsPage() {
     webhookUrl: '',
     brandName: 'My Brand',
     brandVoice: 'Professional, friendly, innovative',
-    brandColors: '#3B82F6',
+    brandColors: 'hsl(var(--blue))',
     targetAudience: 'Gen Z and Millennials',
   });
 
