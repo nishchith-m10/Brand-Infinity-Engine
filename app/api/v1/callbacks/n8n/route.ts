@@ -22,6 +22,7 @@ import { eventLogger } from '@/lib/orchestrator/EventLogger';
 import { requestOrchestrator } from '@/lib/orchestrator/RequestOrchestrator';
 import { validateWebhookSignature } from '@/lib/security/webhook-signature';
 import { getIdempotencyResponse, setIdempotencyResponse } from '@/lib/redis/session-cache';
+import { recordSuccess } from '@/utils/metrics';
 
 interface N8nCallbackPayload {
   requestId: string;
@@ -42,6 +43,8 @@ interface N8nCallbackPayload {
 }
 
 export async function POST(request: NextRequest) {
+  const callbackStartTime = Date.now();
+
   try {
     // Read raw body for signature validation
     const rawBody = await request.text();
@@ -158,37 +161,21 @@ export async function POST(request: NextRequest) {
 
     // Process based on callback status
     if (payload.status === 'success') {
-      // Store provider metadata if execution ID provided
-      if (payload.executionId) {
-        await supabase
-          .from('provider_metadata')
-          .insert({
-            request_id: payload.requestId,
-            task_id: payload.taskId,
-            provider_name: 'n8n',
-            provider_job_id: payload.executionId,
-            workflow_id: payload.workflowId,
-            metadata: {
-              workflow_id: payload.workflowId,
-              execution_id: payload.executionId,
-              completed_at: new Date().toISOString(),
-              result: payload.result,
-            },
-          });
+      // Use atomic transaction to update task and provider metadata
+      const { error: txError } = await supabase.rpc('process_n8n_callback', {
+        p_task_id: payload.taskId,
+        p_execution_id: payload.executionId,
+        p_workflow_id: payload.workflowId || '',
+        p_output_url: payload.result?.output_url || null,
+        p_output_data: payload.result || {},
+      });
+
+      if (txError) {
+        console.error('[n8n Callback] Transaction failed:', txError);
+        throw new Error(`Transaction failed: ${txError.message}`);
       }
 
-      // Update task to completed
-      await supabase
-        .from('request_tasks')
-        .update({
-          status: 'completed',
-          output_data: payload.result || {},
-          output_url: payload.result?.output_url,
-          completed_at: new Date().toISOString(),
-        })
-        .eq('id', payload.taskId);
-
-      // Log completion event
+      // Log completion event (after transaction succeeds)
       await eventLogger.logTaskCompleted(
         payload.requestId,
         payload.taskId,
@@ -212,6 +199,13 @@ export async function POST(request: NextRequest) {
       console.log('[n8n Callback] Task completed, resuming orchestrator');
       await requestOrchestrator.resumeRequest(payload.requestId);
 
+      // Record callback metrics
+      await recordSuccess('n8n-callback', Date.now() - callbackStartTime, {
+        execution_id: payload.executionId,
+        task_id: payload.taskId,
+        status: 'success',
+      });
+
       const responseAction = {
         success: true,
         message: 'Task completed successfully',
@@ -228,17 +222,21 @@ export async function POST(request: NextRequest) {
       const errorMessage = payload.error?.message || 'n8n workflow failed';
       const errorCode = payload.error?.code || 'N8N_WORKFLOW_ERROR';
 
-      // Update task to failed
-      await supabase
-        .from('request_tasks')
-        .update({
-          status: 'failed',
-          error_message: `${errorCode}: ${errorMessage}`,
-          completed_at: new Date().toISOString(),
-        })
-        .eq('id', payload.taskId);
+      // Use atomic transaction to update task and provider metadata for error
+      const { error: txError } = await supabase.rpc('process_n8n_callback_error', {
+        p_task_id: payload.taskId,
+        p_execution_id: payload.executionId,
+        p_workflow_id: payload.workflowId || '',
+        p_error_message: `${errorCode}: ${errorMessage}`,
+        p_error_details: payload.error?.details || {},
+      });
 
-      // Log failure event
+      if (txError) {
+        console.error('[n8n Callback] Error transaction failed:', txError);
+        throw new Error(`Error transaction failed: ${txError.message}`);
+      }
+
+      // Log failure event (after transaction succeeds)
       await eventLogger.logTaskFailed(
         payload.requestId,
         payload.taskId,
@@ -261,6 +259,13 @@ export async function POST(request: NextRequest) {
       // Trigger orchestrator to handle failure
       console.log('[n8n Callback] Task failed, resuming orchestrator');
       await requestOrchestrator.resumeRequest(payload.requestId);
+
+      // Record callback metrics (successful callback processing, even though task failed)
+      await recordSuccess('n8n-callback', Date.now() - callbackStartTime, {
+        execution_id: payload.executionId,
+        task_id: payload.taskId,
+        status: 'error',
+      });
 
       const responseAction = {
         success: true,
