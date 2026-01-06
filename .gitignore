@@ -34,6 +34,15 @@ pids/
 *.seed
 *.pid.lock
 
+# Database Dumps (SECURITY)
+*.dump
+
+# Test Artifacts
+test-results/
+
+# Archive Folders
+archive-*/
+
 # Dependency Directories
 node_modules/
 jspm_packages/
