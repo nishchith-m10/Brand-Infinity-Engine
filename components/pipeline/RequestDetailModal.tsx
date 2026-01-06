@@ -13,6 +13,7 @@
 import { useState, useEffect } from 'react';
 import { createClient } from '@/lib/supabase/client';
 import type { ContentRequest, RequestTask, RequestEvent } from '@/lib/orchestrator/types';
+import { Tooltip } from '@/components/ui/tooltip';
 
 interface RequestDetailModalProps {
   request: ContentRequest;
@@ -130,14 +131,16 @@ export default function RequestDetailModal({
             <h2 className="text-xl font-bold text-gray-900">Request Details</h2>
             <p className="text-sm text-gray-500 mt-1">ID: {request.id.slice(0, 8)}...</p>
           </div>
-          <button
-            onClick={onClose}
-            className="text-gray-400 hover:text-gray-600 transition-colors"
-          >
-            <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-            </svg>
-          </button>
+          <Tooltip content="Close modal" position="left">
+            <button
+              onClick={onClose}
+              className="text-gray-400 hover:text-gray-600 transition-colors"
+            >
+              <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+              </svg>
+            </button>
+          </Tooltip>
         </div>
 
         {/* Content */}
@@ -241,20 +244,24 @@ export default function RequestDetailModal({
 
         {/* Footer Actions */}
         <div className="flex items-center justify-end gap-3 p-6 border-t border-gray-200">
-          <button
-            onClick={handleCancel}
-            className="px-4 py-2 text-sm font-medium text-red-600 hover:text-red-700 transition-colors"
-            disabled={['published', 'cancelled'].includes(request.status)}
-          >
-            Cancel Request
-          </button>
-          <button
-            onClick={handleRetry}
-            className="px-4 py-2 text-sm font-medium text-white bg-indigo-600 rounded-lg hover:bg-indigo-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-            disabled={!['failed', 'cancelled'].includes(request.status)}
-          >
-            Retry
-          </button>
+          <Tooltip content={['published', 'cancelled'].includes(request.status) ? "Cannot cancel completed requests" : "Cancel this request"} position="top">
+            <button
+              onClick={handleCancel}
+              className="px-4 py-2 text-sm font-medium text-red-600 hover:text-red-700 transition-colors disabled:opacity-50"
+              disabled={['published', 'cancelled'].includes(request.status)}
+            >
+              Cancel Request
+            </button>
+          </Tooltip>
+          <Tooltip content={!['failed', 'cancelled'].includes(request.status) ? "Only failed/cancelled requests can be retried" : "Retry request from current stage"} position="top">
+            <button
+              onClick={handleRetry}
+              className="px-4 py-2 text-sm font-medium text-white bg-indigo-600 rounded-lg hover:bg-indigo-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+              disabled={!['failed', 'cancelled'].includes(request.status)}
+            >
+              Retry
+            </button>
+          </Tooltip>
           <button
             onClick={onClose}
             className="px-4 py-2 text-sm font-medium text-gray-700 bg-gray-100 rounded-lg hover:bg-gray-200 transition-colors"

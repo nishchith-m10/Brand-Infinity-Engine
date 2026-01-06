@@ -14,21 +14,18 @@ import {
   User, 
   ChevronDown, 
   Check, 
-  Loader2,
-  X,
-  Settings2
+  Loader2
 } from 'lucide-react';
 import { useChatContext, IdentityMode, KnowledgeBase } from '@/lib/hooks/use-chat-context';
 import { useCampaigns } from '@/lib/hooks/use-api';
 import { Campaign } from '@/lib/hooks/use-current-campaign';
-import { useAuth } from '@/lib/auth/auth-provider';
+import { Tooltip } from '@/components/ui/tooltip';
 
 interface ChatContextSelectorProps {
   compact?: boolean;
 }
 
 export function ChatContextSelector({ compact = false }: ChatContextSelectorProps) {
-  const { user } = useAuth();
   const [campaignOpen, setCampaignOpen] = useState(false);
   const [kbOpen, setKbOpen] = useState(false);
   const [identityOpen, setIdentityOpen] = useState(false);
@@ -159,12 +156,12 @@ export function ChatContextSelector({ compact = false }: ChatContextSelectorProp
   }
   
   return (
-    <div className="flex flex-wrap items-center gap-2 sm:gap-3">
+    <div className="flex flex-wrap items-center gap-4">
       {/* Campaign Selector - Primary */}
       <div className="relative">
         <button
           onClick={() => setCampaignOpen(!campaignOpen)}
-          className={`flex items-center gap-2 px-3 py-1.5 rounded-lg border transition-all text-sm font-medium ${
+          className={`flex items-center gap-2 px-4 py-2 rounded-lg border transition-all text-sm font-medium ${
             campaign 
               ? 'bg-indigo-50 border-indigo-200 text-indigo-700 hover:bg-indigo-100' 
               : 'bg-amber-50 border-amber-200 text-amber-700 hover:bg-amber-100'
@@ -182,7 +179,7 @@ export function ChatContextSelector({ compact = false }: ChatContextSelectorProp
             <div className="fixed inset-0 z-40" onClick={() => setCampaignOpen(false)} />
             <div className="absolute top-full left-0 mt-1 w-64 bg-white rounded-lg shadow-lg border border-slate-200 z-50 py-1 max-h-[280px] overflow-y-auto">
               {activeCampaigns.length === 0 ? (
-                <div className="px-3 py-4 text-center text-sm text-slate-500">
+                <div className="px-4 py-4 text-center text-sm text-slate-500">
                   No campaigns available
                 </div>
               ) : (
@@ -190,7 +187,7 @@ export function ChatContextSelector({ compact = false }: ChatContextSelectorProp
                   <button
                     key={c.id}
                     onClick={() => handleCampaignSelect(c)}
-                    className="w-full flex items-center gap-2 px-3 py-2 hover:bg-slate-50 transition-colors"
+                    className="w-full flex items-center gap-2 px-4 py-2 hover:bg-slate-50 transition-colors"
                   >
                     <div className={`w-2 h-2 rounded-full shrink-0 ${
                       c.status === 'active' ? 'bg-green-500' : 
@@ -235,24 +232,28 @@ export function ChatContextSelector({ compact = false }: ChatContextSelectorProp
               <div className="fixed inset-0 z-40" onClick={() => setKbOpen(false)} />
               <div className="absolute top-full left-0 mt-1 w-72 bg-white rounded-lg shadow-lg border border-slate-200 z-50 py-1 max-h-[280px] overflow-y-auto">
                 {/* Quick actions */}
-                <div className="px-3 py-2 border-b border-slate-100 flex gap-2">
-                  <button
-                    onClick={selectAllKBs}
-                    className="text-xs text-indigo-600 hover:text-indigo-700 font-medium"
-                  >
-                    Select All
-                  </button>
+                <div className="px-4 py-2 border-b border-slate-100 flex gap-2">
+                  <Tooltip content="Select all knowledge bases" position="bottom">
+                    <button
+                      onClick={selectAllKBs}
+                      className="text-xs text-indigo-600 hover:text-indigo-700 font-medium"
+                    >
+                      Select All
+                    </button>
+                  </Tooltip>
                   <span className="text-slate-300">|</span>
-                  <button
-                    onClick={clearKBs}
-                    className="text-xs text-slate-500 hover:text-slate-700 font-medium"
-                  >
-                    Clear
-                  </button>
+                  <Tooltip content="Deselect all knowledge bases" position="bottom">
+                    <button
+                      onClick={clearKBs}
+                      className="text-xs text-slate-500 hover:text-slate-700 font-medium"
+                    >
+                      Clear
+                    </button>
+                  </Tooltip>
                 </div>
                 
                 {availableKBs.length === 0 ? (
-                  <div className="px-3 py-4 text-center text-sm text-slate-500">
+                  <div className="px-4 py-4 text-center text-sm text-slate-500">
                     No knowledge bases in this campaign
                   </div>
                 ) : (
@@ -262,7 +263,7 @@ export function ChatContextSelector({ compact = false }: ChatContextSelectorProp
                       <button
                         key={kb.id}
                         onClick={() => handleKBToggle(kb)}
-                        className="w-full flex items-center gap-2 px-3 py-2 hover:bg-slate-50 transition-colors"
+                        className="w-full flex items-center gap-2 px-4 py-2 hover:bg-slate-50 transition-colors"
                       >
                         <div className={`w-4 h-4 rounded border flex items-center justify-center shrink-0 ${
                           isSelected 

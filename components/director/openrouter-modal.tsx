@@ -117,7 +117,7 @@ export function OpenRouterModal({
             <button
               key={cat.id}
               onClick={() => setSelectedCategory(cat.id)}
-              className={`px-3 py-1.5 rounded-full text-xs font-medium transition-colors ${
+              className={`px-4 py-2 rounded-full text-xs font-medium transition-colors ${
                 selectedCategory === cat.id
                   ? 'bg-indigo-500 text-white'
                   : 'bg-slate-100 text-slate-700 hover:bg-slate-200'
@@ -141,7 +141,7 @@ export function OpenRouterModal({
                 <button
                   key={model.id}
                   onClick={() => handleSelect(model.id)}
-                  className={`w-full px-4 py-3 text-left hover:bg-slate-50 transition-colors flex items-center justify-between ${
+                  className={`w-full px-4 py-4 text-left hover:bg-slate-50 transition-colors flex items-center justify-between ${
                     selectedModel === model.id ? 'bg-indigo-50' : ''
                   }`}
                 >

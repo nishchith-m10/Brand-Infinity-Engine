@@ -28,7 +28,7 @@ export function MessageSkeleton({
   return (
     <div 
       className={cn(
-        "flex gap-3 px-4 py-3 animate-pulse",
+        "flex gap-4 px-4 py-4 animate-pulse",
         isUser && "flex-row-reverse",
         className
       )}
@@ -112,7 +112,7 @@ export function ChatLoadingSkeleton({ className }: { className?: string }) {
   return (
     <div className={cn("flex flex-col h-full", className)}>
       {/* Header skeleton */}
-      <div className="px-4 py-3 border-b border-slate-200 animate-pulse">
+      <div className="px-4 py-4 border-b border-slate-200 animate-pulse">
         <div className="h-5 bg-slate-200 rounded w-1/3" />
       </div>
       
@@ -122,7 +122,7 @@ export function ChatLoadingSkeleton({ className }: { className?: string }) {
       </div>
       
       {/* Input skeleton */}
-      <div className="px-4 py-3 border-t border-slate-200 animate-pulse">
+      <div className="px-4 py-4 border-t border-slate-200 animate-pulse">
         <div className="h-10 bg-slate-100 rounded-lg" />
       </div>
     </div>

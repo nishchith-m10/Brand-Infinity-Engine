@@ -4,6 +4,7 @@ import { getBrandContext } from '@/lib/ai/rag';
 import { n8nClient } from '@/lib/n8n/client';
 import OpenAI from 'openai';
 import { z } from 'zod';
+import { logger } from '@/lib/monitoring/logger';
 
 let _openai: OpenAI | null = null;
 function getOpenAI(): OpenAI {
@@ -38,6 +39,17 @@ const LaunchCampaignSchema = z.object({
  */
 export async function POST(request: NextRequest) {
   try {
+    // Authenticate user
+    const supabase = await createClient();
+    const { data: { user }, error: authError } = await supabase.auth.getUser();
+    
+    if (authError || !user) {
+      return NextResponse.json(
+        { success: false, error: { code: 'UNAUTHORIZED', message: 'Not authenticated' } },
+        { status: 401 }
+      );
+    }
+
     const url = new URL(request.url);
     const action = url.pathname.endsWith('/launch') ? 'launch' : 'parse';
 
@@ -50,7 +62,14 @@ export async function POST(request: NextRequest) {
 
     if (!validation.success) {
       return NextResponse.json(
-        { error: 'Validation failed', details: validation.error.issues },
+        { 
+          success: false,
+          error: { 
+            code: 'VALIDATION_ERROR',
+            message: 'Validation failed', 
+            details: validation.error.issues 
+          }
+        },
         { status: 400 }
       );
     }
@@ -150,7 +169,14 @@ async function handleLaunch(request: NextRequest) {
 
     if (!validation.success) {
       return NextResponse.json(
-        { error: 'Validation failed', details: validation.error.issues },
+        { 
+          success: false,
+          error: { 
+            code: 'VALIDATION_ERROR',
+            message: 'Validation failed', 
+            details: validation.error.issues 
+          }
+        },
         { status: 400 }
       );
     }
@@ -158,7 +184,10 @@ async function handleLaunch(request: NextRequest) {
     const { parsed_intent, brand_id, confirmed } = validation.data;
 
     if (!confirmed) {
-      return NextResponse.json({ error: 'Confirmation required' }, { status: 400 });
+      return NextResponse.json({ 
+        success: false,
+        error: { code: 'CONFIRMATION_REQUIRED', message: 'Confirmation required' } 
+      }, { status: 400 });
     }
 
     const supabase = await createClient();
@@ -183,7 +212,11 @@ async function handleLaunch(request: NextRequest) {
       .single();
 
     if (error) {
-      return NextResponse.json({ error: error.message }, { status: 500 });
+      logger.error('DirectorLaunch', 'Campaign creation failed', error);
+      return NextResponse.json({ 
+        success: false,
+        error: { code: 'DB_ERROR', message: error.message } 
+      }, { status: 500 });
     }
 
     // For video content, trigger n8n Strategist workflow
@@ -209,9 +242,16 @@ async function handleLaunch(request: NextRequest) {
       },
     });
   } catch (error) {
+    logger.error('DirectorLaunch', 'Launch failed', error);
     console.error('Director launch error:', error);
     return NextResponse.json(
-      { error: error instanceof Error ? error.message : 'Failed to launch campaign' },
+      { 
+        success: false,
+        error: { 
+          code: 'LAUNCH_FAILED',
+          message: error instanceof Error ? error.message : 'Failed to launch campaign' 
+        }
+      },
       { status: 500 }
     );
   }

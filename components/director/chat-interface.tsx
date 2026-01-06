@@ -524,7 +524,7 @@ export function ChatInterface({ brandId, sessionId, onSessionCreate }: ChatInter
             </div>
             <div className="flex-1 max-w-[80%]">
               <div className="rounded-lg px-4 py-3 bg-gray-100 text-gray-900">
-                <div className="text-sm whitespace-pre-wrap break-words">
+                <div className="text-sm whitespace-pre-wrap wrap-break-word">
                   {streamingContent}
                   <span className="inline-block w-2 h-4 ml-1 bg-lamaPurple animate-pulse" />
                 </div>

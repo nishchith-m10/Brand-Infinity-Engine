@@ -115,9 +115,9 @@ const DEFAULT_IDENTITY: BrandIdentity = {
   audiencePainPoints: '',
   
   // Visual Identity
-  primaryColor: '#6366F1',
-  secondaryColor: '#8B5CF6',
-  accentColor: '#EC4899',
+  primaryColor: 'hsl(var(--primary))',
+  secondaryColor: 'hsl(var(--lama-purple))',
+  accentColor: 'hsl(var(--pink))',
   
   // Content Strategy
   contentPillars: [],
@@ -539,7 +539,7 @@ export default function BrandVaultPage() {
       {/* No Campaign Selected Warning */}
       {!campaignId && (
         <div className="bg-amber-50 border border-amber-200 rounded-lg p-4 flex items-start gap-3">
-          <Shield className="h-5 w-5 text-amber-600 mt-0.5 flex-shrink-0" />
+          <Shield className="h-5 w-5 text-amber-600 mt-0.5 shrink-0" />
           <div>
             <p className="text-sm font-medium text-amber-800">No Campaign Selected</p>
             <p className="text-xs text-amber-600 mt-0.5">
@@ -1185,7 +1185,7 @@ export default function BrandVaultPage() {
       )}
 
       {/* Brand Summary Card */}
-      <Card className="mt-4 bg-gradient-to-r from-indigo-50 to-purple-50 border-indigo-100">
+      <Card className="mt-4 bg-linear-to-r from-indigo-50 to-purple-50 border-indigo-100">
         <CardContent className="py-4">
           <div className="flex items-start gap-3">
             <div className="p-2 bg-white rounded-lg shadow-sm">

@@ -74,7 +74,7 @@ export function OnboardingWizard() {
       >
         {/* Welcome Header */}
         <div className="mb-8">
-          <div className="inline-flex items-center justify-center w-16 h-16 rounded-2xl bg-gradient-to-br from-indigo-500 to-purple-600 mb-6 shadow-lg">
+          <div className="inline-flex items-center justify-center w-16 h-16 rounded-2xl bg-linear-to-br from-indigo-500 to-purple-600 mb-6 shadow-lg">
             <Sparkles className="h-8 w-8 text-white" />
           </div>
           <h1 className="text-3xl font-bold text-slate-800 mb-3">
@@ -94,7 +94,7 @@ export function OnboardingWizard() {
                 initial={{ opacity: 0, x: -10 }}
                 animate={{ opacity: 1, x: 0 }}
                 transition={{ delay: index * 0.1 }}
-                className={`flex items-start gap-3 p-3 rounded-xl text-left ${
+                className={`flex items-start gap-4 p-4 rounded-xl text-left ${
                   step.number === 1 
                     ? 'bg-indigo-50 border border-indigo-100' 
                     : 'bg-slate-50'

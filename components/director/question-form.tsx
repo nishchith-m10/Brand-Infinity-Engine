@@ -67,7 +67,7 @@ export function QuestionForm({ questions, onSubmit, disabled }: QuestionFormProp
               {question.options.map((option) => (
                 <label
                   key={option}
-                  className="flex items-center gap-2 p-3 border rounded-lg hover:bg-gray-50 cursor-pointer"
+                  className="flex items-center gap-2 p-4 border rounded-lg hover:bg-gray-50 cursor-pointer"
                 >
                   <input
                     type="radio"
