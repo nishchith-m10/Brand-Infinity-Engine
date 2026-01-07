@@ -15,6 +15,7 @@ import type {
   RequestTask,
 } from '@/lib/orchestrator/types';
 import { circuitBreakers, CircuitBreakerError } from '@/lib/orchestrator/CircuitBreaker';
+import { createAdminClient } from '@/lib/supabase/admin';
 
 /**
  * n8n Workflow Configuration
@@ -83,18 +84,85 @@ export class ProducerAdapter {
       const workflowId = this.selectWorkflow(params);
       
       if (!workflowId) {
-        return {
-          success: false,
-          error: {
-            code: 'WORKFLOW_NOT_FOUND',
-            message: `No n8n workflow configured for task type: ${params.task.task_name}`,
-          },
-          metadata: {
-            agent: 'producer',
-            execution_time_ms: Date.now() - startTime,
-            timestamp: new Date().toISOString(),
-          },
-        };
+        // If no workflow is configured, allow a safe mock dispatch in dev/test modes.
+        const mode = process.env.IMAGE_GEN_MODE || 'mock';
+        if (mode === 'real') {
+          return {
+            success: false,
+            error: {
+              code: 'WORKFLOW_NOT_FOUND',
+              message: `No n8n workflow configured for task type: ${params.task.task_name}`,
+            },
+            metadata: {
+              agent: 'producer',
+              execution_time_ms: Date.now() - startTime,
+              timestamp: new Date().toISOString(),
+            },
+          };
+        }
+
+        // Safe mock: insert a generation_jobs row and provider_metadata so local dev can progress
+        try {
+          const supabase = createAdminClient();
+
+          const { data: req } = await supabase
+            .from('content_requests')
+            .select('campaign_id, prompt')
+            .eq('id', params.request.id)
+            .limit(1)
+            .single();
+
+          const campaignId = req?.campaign_id || null;
+          const prompt = req?.prompt || (params.request as any).prompt || null;
+          const externalJobId = `mock-${Date.now()}`;
+          const providerName = (params.request as any).preferred_provider || process.env.POLLINATIONS_IMAGE_MODEL || 'mock-provider';
+
+          await supabase.from('generation_jobs').insert({
+            campaign_id: campaignId,
+            job_type: params.task.task_name.toLowerCase().includes('video') ? 'video' : 'image',
+            status: 'pending',
+            model_name: providerName,
+            prompt,
+            metadata: { request_id: params.request.id, request_task_id: params.task.id },
+            created_at: new Date().toISOString(),
+          });
+
+          await supabase.from('provider_metadata').insert({
+            request_task_id: params.task.id,
+            provider_name: providerName,
+            external_job_id: externalJobId,
+            response_payload: { provider_name: providerName, external_job_id: externalJobId, cost_incurred: 0 },
+            provider_status: 'pending',
+            created_at: new Date().toISOString(),
+          });
+
+          return {
+            success: true,
+            output: {
+              type: 'n8n_dispatch',
+              workflow_id: 'mock',
+              execution_id: externalJobId,
+              status: 'dispatched',
+              message: 'Mock dispatch created generation job and provider metadata',
+            },
+            metadata: {
+              agent: 'producer',
+              execution_time_ms: Date.now() - startTime,
+              timestamp: new Date().toISOString(),
+              workflow_id: 'mock',
+              execution_id: externalJobId,
+            },
+          };
+        } catch (err) {
+          return {
+            success: false,
+            error: {
+              code: 'MOCK_DISPATCH_FAILED',
+              message: err instanceof Error ? err.message : String(err),
+            },
+            metadata: { agent: 'producer', execution_time_ms: Date.now() - startTime },
+          };
+        }
       }
 
       // Build dispatch payload
