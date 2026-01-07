@@ -42,13 +42,15 @@ export async function GET() {
     };
     if (!n8nHealthy) {
       health.status = 'degraded';
+      console.warn('[Health Check] n8n service is unhealthy - check server logs for details');
     }
-  } catch {
+  } catch (error) {
     health.services.n8n = {
       status: 'unhealthy',
       latency: Date.now() - n8nStart,
     };
     health.status = 'degraded';
+    console.error('[Health Check] n8n health check threw an error:', error);
   }
 
   const statusCode = health.status === 'healthy' ? 200 : 503;
