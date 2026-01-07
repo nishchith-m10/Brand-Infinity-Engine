@@ -77,7 +77,7 @@ export async function POST(
         rejected_by: user.id,
         status: 'rejected' // Update status to rejected as well
       })
-      .eq('job_id', jobId)
+      .eq('id', jobId)
       .eq('status', 'completed') // Double-check status in update query
       .select()
       .single();

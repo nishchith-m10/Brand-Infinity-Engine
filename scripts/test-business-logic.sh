@@ -49,10 +49,18 @@ echo ""
 # Get auth token (you need to replace this with actual auth)
 AUTH_TOKEN="${AUTH_TOKEN:-your-session-token}"
 
+# Prefer cookie-based test sessions when available (set by /api/auth/store-session)
+# If /tmp/cookies_test.txt exists, curl will use it; otherwise fall back to Bearer header
+if [ -f /tmp/cookies_test.txt ]; then
+  AUTH_CURL_OPTS=( -b /tmp/cookies_test.txt )
+else
+  AUTH_CURL_OPTS=( -H "Authorization: Bearer $AUTH_TOKEN" )
+fi
+
 if [ -n "$CAMPAIGN_ID" ]; then
   echo "Testing invalid state transition: draft → completed (should fail)..."
   RESPONSE=$(curl -s -w "\n%{http_code}" -X PUT "$API_BASE_URL/campaigns/$CAMPAIGN_ID" \
-    -H "Authorization: Bearer $AUTH_TOKEN" \
+    "${AUTH_CURL_OPTS[@]}" \
     -H "Content-Type: application/json" \
     -d '{"status": "completed"}')
   
@@ -62,7 +70,7 @@ if [ -n "$CAMPAIGN_ID" ]; then
   echo ""
   echo "Testing valid state transition: draft → in_progress..."
   RESPONSE=$(curl -s -w "\n%{http_code}" -X PUT "$API_BASE_URL/campaigns/$CAMPAIGN_ID" \
-    -H "Authorization: Bearer $AUTH_TOKEN" \
+    "${AUTH_CURL_OPTS[@]}" \
     -H "Content-Type: application/json" \
     -d '{"status": "in_progress"}')
   
@@ -87,7 +95,7 @@ if [ -n "$CAMPAIGN_ID" ]; then
   echo "Launching 5 concurrent image generation requests..."
   for i in {1..5}; do
     (curl -s -w "\n%{http_code}" -X POST "$API_BASE_URL/images/generate" \
-      -H "Authorization: Bearer $AUTH_TOKEN" \
+      "${AUTH_CURL_OPTS[@]}" \
       -H "Content-Type: application/json" \
       -d "{
         \"prompt\": \"Test image $i\",
@@ -136,7 +144,7 @@ echo ""
 if [ -n "$VIDEO_ID" ]; then
   echo "Testing publish without approval (should fail)..."
   RESPONSE=$(curl -s -w "\n%{http_code}" -X PATCH "$API_BASE_URL/videos/$VIDEO_ID" \
-    -H "Authorization: Bearer $AUTH_TOKEN" \
+    "${AUTH_CURL_OPTS[@]}" \
     -H "Content-Type: application/json" \
     -d '{"status": "published"}')
   
@@ -146,7 +154,7 @@ if [ -n "$VIDEO_ID" ]; then
   echo ""
   echo "Testing video approval..."
   RESPONSE=$(curl -s -w "\n%{http_code}" -X POST "$API_BASE_URL/videos/$VIDEO_ID/approve" \
-    -H "Authorization: Bearer $AUTH_TOKEN" \
+    "${AUTH_CURL_OPTS[@]}" \
     -H "Content-Type: application/json")
   
   STATUS=$(echo "$RESPONSE" | tail -1)
@@ -155,7 +163,7 @@ if [ -n "$VIDEO_ID" ]; then
   echo ""
   echo "Testing publish after approval (should succeed)..."
   RESPONSE=$(curl -s -w "\n%{http_code}" -X PATCH "$API_BASE_URL/videos/$VIDEO_ID" \
-    -H "Authorization: Bearer $AUTH_TOKEN" \
+    "${AUTH_CURL_OPTS[@]}" \
     -H "Content-Type: application/json" \
     -d '{"status": "published"}')
   

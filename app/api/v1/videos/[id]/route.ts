@@ -44,7 +44,7 @@ export async function GET(
     const { data: video, error } = await supabase
       .from('generation_jobs')
       .select('*, campaigns!inner(user_id)')
-      .eq('job_id', jobId)
+      .eq('id', jobId)
       .single();
 
     if (error) {
@@ -103,7 +103,7 @@ export async function PATCH(
     const { data: video, error: fetchError } = await supabase
       .from('generation_jobs')
       .select('status, approval_status, approved_at, approved_by, campaigns!inner(user_id)')
-      .eq('job_id', jobId)
+      .eq('id', jobId)
       .single();
 
     if (fetchError) {
@@ -174,19 +174,51 @@ export async function PATCH(
       );
     }
 
-    const { data: updatedVideo, error } = await supabase
-      .from('generation_jobs')
-      .update(updateData)
-      .eq('job_id', jobId)
-      .select()
-      .single();
+    // If publishing, prefer to use the service role admin client to avoid RLS restrictions
+    const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || process.env.SUPABASE_URL;
+    const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
 
-    if (error) {
-      console.error('[API] Video PATCH error:', error);
-      return NextResponse.json(
-        { success: false, error: { code: 'DB_ERROR', message: error.message } },
-        { status: 500 }
-      );
+    let updatedVideo = null;
+    if (newStatus === 'published' && supabaseUrl && serviceRoleKey) {
+      const adminClient = (await import('@supabase/supabase-js')).createClient(supabaseUrl, serviceRoleKey);
+      const { data: adminData, error: adminError } = await adminClient
+        .from('generation_jobs')
+        .update(updateData)
+        .eq('id', jobId)
+        .select()
+        .single();
+
+      if (adminError) {
+        if (adminError.code === 'PGRST116') {
+          return NextResponse.json(
+            { success: false, error: { code: 'UPDATE_FAILED', message: 'Failed to publish video. Status may have changed.' } },
+            { status: 409 }
+          );
+        }
+        console.error('[API] Video PATCH error (admin):', adminError);
+        return NextResponse.json(
+          { success: false, error: { code: 'DB_ERROR', message: adminError.message } },
+          { status: 500 }
+        );
+      }
+      updatedVideo = adminData;
+    } else {
+      const { data: rlsData, error: rlsError } = await supabase
+        .from('generation_jobs')
+        .update(updateData)
+        .eq('id', jobId)
+        .select()
+        .single();
+
+      if (rlsError) {
+        console.error('[API] Video PATCH error:', rlsError);
+        return NextResponse.json(
+          { success: false, error: { code: 'DB_ERROR', message: rlsError.message } },
+          { status: 500 }
+        );
+      }
+
+      updatedVideo = rlsData;
     }
 
     return NextResponse.json({

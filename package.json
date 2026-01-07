@@ -29,6 +29,7 @@
     "express-rate-limit": "^8.2.1",
     "framer-motion": "^12.23.26",
     "helmet": "^8.1.0",
+    "libsodium-wrappers": "^0.7.16",
     "lucide-react": "^0.562.0",
     "morgan": "^1.10.1",
     "multer": "^2.0.2",
@@ -46,6 +47,7 @@
   },
   "devDependencies": {
     "@tailwindcss/postcss": "^4",
+    "@types/libsodium-wrappers": "^0.7.14",
     "@types/node": "^20",
     "@types/react": "^19",
     "@types/react-dom": "^19",

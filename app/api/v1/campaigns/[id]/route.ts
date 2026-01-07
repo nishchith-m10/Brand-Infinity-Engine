@@ -59,6 +59,48 @@ export async function GET(
           { status: 404 }
         );
       }
+
+      // If the PostgREST schema cache lacks FK relationships required for nested selects,
+      // retry with a simpler select that returns only the campaign row.
+      if (error.code === 'PGRST200' && /relationship/.test(String(error.message))) {
+        console.warn('[API] Campaign GET nested relation missing; retrying without nested selects');
+        const { data: simpleCampaign, error: simpleError } = await supabase
+          .from('campaigns')
+          .select('*')
+          .eq('id', campaignId)
+          .single();
+
+        if (simpleError) {
+          // If PostgREST indicates no rows, the resource is not visible due to RLS.
+          if (simpleError.code === 'PGRST116') {
+            return NextResponse.json(
+              { success: false, error: { code: 'FORBIDDEN', message: 'Access denied' } },
+              { status: 403 }
+            );
+          }
+
+          console.error('[API] Campaign GET (simple) error:', simpleError);
+          return NextResponse.json(
+            { success: false, error: { code: 'DB_ERROR', message: 'Database operation failed' } },
+            { status: 500 }
+          );
+        }
+
+        // If the simple select returns null (shouldn't happen), map to 403
+        if (!simpleCampaign) {
+          return NextResponse.json(
+            { success: false, error: { code: 'FORBIDDEN', message: 'Access denied' } },
+            { status: 403 }
+          );
+        }
+
+        return NextResponse.json({
+          success: true,
+          data: simpleCampaign,
+          meta: { timestamp: new Date().toISOString() },
+        });
+      }
+
       console.error('[API] Campaign GET error:', error);
       return NextResponse.json(
         { success: false, error: { code: 'DB_ERROR', message: 'Database operation failed' } },
