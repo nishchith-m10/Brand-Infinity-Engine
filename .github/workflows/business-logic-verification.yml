@@ -1,0 +1,49 @@
+name: Business Logic Verification
+
+on:
+  workflow_dispatch:
+    inputs:
+      repeats:
+        description: 'Number of repeats'
+        required: false
+        default: '50'
+  push:
+    branches:
+      - main
+      - develop
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '18'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Make CI script executable
+        run: chmod +x scripts/ci/test_business_logic_ci.sh
+
+      - name: Install jq
+        run: sudo apt-get update && sudo apt-get install -y jq
+
+      - name: Run business-logic verification
+        env:
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+          IMAGE_GEN_MODE: 'mock'
+        run: |
+          REPEATS=${{ github.event.inputs.repeats || '50' }}
+          echo "Running $REPEATS repeats"
+          ./scripts/ci/test_business_logic_ci.sh "$REPEATS"
+
+      - name: Upload logs
+        uses: actions/upload-artifact@v4
+        with:
+          name: business-logic-logs
+          path: /tmp/test_runs_logs
