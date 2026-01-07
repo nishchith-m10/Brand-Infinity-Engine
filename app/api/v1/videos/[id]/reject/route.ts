@@ -36,7 +36,7 @@ export async function POST(
     const { data: existingVideo, error: fetchError } = await supabase
       .from('generation_jobs')
       .select('status, approval_status, campaigns!inner(user_id)')
-      .eq('job_id', jobId)
+      .eq('id', jobId)
       .single();
 
     if (fetchError) {
