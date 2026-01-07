@@ -74,3 +74,13 @@ jobs:
         with:
           name: business-logic-logs
           path: /tmp/test_runs_logs
+
+      - name: Upload metrics artifacts
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: business-logic-metrics
+          path: |
+            /tmp/test_runs_logs/metrics.json
+            /tmp/test_runs_logs/metrics_summary.json
+            /tmp/test_runs_logs/metrics.csv
