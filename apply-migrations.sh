@@ -3,8 +3,14 @@
 # Apply database migrations directly to Supabase
 # Usage: ./apply-migrations.sh
 
-SUPABASE_URL="https://vciscdagwhdpstaviakz.supabase.co"
-SERVICE_KEY="[REDACTED]"
+SUPABASE_URL="${SUPABASE_URL:-}"
+SERVICE_KEY="${SUPABASE_SERVICE_ROLE_KEY:-}"
+
+if [ -z "$SUPABASE_URL" ] || [ -z "$SERVICE_KEY" ]; then
+  echo "ERROR: SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY must be set in the environment."
+  echo "Set them via: export SUPABASE_URL=... && export SUPABASE_SERVICE_ROLE_KEY=..."
+  exit 2
+fi
 
 echo "🔐 Applying security and performance fixes migration..."
 SQL_CONTENT=$(cat supabase/migrations/20260105154429_security_and_performance_fixes.sql)
