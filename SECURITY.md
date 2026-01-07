@@ -15,3 +15,11 @@ Contact the security/ops lead if you need help rotating or revoking keys.
 ---
 
 For a full response playbook, templates, and curated steps to safely purge secrets from git history, see `SECURITY-PLAYBOOK.md`.
+
+## Local pre-commit secret scanning (recommended)
+To prevent accidental commits with secrets, install dev dependencies and Husky locally:
+
+1. Install deps: `npm ci`
+2. Run the prepare script (installs Husky hooks): `npm run prepare`
+
+The pre-commit hook runs `npm run secret-scan` and will block the commit if the grep-based scanner finds probable secrets. If you must bypass the hook (emergency), use `git commit --no-verify` but follow up with a security review.
