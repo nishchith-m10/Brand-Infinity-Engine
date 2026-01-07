@@ -1,0 +1,12 @@
+#!/bin/sh
+. "$(dirname "$0")/_/husky.sh"
+
+# Run secret scan (writes to tmp_secret_scan_output)
+# Fail the commit if matches are found
+npm run secret-scan || {
+  echo "Secret scan failed: probable secrets found. Fix them or use 'git commit --no-verify' only after careful review."
+  exit 1
+}
+
+# Optional: run lint (uncomment if desired)
+# npm run lint

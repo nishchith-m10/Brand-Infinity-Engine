@@ -11,3 +11,7 @@ If you discover sensitive credentials committed to the repository, follow these 
 5. Local copies of secrets should be stored in a secure secrets manager or in local-only files that are listed in `.gitignore`.
 
 Contact the security/ops lead if you need help rotating or revoking keys.
+
+---
+
+For a full response playbook, templates, and curated steps to safely purge secrets from git history, see `SECURITY-PLAYBOOK.md`.
