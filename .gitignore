@@ -11,6 +11,7 @@
 # API Keys and Secrets
 secrets/
 credentials/
+!.env.*.example
 *.key
 *.pem
 *.p12
@@ -232,3 +233,11 @@ n8n_data/
 mcp_config.json
 .vercel
 .vercel_env
+.env
+.env.local
+.env.*
+.vercel_env
+.secrets-backup/
+.venv/
+venv/
+node_modules/
