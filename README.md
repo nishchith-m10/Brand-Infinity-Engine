@@ -438,12 +438,12 @@ Edit `.env` with your credentials:
 # Supabase (Required)
 DATABASE_URL=postgresql://postgres.[project]:[password]@aws-0-[region].pooler.supabase.com:5432/postgres
 SUPABASE_URL=https://[project].supabase.co
-SUPABASE_ANON_KEY=eyJ...
-SUPABASE_SERVICE_ROLE_KEY=eyJ...
+SUPABASE_ANON_KEY=REDACTED
+SUPABASE_SERVICE_ROLE_KEY=REDACTED
 SUPABASE_STORAGE_BUCKET=campaign-assets
 
 # AI Models (Required)
-OPENAI_API_KEY=sk-...
+OPENAI_API_KEY=sk-your_openai_api_key_here
 
 # Optional AI Models
 ANTHROPIC_API_KEY=sk-ant-...
