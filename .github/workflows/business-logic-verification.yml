@@ -61,6 +61,8 @@ jobs:
       - name: Run business-logic verification
         env:
           SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
           IMAGE_GEN_MODE: 'mock'
         run: |
           REPEATS=${{ github.event.inputs.repeats || '50' }}
