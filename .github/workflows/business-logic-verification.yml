@@ -18,7 +18,27 @@ on:
       - develop
 
 jobs:
+  secret_scan:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Make scanner executable
+        run: chmod +x scripts/ci/secret_scan.sh
+
+      - name: Run secret scan
+        run: ./scripts/ci/secret_scan.sh . /tmp/secret_scan_output
+
+      - name: Upload secret-scan output
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: secret-scan-output
+          path: /tmp/secret_scan_output
+
   verify:
+    needs: secret_scan
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
