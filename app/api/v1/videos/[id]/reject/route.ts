@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
+import { RejectResourceSchema, validateRequest } from '@/lib/validations/api-schemas';
 
 // =============================================================================
 // POST /api/v1/videos/[id]/reject - Reject a video (generation job)
