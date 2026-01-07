@@ -25,6 +25,13 @@
       "command": "npx",
       "args": ["-y", "@modelcontextprotocol/server-puppeteer"]
     },
+    "markitdown": {
+      "command": "npx",
+      "args": ["-y", "markitdown-mcp"],
+      "env": {
+        "PORT": "5678"
+      }
+    },
     "brave-search": {
       "command": "npx",
       "args": ["-y", "@modelcontextprotocol/server-brave-search"],
