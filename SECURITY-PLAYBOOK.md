@@ -39,3 +39,12 @@ DO NOT rewrite public history without coordination. Recommended steps:
 
 ---
 For detailed step examples and automated helper scripts see `scripts/secrets/purge_secrets.sh` and `SECURITY.md`.
+
+## 7) Purge performed — (automated run)
+- **Timestamp:** 2026-01-06T21:46:00Z
+- **Action:** `git filter-repo --replace-text replacer.txt` run in a fresh mirror clone; rewritten refs were force-pushed to origin.
+- **Replacer entries:** 14 (file: `replacer.txt` in repo root).
+- **Backup:** `repo-backup-1767763964.bundle` and branch `backup/pre-purge-1767763964` created prior to rewrite.
+- **Notes:** The branch `docs/move-md-to-docs` was deleted during the purge because it contained commits with a private email address that would otherwise have been published; contributors should re-create or rebase any work from that branch if needed.
+
+> After this operation, contributors must run `git fetch --all` and rebase or re-clone the repository to obtain the rewritten history.
