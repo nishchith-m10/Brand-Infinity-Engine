@@ -12,7 +12,7 @@ REPORT_JSON="$OUT_DIR/secret_scan_report.json"
 echo "Scanning repo for likely hardcoded secrets..."
 
 # Files/paths to exclude (comma-separated patterns)
-EXCLUDE_GLOBS=("node_modules" "dist" "build" ".git" "coverage" "docker" "supabase/supabase/.temp")
+EXCLUDE_GLOBS=("node_modules" "dist" "build" ".git" "coverage" "docker" "supabase/supabase/.temp" ".next")
 EXCLUDE_ARGS=()
 for g in "${EXCLUDE_GLOBS[@]}"; do
   EXCLUDE_ARGS+=(--exclude-dir="$g")
