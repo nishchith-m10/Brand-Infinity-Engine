@@ -83,10 +83,26 @@ export class AgentRunner {
         // Phase II, Pillar 2: Convert budget reservation to actual cost on success
         if (campaignId && estimatedCost > 0) {
           const actualCost = this.getActualCostFromResult(result, estimatedCost);
-          await commitBudget(campaignId, estimatedCost, actualCost).catch((err) => {
+          try {
+            const supabase = await createClient();
+            // Find reservation for this request (should have been created earlier)
+            const { data: reservationRow } = await supabase
+              .from('budget_reservations')
+              .select('id')
+              .eq('request_id', request.id)
+              .eq('status', 'reserved')
+              .limit(1)
+              .single();
+
+            if (reservationRow && reservationRow.id) {
+              await commitBudget(campaignId, reservationRow.id, actualCost);
+            } else {
+              console.warn(`[AgentRunner] No budget reservation found for request ${request.id} to commit`);
+            }
+          } catch (err) {
             console.error(`[AgentRunner] Failed to commit budget for task ${task.id}:`, err);
             // Don't fail the task if budget commit fails - log for reconciliation
-          });
+          }
         }
 
         if (result.isAsync) {
