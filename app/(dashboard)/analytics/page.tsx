@@ -239,9 +239,8 @@ export default function AnalyticsPage() {
               ))}
             </div>
           </CardHeader>
-          <CardContent>
-            {/* Top border inset to match Platform Performance */}
-            <div className="border-b border-gray-200 px-6" />
+          {/* Top border inset to match Platform Performance */}
+          <div className="border-b border-gray-200 px-6" />
           <CardContent>
             {/* Simple Bar Chart */}
             {dailyStats && dailyStats.length > 0 ? (
