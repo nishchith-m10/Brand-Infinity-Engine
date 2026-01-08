@@ -6,7 +6,7 @@ import { motion } from "framer-motion"
 import { cn } from "@/lib/utils"
 
 const buttonVariants = cva(
-  "inline-flex items-center justify-center whitespace-nowrap rounded-lg text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50 active:scale-95",
+  "inline-flex items-center justify-center whitespace-nowrap rounded-lg text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50 active:scale-95 gap-2",
   {
     variants: {
       variant: {
@@ -42,11 +42,12 @@ export interface ButtonProps
     VariantProps<typeof buttonVariants> {
   asChild?: boolean
   isLoading?: boolean
+  loadingText?: string
 }
 
 // Wrap with motion
 const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(
-  ({ className, variant, size, asChild = false, isLoading = false, children, disabled, ...props }, ref) => {
+  ({ className, variant, size, asChild = false, isLoading = false, loadingText, children, disabled, ...props }, ref) => {
     const Comp = asChild ? Slot : "button"
     
     // We can't easily animate Slot if the child isn't motion aware, 
@@ -56,14 +57,18 @@ const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(
         return (
             <MotionComp
                 ref={ref}
-                whileHover={{ scale: 1.02 }}
-                whileTap={{ scale: 0.98 }}
+                whileHover={{ scale: disabled || isLoading ? 1 : 1.02 }}
+                whileTap={{ scale: disabled || isLoading ? 1 : 0.98 }}
                 disabled={isLoading || disabled}
+                aria-disabled={isLoading || disabled}
+                aria-busy={isLoading}
                 className={cn(buttonVariants({ variant, size, className }))}
                 {...props}
             >
-                {isLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                {children}
+                {isLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" aria-hidden="true" />}
+                <span className="inline-flex items-center gap-2" aria-live={isLoading ? "polite" : "off"}>
+                  {isLoading ? (loadingText || "Loading...") : children}
+                </span>
             </MotionComp>
         )
     }
@@ -73,10 +78,14 @@ const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(
         className={cn(buttonVariants({ variant, size, className }))}
         ref={ref}
         disabled={isLoading || disabled}
+        aria-disabled={isLoading || disabled}
+        aria-busy={isLoading}
         {...props}
       >
-        {isLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-        {children}
+        {isLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" aria-hidden="true" />}
+        <span className="inline-flex items-center gap-2" aria-live={isLoading ? "polite" : "off"}>
+          {isLoading ? (loadingText || "Loading...") : children}
+        </span>
       </Comp>
     )
   }
