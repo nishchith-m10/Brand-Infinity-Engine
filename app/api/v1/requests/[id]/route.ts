@@ -30,6 +30,7 @@ export async function GET(request: NextRequest, context: { params: { id: string 
     const params = await (context.params as any) as { id: string };
     const requestId = params.id;
 
+    // Phase III, Pillar 2: Filter out soft-deleted records
     // Fetch request with related data
     const { data: contentRequest, error: requestError } = await supabase
       .from('content_requests')
@@ -41,6 +42,7 @@ export async function GET(request: NextRequest, context: { params: { id: string 
       `
       )
       .eq('id', requestId)
+      .is('deleted_at', null) // Exclude soft-deleted requests
       .single();
 
     if (requestError || !contentRequest) {
@@ -106,11 +108,12 @@ export async function GET(request: NextRequest, context: { params: { id: string 
 
 // =============================================================================
 // PATCH /api/v1/requests/:id - Update Request
+// Phase II, Pillar 3: Status removed - use /transition endpoint instead
 // =============================================================================
 
 const UpdateRequestSchema = z.object({
   title: z.string().min(1).max(255).optional(),
-  status: z.enum(['cancelled']).optional(), // Only allow cancel via PATCH
+  // status removed - use POST /api/v1/requests/:id/transition instead
 });
 
 export async function PATCH(request: NextRequest, context: { params: { id: string } | Promise<{ id: string }> }) {
@@ -139,11 +142,12 @@ export async function PATCH(request: NextRequest, context: { params: { id: strin
 
     const updates = validation.data;
 
-    // Verify request exists and user has access
+    // Phase III, Pillar 2: Verify request exists and is not soft-deleted
     const { data: existing, error: fetchError } = await supabase
       .from('content_requests')
       .select('id, status, brand_id')
       .eq('id', requestId)
+      .is('deleted_at', null) // Exclude soft-deleted
       .single();
 
     if (fetchError || !existing) {
@@ -154,6 +158,22 @@ export async function PATCH(request: NextRequest, context: { params: { id: strin
     if (existing.status === 'published' || existing.status === 'cancelled') {
       return NextResponse.json(
         { success: false, error: 'Cannot update a completed or cancelled request' },
+        { status: 400 }
+      );
+    }
+
+    // Phase II, Pillar 3: Reject any attempt to update status via PATCH
+    if ('status' in body) {
+      return NextResponse.json(
+        { 
+          success: false, 
+          error: 'Status cannot be updated via PATCH. Use POST /api/v1/requests/:id/transition instead.',
+          details: {
+            code: 'STATUS_UPDATE_NOT_ALLOWED',
+            currentStatus: existing.status,
+            hint: 'Use the transition endpoint to change request status with proper validation'
+          }
+        },
         { status: 400 }
       );
     }
@@ -172,17 +192,6 @@ export async function PATCH(request: NextRequest, context: { params: { id: strin
         { success: false, error: 'Failed to update request' },
         { status: 500 }
       );
-    }
-
-    // Log user action if status changed to cancelled
-    if (updates.status === 'cancelled') {
-      await supabase.from('request_events').insert({
-        request_id: requestId,
-        event_type: 'user_action',
-        description: 'Request cancelled by user',
-        metadata: { previous_status: existing.status },
-        actor: `user:${user.id}`,
-      });
     }
 
     const response: UpdateRequestResponse = {
@@ -216,11 +225,12 @@ export async function DELETE(request: NextRequest, context: { params: { id: stri
     const params = await (context.params as any) as { id: string };
     const requestId = params.id;
 
-    // Verify request exists
+    // Phase III, Pillar 2: Verify request exists and is not soft-deleted
     const { data: existing, error: fetchError } = await supabase
       .from('content_requests')
       .select('id, status')
       .eq('id', requestId)
+      .is('deleted_at', null) // Only allow deletion of non-deleted records
       .single();
 
     if (fetchError || !existing) {
@@ -235,11 +245,16 @@ export async function DELETE(request: NextRequest, context: { params: { id: stri
       );
     }
 
-    // Delete (cascades to tasks, events, provider_metadata)
-    const { error: deleteError } = await supabase.from('content_requests').delete().eq('id', requestId);
+    // Phase III, Pillar 2: Soft delete instead of hard delete for data recovery
+    // Cascades soft delete to related tasks, events via database trigger (if configured)
+    const { error: deleteError } = await supabase
+      .from('content_requests')
+      .update({ deleted_at: new Date().toISOString() })
+      .eq('id', requestId)
+      .is('deleted_at', null); // Only soft delete if not already deleted
 
     if (deleteError) {
-      console.error('Failed to delete request:', deleteError);
+      console.error('Failed to soft-delete request:', deleteError);
       return NextResponse.json(
         { success: false, error: 'Failed to delete request' },
         { status: 500 }
