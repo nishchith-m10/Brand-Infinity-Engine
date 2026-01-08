@@ -40,7 +40,16 @@ export class N8NClient {
   private requestWindow: number[] = [];
 
   constructor() {
-    this.baseUrl = process.env.N8N_WEBHOOK_URL || '';
+    // Support various environment variable names for the n8n URL
+    let url = process.env.N8N_WEBHOOK_URL || 
+              process.env.N8N_BASE_URL || 
+              process.env.N8N_REMOTE_URL || 
+              process.env.N8N_URL || 
+              '';
+    
+    // Remove trailing slash to prevent double-slash issues in path construction
+    this.baseUrl = url.endsWith('/') ? url.slice(0, -1) : url;
+    
     this.apiKey = process.env.N8N_API_KEY || '';
     this.circuitBreaker = {
       failures: 0,
@@ -50,7 +59,7 @@ export class N8NClient {
     this.idempotencyCache = {};
 
     if (!this.baseUrl) {
-      logger.warn('N8N', 'n8n webhook URL not configured');
+      logger.warn('N8N', 'n8n URL not configured (N8N_WEBHOOK_URL or N8N_REMOTE_URL missing)');
     }
     
     // Clean up old idempotency cache entries every 5 minutes
@@ -373,19 +382,58 @@ export class N8NClient {
    */
   async healthCheck(): Promise<boolean> {
     if (!this.isConfigured()) {
+      logger.warn('N8N', 'Health check failed: n8n not configured (missing N8N_WEBHOOK_URL)');
       return false;
     }
 
+    const healthUrl = `${this.baseUrl}/healthz`;
+    logger.info('N8N', 'Starting health check', { url: healthUrl });
+
     try {
-      const response = await fetch(`${this.baseUrl}/health`, {
+      const response = await fetch(healthUrl, {
         method: 'GET',
         headers: {
           ...(this.apiKey && { 'Authorization': `Bearer ${this.apiKey}` }),
         },
         signal: AbortSignal.timeout(5000),
       });
-      return response.ok;
-    } catch {
+      
+      if (response.ok) {
+        logger.info('N8N', 'Health check passed', { status: response.status });
+        return true;
+      } else {
+        logger.error('N8N', 'Health check failed with HTTP error', {
+          status: response.status,
+          statusText: response.statusText,
+          url: healthUrl,
+        });
+        return false;
+      }
+    } catch (error) {
+      if (error instanceof Error) {
+        // Detailed error logging for different failure types
+        if (error.name === 'AbortError') {
+          logger.error('N8N', 'Health check timed out after 5000ms', { url: healthUrl });
+        } else if (error.message.includes('fetch failed') || error.message.includes('ECONNREFUSED')) {
+          logger.error('N8N', 'Health check failed: connection refused - n8n instance may be down or URL is incorrect', {
+            url: healthUrl,
+            error: error.message,
+          });
+        } else if (error.message.includes('ENOTFOUND') || error.message.includes('getaddrinfo')) {
+          logger.error('N8N', 'Health check failed: DNS lookup failed - invalid hostname', {
+            url: healthUrl,
+            error: error.message,
+          });
+        } else {
+          logger.error('N8N', 'Health check failed with unexpected error', {
+            url: healthUrl,
+            error: error.message,
+            errorName: error.name,
+          });
+        }
+      } else {
+        logger.error('N8N', 'Health check failed with unknown error', { url: healthUrl, error });
+      }
       return false;
     }
   }
