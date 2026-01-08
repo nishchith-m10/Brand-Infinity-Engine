@@ -10,8 +10,10 @@ export const dynamic = 'force-dynamic';
  */
 export async function DELETE(
   req: NextRequest,
-  { params }: { params: { id: string } }
+  context: { params: { id: string } | Promise<{ id: string }> }
 ) {
+  const resolvedParams = await Promise.resolve(context.params);
+  const { id } = resolvedParams;
   try {
     const supabase = await createClient();
     
