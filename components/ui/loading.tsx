@@ -24,8 +24,8 @@ export function Loading({
 
   const content = (
     <div className={cn('flex flex-col items-center justify-center', className)}>
-      <Loader2 className={cn('animate-spin text-blue-600', sizes[size])} />
-      {text && <p className="mt-2 text-sm text-gray-500">{text}</p>}
+      <Loader2 className={cn('animate-spin text-primary', sizes[size])} />
+      {text && <p className="mt-2 text-sm text-muted-foreground">{text}</p>}
     </div>
   );
 
