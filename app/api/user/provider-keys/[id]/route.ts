@@ -25,7 +25,6 @@ export async function DELETE(
       );
     }
 
-    const { id } = params;
 
     // Delete only if belongs to authenticated user (RLS enforced)
     const { error } = await supabase
