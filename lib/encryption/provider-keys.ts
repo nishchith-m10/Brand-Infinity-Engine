@@ -6,13 +6,14 @@
 import sodium from 'libsodium-wrappers';
 
 const KEY_ENCODING = 'base64';
-const NONCE_LENGTH = sodium.crypto_secretbox_NONCEBYTES;
 
 /**
  * Get encryption secret from environment
  * Throws if not available or invalid length
  */
-function getEncryptionSecret(): Uint8Array {
+async function getEncryptionSecret(): Promise<Uint8Array> {
+  await sodium.ready;
+
   const secret = process.env.SUPABASE_PROVIDER_KEYS_SECRET;
   
   if (!secret) {
@@ -38,8 +39,8 @@ function getEncryptionSecret(): Uint8Array {
 export async function encryptProviderKey(plainKey: string): Promise<string> {
   await sodium.ready;
   
-  const secret = getEncryptionSecret();
-  const nonce = sodium.randombytes_buf(NONCE_LENGTH);
+  const secret = await getEncryptionSecret();
+  const nonce = sodium.randombytes_buf(sodium.crypto_secretbox_NONCEBYTES);
   const plainBytes = new TextEncoder().encode(plainKey);
   
   const ciphertext = sodium.crypto_secretbox_easy(plainBytes, nonce, secret);
@@ -58,23 +59,27 @@ export async function encryptProviderKey(plainKey: string): Promise<string> {
 export async function decryptProviderKey(encryptedKey: string): Promise<string> {
   await sodium.ready;
   
-  const secret = getEncryptionSecret();
+  const secret = await getEncryptionSecret();
   const [nonceB64, cipherB64] = encryptedKey.split(':');
   
   if (!nonceB64 || !cipherB64) {
     throw new Error('Invalid encrypted key format: expected nonce:ciphertext');
   }
 
-  const nonce = new Uint8Array(Buffer.from(nonceB64, KEY_ENCODING));
-  const ciphertext = new Uint8Array(Buffer.from(cipherB64, KEY_ENCODING));
-  
-  const plainBytes = sodium.crypto_secretbox_open_easy(ciphertext, nonce, secret);
-  
-  if (!plainBytes) {
-    throw new Error('Decryption failed: invalid ciphertext or key');
+  try {
+    const nonce = new Uint8Array(Buffer.from(nonceB64, KEY_ENCODING));
+    const ciphertext = new Uint8Array(Buffer.from(cipherB64, KEY_ENCODING));
+    
+    const plainBytes = sodium.crypto_secretbox_open_easy(ciphertext, nonce, secret);
+    
+    if (!plainBytes) {
+      throw new Error('Decryption failed: invalid ciphertext or key');
+    }
+    
+    return new TextDecoder().decode(plainBytes);
+  } catch (err) {
+    throw new Error(`Decryption failed: ${(err as Error).message}`);
   }
-  
-  return new TextDecoder().decode(plainBytes);
 }
 
 /**

@@ -91,7 +91,7 @@ export async function POST(req: NextRequest) {
  * GET /api/user/provider-keys
  * List all provider keys for the authenticated user (encrypted keys not returned)
  */
-export async function GET(req: NextRequest) {
+export async function GET() {
   try {
     const supabase = await createClient();
     
