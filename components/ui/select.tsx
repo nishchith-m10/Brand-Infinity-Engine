@@ -1,6 +1,6 @@
 'use client';
 
-import { forwardRef, SelectHTMLAttributes } from 'react';
+import React, { forwardRef, SelectHTMLAttributes } from 'react';
 import { cn } from '@/lib/utils';
 import { ChevronDown } from 'lucide-react';
 
@@ -20,18 +20,35 @@ export interface SelectProps extends SelectHTMLAttributes<HTMLSelectElement> {
 
 const Select = forwardRef<HTMLSelectElement, SelectProps>(
   (
-    { className, label, error, helperText, options, placeholder, ...props },
+    { className, label, error, helperText, options, placeholder, id, ...props },
     ref
   ) => {
+    const selectId = id || React.useId();
+    const errorId = error ? `${selectId}-error` : undefined;
+    const helperId = helperText && !error ? `${selectId}-helper` : undefined;
+    const describedBy = [errorId, helperId].filter(Boolean).join(' ') || undefined;
+
     return (
       <div className="w-full">
         {label && (
-          <label className="mb-1.5 block text-sm font-medium text-gray-700">
+          <label 
+            htmlFor={selectId}
+            className="mb-1.5 block text-sm font-medium text-gray-700"
+          >
             {label}
+            {props.required && (
+              <span className="ml-1 text-red-500" aria-label="required">
+                *
+              </span>
+            )}
           </label>
         )}
         <div className="relative">
           <select
+            id={selectId}
+            aria-invalid={error ? "true" : "false"}
+            aria-describedby={describedBy}
+            aria-required={props.required}
             className={cn(
               'flex h-10 w-full appearance-none rounded-lg border border-slate-200 bg-white px-3 py-2 pr-10 text-sm text-slate-900',
               'focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500/20',
@@ -58,11 +75,20 @@ const Select = forwardRef<HTMLSelectElement, SelectProps>(
               </option>
             ))}
           </select>
-          <ChevronDown className="pointer-events-none absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
+          <ChevronDown 
+            className="pointer-events-none absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" 
+            aria-hidden="true"
+          />
         </div>
-        {error && <p className="mt-1.5 text-sm text-red-600">{error}</p>}
+        {error && (
+          <p id={errorId} className="mt-1.5 text-sm text-red-600" role="alert">
+            {error}
+          </p>
+        )}
         {helperText && !error && (
-          <p className="mt-1.5 text-sm text-gray-500">{helperText}</p>
+          <p id={helperId} className="mt-1.5 text-sm text-gray-500">
+            {helperText}
+          </p>
         )}
       </div>
     );
