@@ -77,14 +77,14 @@ export function CampaignSelector() {
         {isSwitching ? (
           <Loader2 className="h-4 w-4 text-indigo-500 shrink-0 animate-spin" />
         ) : (
-          <FolderOpen className="h-4 w-4 text-slate-800 dark:text-slate-300 shrink-0" style={{ color: 'rgb(var(--foreground-rgb))', opacity: 1 }} />
+          <FolderOpen className="h-4 w-4 text-slate-800 dark:text-slate-300 shrink-0" />
         )}
-        <span className="text-sm font-medium text-slate-800 dark:text-slate-300 truncate flex-1 text-left" style={{ color: 'rgb(var(--foreground-rgb))', opacity: 1 }}>
+        <span className="text-sm font-medium text-slate-800 dark:text-slate-300 truncate flex-1 text-left">
           {isSwitching ? 'Switching...' : (isLoading ? 'Loading...' : displayName)}
         </span>
         <ChevronDown 
             className={`h-4 w-4 text-slate-800 dark:text-slate-300 shrink-0 transition-transform ml-auto ${isOpen ? 'rotate-180' : ''}`} 
-            style={{ color: 'rgb(var(--foreground-rgb))', opacity: 1 }}
+
         />
       </button>
       </Tooltip>
@@ -110,7 +110,6 @@ export function CampaignSelector() {
                   key={camp.id}
                   onClick={() => handleSelect(camp as Campaign)}
                   className="w-full flex items-center gap-2 px-4 py-2 hover:bg-slate-50 dark:hover:bg-muted transition-colors text-slate-800 dark:text-slate-300"
-                  style={{ color: 'rgb(var(--foreground-rgb))', opacity: 1 }}
                 >
                   <div className={`w-2 h-2 rounded-full shrink-0 ${
                     camp.status === 'active' ? 'bg-green-500' : 
@@ -118,7 +117,7 @@ export function CampaignSelector() {
                     camp.status === 'completed' ? 'bg-blue-500' : 
                     'bg-slate-300'
                   }`} />
-                  <span className="text-sm text-slate-800 dark:text-slate-300 truncate flex-1 text-left" style={{ color: 'rgb(var(--foreground-rgb))', opacity: 1 }}>
+                  <span className="text-sm text-slate-800 dark:text-slate-300 truncate flex-1 text-left">
                     {camp.campaign_name}
                   </span>
                   {camp.id === campaignId && (
