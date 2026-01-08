@@ -218,7 +218,16 @@ export function ChatContextSelector({ compact = false }: ChatContextSelectorProp
         
         {campaignOpen && (
           <>
-            <div className="fixed inset-0 z-40" onClick={() => setCampaignOpen(false)} />
+            <div 
+              className="fixed inset-0 z-40" 
+              onClick={() => setCampaignOpen(false)}
+              onKeyDown={(e) => {
+                if (e.key === 'Escape') {
+                  setCampaignOpen(false);
+                }
+              }}
+              aria-hidden="true"
+            />
             <div className="absolute top-full left-0 mt-1 w-64 bg-white rounded-lg shadow-lg border border-slate-200 z-50 py-1 max-h-[280px] overflow-y-auto">
               {activeCampaigns.length === 0 ? (
                 <div className="px-4 py-4 text-center text-sm text-slate-500">
@@ -271,7 +280,16 @@ export function ChatContextSelector({ compact = false }: ChatContextSelectorProp
           
           {kbOpen && (
             <>
-              <div className="fixed inset-0 z-40" onClick={() => setKbOpen(false)} />
+              <div 
+                className="fixed inset-0 z-40" 
+                onClick={() => setKbOpen(false)}
+                onKeyDown={(e) => {
+                  if (e.key === 'Escape') {
+                    setKbOpen(false);
+                  }
+                }}
+                aria-hidden="true"
+              />
               <div className="absolute top-full left-0 mt-1 w-72 bg-white rounded-lg shadow-lg border border-slate-200 z-50 py-1 max-h-[280px] overflow-y-auto">
                 {/* Quick actions */}
                 <div className="px-4 py-2 border-b border-slate-100 flex gap-2">
@@ -354,7 +372,16 @@ export function ChatContextSelector({ compact = false }: ChatContextSelectorProp
           
           {identityOpen && (
             <>
-              <div className="fixed inset-0 z-40" onClick={() => setIdentityOpen(false)} />
+              <div 
+                className="fixed inset-0 z-40" 
+                onClick={() => setIdentityOpen(false)}
+                onKeyDown={(e) => {
+                  if (e.key === 'Escape') {
+                    setIdentityOpen(false);
+                  }
+                }}
+                aria-hidden="true"
+              />
               <div className="absolute top-full left-0 mt-1 w-52 bg-white rounded-lg shadow-lg border border-slate-200 z-50 py-1">
                 {(['isolated', 'shared', 'inherited'] as IdentityMode[]).map((mode) => (
                   <button
@@ -415,7 +442,16 @@ export function ChatContextSelector({ compact = false }: ChatContextSelectorProp
           
           {assetsOpen && (
             <>
-              <div className="fixed inset-0 z-40" onClick={() => setAssetsOpen(false)} />
+              <div 
+                className="fixed inset-0 z-40" 
+                onClick={() => setAssetsOpen(false)}
+                onKeyDown={(e) => {
+                  if (e.key === 'Escape') {
+                    setAssetsOpen(false);
+                  }
+                }}
+                aria-hidden="true"
+              />
               <div className="absolute top-full left-0 mt-1 w-72 bg-white rounded-lg shadow-lg border border-slate-200 z-50 py-1 max-h-[320px] overflow-y-auto">
                 {/* Quick actions */}
                 <div className="px-4 py-2 border-b border-slate-100 flex gap-2">
