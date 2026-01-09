@@ -23,6 +23,7 @@ export class CopywriterAgent {
     intent: ParsedIntent;
     strategicBrief?: string;
     brandContext?: string;
+    userId?: string; // Owner user ID for background job key retrieval
   }): Promise<{ result: unknown; success: boolean; error?: string }> {
     try {
       const systemPrompt = `You are a Creative Copywriter Agent.
@@ -59,6 +60,7 @@ Write the content now.`;
         ],
         temperature: AGENT_TEMPERATURES.copywriter,
         maxTokens: AGENT_MAX_TOKENS.copywriter,
+        userId: params.userId, // Pass userId for background job key retrieval
       });
 
       return {
