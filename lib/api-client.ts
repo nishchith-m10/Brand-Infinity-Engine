@@ -308,7 +308,7 @@ export interface Campaign {
   id: string;
   campaign_name: string;
   brand_id: string;
-  status: 'draft' | 'active' | 'completed' | 'paused';
+  status: 'draft' | 'active' | 'completed' | 'paused' | 'archived' | 'pending_deletion';
   brief?: Brief;
   script?: Script;
   video?: Video;
@@ -316,6 +316,7 @@ export interface Campaign {
   publications?: Publication[];
   created_at: string;
   updated_at: string;
+  deleted_at?: string | null;
 }
 
 // Analytics types
