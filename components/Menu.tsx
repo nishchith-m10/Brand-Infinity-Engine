@@ -108,7 +108,7 @@ export default function Menu() {
                   {isActive && (
                     <motion.div
                       layoutId="active-menu-item"
-                      className="absolute inset-0 bg-lamaSky/30 backdrop-blur-sm rounded-md"
+                      className="absolute inset-0 bg-lamaPurple/30 backdrop-blur-sm rounded-md"
                       initial={false}
                       transition={{
                         type: "spring",
