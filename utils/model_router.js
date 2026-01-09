@@ -96,6 +96,72 @@ class ModelRouter {
                     cost: 'low',
                     maxDuration: 20,
                     bestFor: ['rapid prototyping', 'social media shorts']
+                },
+                'pollinations': {
+                    provider: 'pollinations',
+                    capability: 'fair',
+                    quality: 'medium',
+                    speed: 'fast',
+                    cost: 'free',
+                    maxDuration: 10,
+                    bestFor: ['testing', 'prototypes', 'zero-cost generation']
+                }
+            },
+            // Image generation
+            image: {
+                'pollinations-flux': {
+                    provider: 'pollinations',
+                    model: 'flux',
+                    quality: 'high',
+                    speed: 'fast',
+                    cost: 'free',
+                    bestFor: ['general images', 'creative content', 'free generation']
+                },
+                'pollinations-flux-realism': {
+                    provider: 'pollinations',
+                    model: 'flux-realism',
+                    quality: 'high',
+                    speed: 'fast',
+                    cost: 'free',
+                    bestFor: ['realistic photos', 'product shots', 'portraits']
+                },
+                'pollinations-flux-anime': {
+                    provider: 'pollinations',
+                    model: 'flux-anime',
+                    quality: 'high',
+                    speed: 'fast',
+                    cost: 'free',
+                    bestFor: ['anime style', 'illustrations', 'character art']
+                },
+                'pollinations-flux-3d': {
+                    provider: 'pollinations',
+                    model: 'flux-3d',
+                    quality: 'high',
+                    speed: 'fast',
+                    cost: 'free',
+                    bestFor: ['3d renders', 'isometric art', 'game assets']
+                },
+                'pollinations-turbo': {
+                    provider: 'pollinations',
+                    model: 'turbo',
+                    quality: 'medium',
+                    speed: 'very fast',
+                    cost: 'free',
+                    bestFor: ['quick iterations', 'testing', 'rapid prototyping']
+                },
+                'nanobanna-pro': {
+                    provider: 'nano',
+                    quality: 'high',
+                    speed: 'medium',
+                    cost: 'medium',
+                    bestFor: ['professional images', 'marketing materials']
+                },
+                'stable-diffusion': {
+                    provider: 'stability',
+                    quality: 'high',
+                    speed: 'medium',
+                    cost: 'medium',
+                    bestFor: ['custom styles', 'artistic images']
                 }
             },
             // TTS
@@ -140,7 +206,7 @@ class ModelRouter {
     selectTextModel(options = {}) {
         const {
             complexity = 'medium',    // low, medium, high
-            budget = 'medium',         // low, medium, high, unlimited
+            budget = 'medium',         // free, low, medium, high, unlimited
             priority = 'balanced',     // speed, cost, quality, balanced
             contextLength = 0,         // Number of tokens in context
             task = 'general'          // general, reasoning, creative, extraction
@@ -162,7 +228,8 @@ class ModelRouter {
             if (complexity === 'medium' && model.capability === 'good') score += 2;
             if (complexity === 'low') score += 1;
 
-            // Budget considerations
+            // Budget considerations - FREE tier gets highest score
+            if (budget === 'free' && model.cost === 'free') score += 5;
             if (budget === 'low' && model.cost === 'low') score += 3;
             if (budget === 'low' && model.cost === 'very low') score += 4;
             if (budget === 'medium' && (model.cost === 'medium' || model.cost === 'low')) score += 2;
@@ -210,10 +277,23 @@ class ModelRouter {
     selectVideoModel(options = {}) {
         const {
             quality = 'high',         // low, medium, high, cinematic
-            budget = 'medium',         // low, medium, high, unlimited
+            budget = 'medium',         // free, low, medium, high, unlimited
             duration = 15,             // Video duration in seconds
-            priority = 'quality'       // speed, cost, quality
+            priority = 'quality',      // speed, cost, quality
+            useFreeProviders = false   // NEW: prefer free providers (pollinations)
         } = options;
+
+        // If free providers enabled and budget is free/low, use pollinations
+        if (useFreeProviders && (budget === 'free' || budget === 'low')) {
+            const pollinations = this.models.video['pollinations'];
+            if (pollinations && duration <= pollinations.maxDuration) {
+                return {
+                    model: 'pollinations',
+                    ...pollinations,
+                    reason: 'Free provider enabled - using Pollinations.ai ($0.00 cost)'
+                };
+            }
+        }
 
         const candidates = this.models.video;
         let scores = {};
@@ -231,14 +311,15 @@ class ModelRouter {
             if (quality === 'high' && (model.quality === 'high' || model.quality === 'cinematic')) score += 3;
             if (quality === 'medium' && model.quality === 'medium') score += 2;
 
-            // Budget considerations
-            if (budget === 'low' && model.cost === 'low') score += 3;
+            // Budget considerations - FREE tier gets highest score
+            if (budget === 'free' && model.cost === 'free') score += 5;
+            if (budget === 'low' && (model.cost === 'low' || model.cost === 'free')) score += 3;
             if (budget === 'medium' && (model.cost === 'medium' || model.cost === 'low')) score += 2;
             if (budget === 'high' || budget === 'unlimited') score += 1;
 
             // Priority matching
             if (priority === 'speed' && (model.speed === 'fast' || model.speed === 'very fast')) score += 3;
-            if (priority === 'cost' && (model.cost === 'low' || model.cost === 'medium')) score += 3;
+            if (priority === 'cost' && (model.cost === 'low' || model.cost === 'medium' || model.cost === 'free')) score += 3;
             if (priority === 'quality' && model.quality === 'cinematic') score += 3;
 
             scores[modelName] = score;
@@ -261,6 +342,90 @@ class ModelRouter {
             ...candidates[selected[0]],
             score: selected[1],
             reason: this.explainSelection(selected[0], options, 'video')
+        };
+    }
+
+    /**
+     * Select the best model for image generation
+     * @param {Object} options - Task requirements
+     * @returns {Object} Selected model info
+     */
+    selectImageModel(options = {}) {
+        const {
+            quality = 'high',          // low, medium, high
+            budget = 'medium',          // free, low, medium, high, unlimited
+            priority = 'quality',       // speed, cost, quality
+            style = 'general',          // general, realistic, anime, 3d, artistic
+            useFreeProviders = false    // prefer free providers (pollinations)
+        } = options;
+
+        // If free providers enabled and budget is free/low, use pollinations
+        if (useFreeProviders && (budget === 'free' || budget === 'low')) {
+            // Select best pollinations model based on style
+            let pollinationsModel = 'pollinations-flux';
+            if (style === 'realistic' || style === 'portrait' || style === 'product') {
+                pollinationsModel = 'pollinations-flux-realism';
+            } else if (style === 'anime' || style === 'illustration') {
+                pollinationsModel = 'pollinations-flux-anime';
+            } else if (style === '3d' || style === 'isometric') {
+                pollinationsModel = 'pollinations-flux-3d';
+            } else if (priority === 'speed') {
+                pollinationsModel = 'pollinations-turbo';
+            }
+
+            const selected = this.models.image[pollinationsModel];
+            if (selected) {
+                return {
+                    model: pollinationsModel,
+                    ...selected,
+                    reason: `Free provider enabled - using Pollinations.ai ${selected.model} ($0.00 cost)`
+                };
+            }
+        }
+
+        const candidates = this.models.image;
+        let scores = {};
+
+        for (const [modelName, model] of Object.entries(candidates)) {
+            let score = 0;
+
+            // Quality matching
+            if (quality === 'high' && model.quality === 'high') score += 3;
+            if (quality === 'medium' && model.quality === 'medium') score += 2;
+
+            // Budget considerations - FREE tier gets highest score
+            if (budget === 'free' && model.cost === 'free') score += 5;
+            if (budget === 'low' && (model.cost === 'low' || model.cost === 'free')) score += 3;
+            if (budget === 'medium' && (model.cost === 'medium' || model.cost === 'low')) score += 2;
+
+            // Priority matching
+            if (priority === 'speed' && (model.speed === 'fast' || model.speed === 'very fast')) score += 3;
+            if (priority === 'cost' && (model.cost === 'low' || model.cost === 'free')) score += 3;
+            if (priority === 'quality' && model.quality === 'high') score += 3;
+
+            // Style-specific bonuses
+            if (model.bestFor.some(bf => bf.includes(style))) score += 2;
+
+            scores[modelName] = score;
+        }
+
+        const selected = Object.entries(scores)
+            .sort(([, a], [, b]) => b - a)[0];
+
+        if (!selected) {
+            // Fallback to free flux
+            return {
+                model: 'pollinations-flux',
+                ...candidates['pollinations-flux'],
+                reason: 'Fallback to free Pollinations Flux model'
+            };
+        }
+
+        return {
+            model: selected[0],
+            ...candidates[selected[0]],
+            score: selected[1],
+            reason: this.explainSelection(selected[0], options, 'image')
         };
     }
 
