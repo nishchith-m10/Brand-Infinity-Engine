@@ -5,32 +5,41 @@
 
 import { BaseLLMAdapter } from './base';
 import type { LLMRequest, LLMResponse } from '../types';
+import { getEffectiveProviderKey } from '@/lib/providers/get-user-key';
 
 export class OpenAIAdapter extends BaseLLMAdapter {
-  private apiKey: string;
   private baseURL: string;
+  private directApiKey?: string;
 
-  constructor() {
+  constructor(apiKey?: string) {
     super();
-    this.apiKey = process.env.OPENAI_API_KEY || '';
     this.baseURL = 'https://api.openai.com/v1';
-    
-    if (!this.apiKey) {
-      console.warn('[OpenAI] API key not configured');
+    this.directApiKey = apiKey;
+  }
+
+  /**
+   * Fetch API key with optional userId for background jobs
+   */
+  private async fetchApiKey(userId?: string): Promise<string> {
+    if (this.directApiKey) {
+      return this.directApiKey;
     }
+    const apiKey = await getEffectiveProviderKey('openai', process.env.OPENAI_API_KEY, userId);
+    if (!apiKey) {
+      throw new Error('OpenAI API key not configured. Please add your OpenAI key in Settings.');
+    }
+    return apiKey;
   }
 
   async generateCompletion(request: LLMRequest): Promise<LLMResponse> {
-    if (!this.apiKey) {
-      throw new Error('OpenAI API key not configured');
-    }
+    const apiKey = request.apiKey || await this.fetchApiKey(request.userId);
 
     try {
       const response = await fetch(`${this.baseURL}/chat/completions`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'Authorization': `Bearer ${this.apiKey}`,
+          'Authorization': `Bearer ${apiKey}`,
         },
         body: JSON.stringify({
           model: request.model,
