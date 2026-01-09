@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
+import { SaveBrandIdentitySchema, validateRequest } from '@/lib/validations/api-schemas';
 
 /**
  * GET /api/v1/brand-identity
@@ -118,7 +119,24 @@ export async function PUT(request: NextRequest) {
     }
 
     const body = await request.json();
-    const { campaign_id, ...identityData } = body;
+    
+    // Validate request body
+    const validation = validateRequest(SaveBrandIdentitySchema, body);
+    if (!validation.success) {
+      return NextResponse.json(
+        {
+          success: false,
+          error: {
+            code: 'VALIDATION_ERROR',
+            message: 'Invalid request data',
+            details: validation.error.format(),
+          },
+        },
+        { status: 400 }
+      );
+    }
+
+    const { campaign_id, ...identityData } = validation.data;
 
     // Check if we're saving campaign-specific or brand-level identity
     if (campaign_id) {
