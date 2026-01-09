@@ -24,23 +24,15 @@ export interface ApiKeysState {
   // Multi-key providers (OpenAI, Gemini)
   openai: ProviderKeys;
   gemini: ProviderKeys;
-  // Single-key providers - AI
+  // Single-key providers
   anthropic: string;
   deepseek: string;
   kimi: string;
   openrouter: string;
-  // Single-key providers - Voice
   elevenlabs: string;
-  // Single-key providers - Video
-  runway: string;
-  pika: string;
-  pollo: string;
-  // Single-key providers - Social
   tiktok: string;
   instagram: string;
   youtube: string;
-  linkedin: string;
-  twitter: string;
   // Free provider settings
   useFreeProviders: boolean;
   pollinationsPreferences: PollinationsPreferences;
@@ -77,14 +69,9 @@ const defaultState: ApiKeysState = {
   kimi: '',
   openrouter: '',
   elevenlabs: '',
-  runway: '',
-  pika: '',
-  pollo: '',
   tiktok: '',
   instagram: '',
   youtube: '',
-  linkedin: '',
-  twitter: '',
   useFreeProviders: true, // Default to using free providers
   pollinationsPreferences: {
     imageModel: 'flux',
