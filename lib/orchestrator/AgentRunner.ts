@@ -62,8 +62,14 @@ export class AgentRunner {
       // Build execution params
       const params = await this.buildExecutionParams(request, task);
 
+      // Diagnostic log: about to execute agent
+      console.log(`[AgentRunner] Executing agent ${agentRole} for task ${task.id}`);
+
       // Execute the agent (will be implemented in Sprint 8.3)
       const result = await this.executeAgent(params);
+
+      // Diagnostic log: agent result summary
+      console.log(`[AgentRunner] Agent result for task ${task.id}: success=${result.success}, isAsync=${result.isAsync}, outputSummary=${this.summarizeOutput(result.output_data)}`);
 
       const durationMs = Date.now() - startTime;
 
@@ -96,6 +102,9 @@ export class AgentRunner {
           // Task completed synchronously
           await this.completeTask(task.id, result);
           
+          // Diagnostic log: task marked completed in DB
+          console.log(`[AgentRunner] Task ${task.id} marked completed in DB`);
+
           await eventLogger.logTaskCompleted(
             request.id,
             task.id,
@@ -104,6 +113,15 @@ export class AgentRunner {
             this.summarizeOutput(result.output_data),
             durationMs
           );
+
+          // Re-trigger orchestrator to continue processing this request (start next runnable task)
+          try {
+            const { requestOrchestrator } = await import('./RequestOrchestrator');
+            // Don't await too long - let orchestrator proceed
+            await requestOrchestrator.processRequest(request.id);
+          } catch (err) {
+            console.error('[AgentRunner] Failed to re-trigger orchestrator:', err);
+          }
 
           return {
             taskId: task.id,
@@ -137,6 +155,9 @@ export class AgentRunner {
 
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error);
+
+      // Diagnostic log: agent exception
+      console.error(`[AgentRunner] Error running task ${task.id}:`, error);
       
       await this.failTask(task.id, {
         code: 'AGENT_EXCEPTION',
