@@ -1,15 +1,17 @@
 import { createClient } from '@/lib/supabase/server';
 import OpenAI from 'openai';
+import { getEffectiveProviderKey } from '@/lib/providers/get-user-key';
 
 // Lazy initialize OpenAI client
 let _openai: OpenAI | null = null;
 
-function getOpenAI(): OpenAI {
+async function getOpenAI(): Promise<OpenAI> {
   if (!_openai) {
-    if (!process.env.OPENAI_API_KEY) {
-      throw new Error('[OpenAI] OPENAI_API_KEY environment variable is required');
+    const apiKey = await getEffectiveProviderKey('openai', process.env.OPENAI_API_KEY);
+    if (!apiKey) {
+      throw new Error('OpenAI API key not configured. Please add your OpenAI key in Settings.');
     }
-    _openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
+    _openai = new OpenAI({ apiKey });
   }
   return _openai;
 }
@@ -61,7 +63,8 @@ interface MatchResult {
  * Cost: ~$0.000002 per query
  */
 async function embedText(text: string): Promise<number[]> {
-  const response = await getOpenAI().embeddings.create({
+  const openai = await getOpenAI();
+  const response = await openai.embeddings.create({
     model: 'text-embedding-ada-002',
     input: text,
   });
