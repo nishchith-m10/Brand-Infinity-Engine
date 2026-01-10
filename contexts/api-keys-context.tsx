@@ -13,6 +13,13 @@ export interface ProviderKeys {
   [keyId: string]: ApiKeyEntry;
 }
 
+export interface PollinationsPreferences {
+  imageModel: 'flux' | 'flux-realism' | 'flux-anime' | 'flux-3d' | 'turbo';
+  videoModel: 'mochi';
+  imageEnhance: boolean;
+  imageNoLogo: boolean;
+}
+
 export interface ApiKeysState {
   // Multi-key providers (OpenAI, Gemini)
   openai: ProviderKeys;
@@ -26,6 +33,9 @@ export interface ApiKeysState {
   tiktok: string;
   instagram: string;
   youtube: string;
+  // Free provider settings
+  useFreeProviders: boolean;
+  pollinationsPreferences: PollinationsPreferences;
 }
 
 interface ApiKeysContextType {
@@ -42,6 +52,10 @@ interface ApiKeysContextType {
   getProviderKeys: (provider: 'openai' | 'gemini') => ApiKeyEntry[];
   // Check if provider has any keys configured
   hasProviderKey: (provider: string) => boolean;
+  // Free providers toggle
+  setUseFreeProviders: (value: boolean) => void;
+  // Pollinations preferences
+  setPollinationsPreferences: (prefs: Partial<PollinationsPreferences>) => void;
   // Save all changes
   saveKeys: () => Promise<void>;
   isSaving: boolean;
@@ -58,6 +72,13 @@ const defaultState: ApiKeysState = {
   tiktok: '',
   instagram: '',
   youtube: '',
+  useFreeProviders: true, // Default to using free providers
+  pollinationsPreferences: {
+    imageModel: 'flux',
+    videoModel: 'mochi',
+    imageEnhance: false,
+    imageNoLogo: true,
+  },
 };
 
 const ApiKeysContext = createContext<ApiKeysContextType | null>(null);
@@ -74,6 +95,10 @@ export function ApiKeysProvider({ children }: { children: ReactNode }) {
     if (saved) {
       try {
         const parsed = JSON.parse(saved);
+        // Ensure pollinationsPreferences exists (for backward compatibility)
+        if (!parsed.pollinationsPreferences) {
+          parsed.pollinationsPreferences = defaultState.pollinationsPreferences;
+        }
         setApiKeys({ ...defaultState, ...parsed });
       } catch (e) {
         console.error('Failed to load API keys:', e);
@@ -102,7 +127,7 @@ export function ApiKeysProvider({ children }: { children: ReactNode }) {
         
         // Copy single-key providers
         ['anthropic', 'deepseek', 'kimi', 'openrouter', 'elevenlabs', 'tiktok', 'instagram', 'youtube'].forEach(p => {
-          const provider = p as keyof Omit<ApiKeysState, 'openai' | 'gemini'>;
+          const provider = p as keyof Omit<ApiKeysState, 'openai' | 'gemini' | 'useFreeProviders'>;
           if (oldParsed[p]) {
             migrated[provider] = oldParsed[p];
           }
@@ -171,15 +196,61 @@ export function ApiKeysProvider({ children }: { children: ReactNode }) {
     if (provider === 'openai' || provider === 'gemini') {
       return Object.values(apiKeys[provider]).some(e => e.key.length > 0);
     }
-    const simpleProvider = provider as keyof Omit<ApiKeysState, 'openai' | 'gemini'>;
+    const simpleProvider = provider as keyof Omit<ApiKeysState, 'openai' | 'gemini' | 'useFreeProviders'>;
     return !!apiKeys[simpleProvider];
   }, [apiKeys]);
+
+  const setUseFreeProviders = useCallback((value: boolean) => {
+    setApiKeys(prev => ({ ...prev, useFreeProviders: value }));
+  }, []);
+
+  const setPollinationsPreferences = useCallback((prefs: Partial<PollinationsPreferences>) => {
+    setApiKeys(prev => ({
+      ...prev,
+      pollinationsPreferences: { ...prev.pollinationsPreferences, ...prefs },
+    }));
+  }, []);
 
   const saveKeys = useCallback(async () => {
     setIsSaving(true);
     try {
+      // Save each provider key to backend database
+      const savePromises = Object.entries(apiKeys).map(async ([provider, value]) => {
+        if (typeof value === 'string' && value.trim()) {
+          // Single key provider (e.g., anthropic, elevenlabs)
+          return fetch('/api/user/provider-keys', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ provider, key: value }),
+          });
+        } else if (Array.isArray(value) && value.length > 0) {
+          // Multi-key provider (e.g., openai, gemini) - save each key
+          return Promise.all(
+            value.map((key, index) => {
+              if (key.trim()) {
+                return fetch('/api/user/provider-keys', {
+                  method: 'POST',
+                  headers: { 'Content-Type': 'application/json' },
+                  body: JSON.stringify({ 
+                    provider: `${provider}_${index + 1}`, 
+                    key 
+                  }),
+                });
+              }
+              return Promise.resolve();
+            })
+          );
+        }
+        return Promise.resolve();
+      });
+
+      await Promise.all(savePromises);
+      
+      // Also save to localStorage for quick access
       localStorage.setItem(STORAGE_KEY, JSON.stringify(apiKeys));
-      await new Promise(resolve => setTimeout(resolve, 500)); // Simulate API call
+    } catch (error) {
+      console.error('Failed to save API keys:', error);
+      throw error;
     } finally {
       setIsSaving(false);
     }
@@ -195,6 +266,8 @@ export function ApiKeysProvider({ children }: { children: ReactNode }) {
       getKeyForUseCase,
       getProviderKeys,
       hasProviderKey,
+      setUseFreeProviders,
+      setPollinationsPreferences,
       saveKeys,
       isSaving,
     }}>
