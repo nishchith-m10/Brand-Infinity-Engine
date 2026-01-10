@@ -171,8 +171,10 @@ export class N8NClient {
     specifications: Record<string, unknown>;
     brand_id: string;
     session_id: string;
+    request_id?: string;
+    task_id?: string;
   }): Promise<{ execution_id: string; webhook_url: string }> {
-    const workflowUrl = `${this.baseUrl}/content-generation`;
+    const workflowUrl = `${this.baseUrl}/production/dispatch`;
 
     try {
       const response = await fetch(workflowUrl, {
@@ -184,6 +186,8 @@ export class N8NClient {
         body: JSON.stringify({
           trigger: 'content_generation',
           data: params,
+          request_id: params.request_id,
+          task_id: params.task_id,
           timestamp: new Date().toISOString(),
         }),
       });
@@ -217,8 +221,10 @@ export class N8NClient {
     visual_specs: Record<string, unknown>;
     brand_assets: string[];
     session_id: string;
+    request_id?: string;
+    task_id?: string;
   }): Promise<{ execution_id: string }> {
-    const workflowUrl = `${this.baseUrl}/video-production`;
+    const workflowUrl = `${this.baseUrl}/production/dispatch`;
 
     try {
       const response = await fetch(workflowUrl, {
@@ -230,6 +236,8 @@ export class N8NClient {
         body: JSON.stringify({
           trigger: 'video_production',
           data: params,
+          request_id: params.request_id,
+          task_id: params.task_id,
           timestamp: new Date().toISOString(),
         }),
       });
@@ -452,17 +460,18 @@ export class N8NClient {
 
 /**
  * Webhook endpoints for different workflows
+ * Updated to match deployed workflow paths
  */
 export const N8N_WEBHOOKS = {
-  STRATEGIST_CAMPAIGN: '/campaign-strategy',
-  STRATEGIST_BRIEF: '/strategist',
-  CONTENT_GENERATION: '/content-generation',
-  COPYWRITER_SCRIPT: '/copywriter',
-  VIDEO_PRODUCTION: '/video-production',
-  PRODUCTION_DISPATCH: '/production-dispatcher',
-  BROADCASTER_PUBLISH: '/broadcaster',
-  APPROVAL_HANDLE: '/approval-handler',
-  REVIEW_CONTENT: '/content-review',
+  STRATEGIST_CAMPAIGN: '/strategist', // Strategist_Main.json
+  STRATEGIST_BRIEF: '/strategist', // Strategist_Main.json (same workflow)
+  COPYWRITER_SCRIPT: '/copywriter', // Copywriter_Main.json
+  PRODUCTION_DISPATCH: '/production/dispatch', // Production_Dispatcher.json
+  PRODUCTION_ASSEMBLE: '/production/assemble', // Video_Assembly.json
+  PRODUCTION_DOWNLOAD: '/production/download', // Production_Downloader.json
+  BROADCASTER_PUBLISH: '/broadcast', // Broadcaster_Main.json
+  APPROVAL_HANDLE: '/campaign/approve', // Approval_Handler.json
+  REVIEW_CONTENT: '/campaign/verify', // Campaign_Verifier.json
 } as const;
 
 /**
