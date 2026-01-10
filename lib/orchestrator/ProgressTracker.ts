@@ -69,10 +69,10 @@ export class ProgressTracker {
     }
 
     // Count tasks by status
-    const completedTasks = tasks.filter((t) => t.status === 'completed').length;
-    const inProgressTasks = tasks.filter((t) => t.status === 'in_progress').length;
-    const pendingTasks = tasks.filter((t) => t.status === 'pending').length;
-    const failedTasks = tasks.filter((t) => t.status === 'failed').length;
+    const completedTasks = tasks.filter((t: { status: string }) => t.status === 'completed').length;
+    const inProgressTasks = tasks.filter((t: { status: string }) => t.status === 'in_progress').length;
+    const pendingTasks = tasks.filter((t: { status: string }) => t.status === 'pending').length;
+    const failedTasks = tasks.filter((t: { status: string }) => t.status === 'failed').length;
     const totalTasks = tasks.length;
 
     // Calculate weighted percentage based on estimated duration
@@ -84,7 +84,7 @@ export class ProgressTracker {
     const currentPhase = this.determineCurrentPhase(tasks as RequestTask[]);
 
     // Build task progress details
-    const taskProgress = tasks.map((task) => this.buildTaskProgress(task as RequestTask));
+    const taskProgress = tasks.map((task: RequestTask) => this.buildTaskProgress(task as RequestTask));
 
     return {
       percentage,
