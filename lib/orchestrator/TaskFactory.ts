@@ -4,6 +4,7 @@
 // =============================================================================
 
 import { createClient } from '@/lib/supabase/server';
+import { createAdminClient } from '@/lib/supabase/admin';
 import {
   RequestType,
   AgentRole,
@@ -213,7 +214,20 @@ export class TaskFactory {
    * @returns Promise resolving to created task records
    */
   async createTasksForRequest(request: ContentRequest): Promise<RequestTask[]> {
-    const supabase = await createClient();
+    const supabase = createAdminClient();
+
+    // If tasks already exist for this request, return them (idempotent)
+    const { data: existingTasks } = await supabase
+      .from('request_tasks')
+      .select('*')
+      .eq('request_id', request.id)
+      .order('sequence_order', { ascending: true });
+
+    if (existingTasks && existingTasks.length > 0) {
+      // Tasks already created (possibly due to concurrent orchestrator runs) - return them
+      return existingTasks as RequestTask[];
+    }
+
     const templates = this.getTemplatesForRequestType(request.request_type as RequestType);
 
     // Build the task records
@@ -221,7 +235,7 @@ export class TaskFactory {
       request_id: request.id,
       agent_role: template.agent_role,
       task_name: template.name,
-      description: template.description,
+      task_key: template.name.toLowerCase().replace(/\s+/g, '_'),
       status: 'pending',
       sequence_order: template.sequence_order,
       depends_on: [], // Will be updated after insert
@@ -230,14 +244,54 @@ export class TaskFactory {
       created_at: new Date().toISOString(),
     }));
 
-    // Insert all tasks
-    const { data: insertedTasks, error: insertError } = await supabase
-      .from('request_tasks')
-      .insert(taskRecords)
-      .select();
+    // Insert all tasks with retry/refetch on duplicate key error (race condition)
+    let insertedTasks: RequestTask[] | null = null;
+    let insertError: Error | null = null;
+    
+    try {
+      const { data, error } = await supabase
+        .from('request_tasks')
+        .insert(taskRecords)
+        .select();
 
-    if (insertError || !insertedTasks) {
-      throw new Error(`Failed to create tasks: ${insertError?.message}`);
+      if (error) {
+        insertError = error as unknown as Error;
+      } else {
+        insertedTasks = data as RequestTask[];
+      }
+    } catch (err) {
+      insertError = err as Error;
+    }
+
+    // Handle duplicate key constraint violation (23505)
+    if (insertError) {
+      const errorCode = (insertError as any)?.code;
+      const errorMessage = (insertError as any)?.message || String(insertError);
+
+      // PostgreSQL unique_violation error code
+      if (errorCode === '23505' || errorMessage.includes('duplicate key') || errorMessage.includes('unique constraint')) {
+        console.log(`[TaskFactory] Duplicate key detected for request ${request.id}, refetching existing tasks`);
+        
+        // Another process created tasks concurrently - refetch them
+        const { data: refetchedTasks, error: refetchError } = await supabase
+          .from('request_tasks')
+          .select('*')
+          .eq('request_id', request.id)
+          .order('sequence_order', { ascending: true });
+
+        if (refetchError || !refetchedTasks || refetchedTasks.length === 0) {
+          throw new Error(`Failed to refetch tasks after duplicate key error: ${refetchError?.message}`);
+        }
+
+        return refetchedTasks as RequestTask[];
+      }
+
+      // Other error - throw
+      throw new Error(`Failed to create tasks: ${errorMessage}`);
+    }
+
+    if (!insertedTasks || insertedTasks.length === 0) {
+      throw new Error('Failed to create tasks: No tasks returned from insert');
     }
 
     // Build task ID lookup by agent role
@@ -363,7 +417,7 @@ export class TaskFactory {
    * @returns Promise resolving to the next runnable task or null
    */
   async getNextRunnableTask(requestId: string): Promise<RequestTask | null> {
-    const supabase = await createClient();
+    const supabase = createAdminClient();
 
     // Get all tasks for this request
     const { data: tasks, error } = await supabase
@@ -410,7 +464,7 @@ export class TaskFactory {
    * @returns Promise resolving to true if all tasks complete
    */
   async areAllTasksComplete(requestId: string): Promise<boolean> {
-    const supabase = await createClient();
+    const supabase = createAdminClient();
 
     const { data: tasks, error } = await supabase
       .from('request_tasks')
@@ -431,7 +485,7 @@ export class TaskFactory {
    * @returns Promise resolving to true if any task failed
    */
   async hasFailedTasks(requestId: string): Promise<boolean> {
-    const supabase = await createClient();
+    const supabase = createAdminClient();
 
     const { data: tasks, error } = await supabase
       .from('request_tasks')
@@ -453,7 +507,7 @@ export class TaskFactory {
    * @returns Promise resolving to status summary
    */
   async getTaskStatusSummary(requestId: string): Promise<Record<TaskStatus, number>> {
-    const supabase = await createClient();
+    const supabase = createAdminClient();
 
     const { data: tasks, error } = await supabase
       .from('request_tasks')
@@ -486,7 +540,7 @@ export class TaskFactory {
    * @returns Promise resolving to array of tasks
    */
   async getTasksForRequest(requestId: string): Promise<RequestTask[]> {
-    const supabase = await createClient();
+    const supabase = createAdminClient();
 
     const { data: tasks, error } = await supabase
       .from('request_tasks')
@@ -552,7 +606,7 @@ export class TaskFactory {
    * @returns Promise resolving to current task or null
    */
   async getCurrentTask(requestId: string): Promise<RequestTask | null> {
-    const supabase = await createClient();
+    const supabase = createAdminClient();
 
     const { data: tasks, error } = await supabase
       .from('request_tasks')
