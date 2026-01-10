@@ -7,11 +7,13 @@
  * Matches pipeline_ui_react_skeleton.html styling and functionality.
  */
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { createClient } from '@/lib/supabase/client';
 import { ProviderSelector } from '@/components/director/provider-selector';
 import { ChatContextSelector } from '@/components/director/ChatContextSelector';
 import { Button } from '@/components/ui/button';
+import { useCampaigns } from '@/lib/hooks/use-api';
+import { useChatContext } from '@/lib/hooks/use-chat-context';
 
 interface RequestFormProps {
   onSubmit: () => void;
@@ -20,7 +22,15 @@ interface RequestFormProps {
 const PROVIDERS = {
   'video-with-vo': ['Pollo', 'Sora 2', 'Runway', 'Veo 3', 'Pika'],
   'video-no-vo': ['Pollo', 'Sora 2', 'Runway', 'Veo 3', 'Pika'],
-  image: ['NanoBanna Pro', 'Stable Diffusion'],
+  image: [
+    'Pollinations: Flux (Free)',
+    'Pollinations: Flux Realism (Free)', 
+    'Pollinations: Flux Anime (Free)',
+    'Pollinations: Flux 3D (Free)',
+    'Pollinations: Turbo (Free)',
+    'NanoBanna Pro', 
+    'Stable Diffusion'
+  ],
 };
 
 const VOICE_OPTIONS = ['ElevenLabs - Calm', 'ElevenLabs - Energetic', 'ElevenLabs - Professional'];
@@ -29,8 +39,16 @@ const STYLES = ['Realistic', 'Animated', 'Cinematic', '3D', 'Sketch'];
 const SHOT_TYPES = ['Close-up', 'Wide', 'Medium', 'POV', 'Aerial'];
 
 export default function RequestForm({ onSubmit }: RequestFormProps) {
+  // Fetch campaigns
+  const { data: campaignsData, isLoading: campaignsLoading } = useCampaigns();
+  const campaigns = Array.isArray(campaignsData) ? campaignsData : campaignsData?.data || [];
+  const activeCampaigns = campaigns.filter(c => !c.deleted_at && !['archived', 'pending_deletion'].includes(c.status));
+
+  // Use shared campaign context from ChatContextSelector
+  const { campaign: selectedCampaign, setCampaign: setContextCampaign, selectedAssets, selectedKBs } = useChatContext();
+
+  // Form state
   const [title, setTitle] = useState('Launch product reel');
-  const [campaign, setCampaign] = useState('campaign_1');
   const [type, setType] = useState<'video-with-vo' | 'video-no-vo' | 'image'>('video-with-vo');
   const [duration, setDuration] = useState(30);
   const [provider, setProvider] = useState('');
@@ -43,8 +61,15 @@ export default function RequestForm({ onSubmit }: RequestFormProps) {
   const [aspectRatio, setAspectRatio] = useState('16:9 (Landscape)');
   const [style, setStyle] = useState('Realistic');
   const [shotType, setShotType] = useState('Medium');
-  const [selectedModel, setSelectedModel] = useState('openai:gpt-4o-mini');
+  const [selectedModel, setSelectedModel] = useState('openai:gpt-5.2-pro');
   const [estimating, setEstimating] = useState(false);
+  
+  // Initialize campaign context with first active campaign on mount
+  useEffect(() => {
+    if (activeCampaigns.length > 0 && !selectedCampaign) {
+      setContextCampaign(activeCampaigns[0]);
+    }
+  }, [activeCampaigns, selectedCampaign, setContextCampaign]);
   
   // Accordion state
   const [expandedSections, setExpandedSections] = useState({
@@ -121,13 +146,32 @@ export default function RequestForm({ onSubmit }: RequestFormProps) {
       return;
     }
 
+    // Normalize provider name for Pollinations models
+    let normalizedProvider = provider;
+    let pollinationsModel: string | undefined;
+    
+    if (provider.startsWith('Pollinations:')) {
+      // Map UI provider names to model router format
+      const modelMap: Record<string, string> = {
+        'Pollinations: Flux (Free)': 'pollinations-flux',
+        'Pollinations: Flux Realism (Free)': 'pollinations-flux-realism',
+        'Pollinations: Flux Anime (Free)': 'pollinations-flux-anime',
+        'Pollinations: Flux 3D (Free)': 'pollinations-flux-3d',
+        'Pollinations: Turbo (Free)': 'pollinations-turbo',
+      };
+      normalizedProvider = modelMap[provider] || 'pollinations-flux';
+      
+      // Extract the specific pollinations model (flux, flux-realism, etc.)
+      pollinationsModel = normalizedProvider.replace('pollinations-', '');
+    }
+
     // Create request via API
     const response = await fetch('/api/v1/requests', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         brand_id: brands.id,
-        campaign_id: campaign !== 'campaign_1' ? campaign : undefined,
+        campaign_id: selectedCampaign?.id || undefined,
         title: title || 'Untitled Request',
         type: type.replace('-', '_'),
         requirements: {
@@ -137,13 +181,15 @@ export default function RequestForm({ onSubmit }: RequestFormProps) {
           style_preset: style,
           shot_type: shotType,
           voice_id: type === 'video-with-vo' ? voice : undefined,
+          pollinations_model: pollinationsModel, // Add pollinations model if using pollinations
         },
         settings: {
-          provider,
+          provider: normalizedProvider,
           tier: 'standard',
           auto_script: autoScript,
           script_text: !autoScript ? scriptText : undefined,
-          selected_kb_ids: [],
+          selected_kb_ids: selectedKBs.map(kb => kb.id),
+          selected_asset_ids: selectedAssets.map(a => a.id),
         },
       }),
     });
@@ -201,9 +247,24 @@ export default function RequestForm({ onSubmit }: RequestFormProps) {
               <div className="grid grid-cols-2 gap-1.5">
                 <div>
                   <label className="block text-[9px] font-bold text-gray-500 uppercase tracking-wider mb-0.5">Campaign</label>
-                  <select value={campaign} onChange={(e) => setCampaign(e.target.value)} className="w-full h-8 px-2.5 text-xs border border-gray-300 rounded-md focus:outline-none focus:border-indigo-600 focus:ring focus:ring-indigo-100">
-                    <option value="campaign_1">Campaign 1</option>
-                    <option value="campaign_2">Campaign 2</option>
+                  <select 
+                    value={selectedCampaign?.id || ''} 
+                    onChange={(e) => {
+                      const selected = activeCampaigns.find(c => c.id === e.target.value);
+                      if (selected) setContextCampaign(selected);
+                    }} 
+                    className="w-full h-8 px-2.5 text-xs border border-gray-300 rounded-md focus:outline-none focus:border-indigo-600 focus:ring focus:ring-indigo-100"
+                    disabled={campaignsLoading}
+                  >
+                    {campaignsLoading ? (
+                      <option value="">Loading campaigns...</option>
+                    ) : activeCampaigns.length === 0 ? (
+                      <option value="">No campaigns available</option>
+                    ) : (
+                      activeCampaigns.map(c => (
+                        <option key={c.id} value={c.id}>{c.campaign_name}</option>
+                      ))
+                    )}
                   </select>
                 </div>
                 <div>
