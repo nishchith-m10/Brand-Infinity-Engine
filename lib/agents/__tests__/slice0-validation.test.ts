@@ -376,7 +376,8 @@ describe("Slice 0: Success Criteria", () => {
   });
 
   test("✅ Test framework is configured", () => {
-    expect(jest).toBeDefined();
+    // Support both Jest and Vitest (vi) environments
+    expect(typeof jest !== 'undefined' || typeof vi !== 'undefined').toBe(true);
     expect(describe).toBeDefined();
     expect(test).toBeDefined();
     expect(expect).toBeDefined();
