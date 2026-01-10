@@ -26,7 +26,7 @@ export function CampaignSelector() {
     : (campaignsData as unknown as { data?: Campaign[] })?.data || [];
   
   // Filter to only show active campaigns
-  const activeCampaigns = campaigns;
+  const activeCampaigns = campaigns.filter(c => !c.deleted_at && !['archived', 'pending_deletion'].includes(c.status));
   
   // Auto-select first campaign if none selected and campaigns exist
   useEffect(() => {
@@ -71,19 +71,20 @@ export function CampaignSelector() {
       >
       <button
         onClick={() => setIsOpen(!isOpen)}
-          className="flex items-center gap-2 px-3 py-2 rounded-lg bg-white dark:bg-card border border-slate-200 dark:border-border hover:border-slate-300 dark:hover:border-slate-600 hover:bg-slate-50 dark:hover:bg-muted transition-colors min-w-[180px] max-w-[260px] shadow-sm"
+          className="campaign-selector-trigger flex items-center gap-2 px-3 py-2 rounded-lg bg-slate-50 text-slate-900 dark:bg-card border border-slate-300 dark:border-border hover:border-slate-400 dark:hover:border-slate-600 hover:bg-slate-100 dark:hover:bg-muted transition-colors min-w-[180px] max-w-[260px] shadow-sm"
+        style={{ color: '#334155' }}
         disabled={isSwitching}
       >
         {isSwitching ? (
           <Loader2 className="h-4 w-4 text-indigo-500 shrink-0 animate-spin" />
         ) : (
-          <FolderOpen className="h-4 w-4 text-slate-800 dark:text-slate-300 shrink-0" />
+          <FolderOpen className="h-4 w-4 text-slate-700 dark:text-slate-300 shrink-0" />
         )}
-        <span className="text-sm font-medium text-slate-800 dark:text-slate-300 truncate flex-1 text-left">
+        <span className="text-sm font-medium text-slate-900 dark:text-slate-300 truncate flex-1 text-left">
           {isSwitching ? 'Switching...' : (isLoading ? 'Loading...' : displayName)}
         </span>
         <ChevronDown 
-            className={`h-4 w-4 text-slate-800 dark:text-slate-300 shrink-0 transition-transform ml-auto ${isOpen ? 'rotate-180' : ''}`} 
+            className={`h-4 w-4 text-slate-700 dark:text-slate-300 shrink-0 transition-transform ml-auto ${isOpen ? 'rotate-180' : ''}`} 
 
         />
       </button>
@@ -99,9 +100,9 @@ export function CampaignSelector() {
           />
           
           {/* Menu */}
-          <div className="absolute top-full left-0 mt-1 w-full min-w-[250px] bg-white dark:bg-card rounded-lg shadow-lg border border-slate-200 dark:border-border z-50 py-1 max-h-[300px] overflow-y-auto">
+          <div className="absolute top-full left-0 mt-1 w-full min-w-[250px] bg-slate-50 dark:bg-card rounded-lg shadow-lg border border-gray-100 dark:border-gray-200 z-50 py-1 max-h-[300px] overflow-y-auto campaign-selector-menu">
             {activeCampaigns.length === 0 ? (
-              <div className="px-4 py-4 text-center text-sm text-slate-500 dark:text-slate-400">
+              <div className="px-4 py-4 text-center text-sm dark:text-slate-400" style={{ color: '#0f172a' }}>
                 No campaigns yet
               </div>
             ) : (
@@ -109,7 +110,8 @@ export function CampaignSelector() {
                 <button
                   key={camp.id}
                   onClick={() => handleSelect(camp as Campaign)}
-                  className="w-full flex items-center gap-2 px-4 py-2 hover:bg-slate-50 dark:hover:bg-muted transition-colors text-slate-800 dark:text-slate-300"
+                  className="w-full flex items-center gap-2 px-4 py-2 hover:bg-slate-100 dark:hover:bg-muted transition-colors dark:text-slate-300"
+                  style={{ color: '#0f172a' }}
                 >
                   <div className={`w-2 h-2 rounded-full shrink-0 ${
                     camp.status === 'active' ? 'bg-green-500' : 
@@ -117,7 +119,7 @@ export function CampaignSelector() {
                     camp.status === 'completed' ? 'bg-blue-500' : 
                     'bg-slate-300'
                   }`} />
-                  <span className="text-sm text-slate-800 dark:text-slate-300 truncate flex-1 text-left">
+                  <span className="text-sm truncate flex-1 text-left dark:text-slate-300" style={{ color: '#0f172a' }}>
                     {camp.campaign_name}
                   </span>
                   {camp.id === campaignId && (
@@ -128,12 +130,12 @@ export function CampaignSelector() {
             )}
             
             {/* Divider */}
-            <div className="border-t border-slate-100 my-1" />
+            <div className="border-t border-gray-50 dark:border-gray-200 my-1" />
             
             {/* Create New */}
             <button
               onClick={handleCreateNew}
-              className="w-full flex items-center gap-2 px-4 py-2 hover:bg-indigo-50 dark:hover:bg-indigo-950/30 transition-colors text-indigo-600 dark:text-indigo-400"
+              className="create-new-btn w-full flex items-center gap-2 px-4 py-2 hover:bg-indigo-50 dark:hover:bg-indigo-950/30 transition-colors text-indigo-600 dark:text-indigo-400"
             >
               <Plus className="h-4 w-4" />
               <span className="text-sm font-medium">Create New Campaign</span>
