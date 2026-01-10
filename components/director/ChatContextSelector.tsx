@@ -14,9 +14,11 @@ import {
   User, 
   ChevronDown, 
   Check, 
-  Loader2
+  Loader2,
+  CheckCircle2,
+  Image
 } from 'lucide-react';
-import { useChatContext, IdentityMode, KnowledgeBase } from '@/lib/hooks/use-chat-context';
+import { useChatContext, IdentityMode, KnowledgeBase, BrandAsset } from '@/lib/hooks/use-chat-context';
 import { useCampaigns } from '@/lib/hooks/use-api';
 import { Campaign } from '@/lib/hooks/use-current-campaign';
 import { Tooltip } from '@/components/ui/tooltip';
@@ -28,24 +30,34 @@ interface ChatContextSelectorProps {
 export function ChatContextSelector({ compact = false }: ChatContextSelectorProps) {
   const [campaignOpen, setCampaignOpen] = useState(false);
   const [kbOpen, setKbOpen] = useState(false);
+  const [assetsOpen, setAssetsOpen] = useState(false);
   const [identityOpen, setIdentityOpen] = useState(false);
   
   const {
     campaign,
     selectedKBs,
+    selectedAssets,
     availableKBs,
+    availableAssets,
     identityMode,
+    availableIdentity,
     isLoadingKBs,
+    isLoadingAssets,
     isLoadingIdentity,
     contextReady,
     setCampaign,
     setAvailableKBs,
+    setAvailableAssets,
     setAvailableIdentity,
     toggleKB,
+    toggleAsset,
     selectAllKBs,
+    selectAllAssets,
     clearKBs,
+    clearAssets,
     setIdentityMode,
     setLoadingKBs,
+    setLoadingAssets,
     setLoadingIdentity,
   } = useChatContext();
   
@@ -98,16 +110,42 @@ export function ChatContextSelector({ compact = false }: ChatContextSelectorProp
     }
   }, [campaign, setAvailableIdentity, setLoadingIdentity]);
   
+  // Fetch brand assets when campaign changes
+  const fetchAssets = useCallback(async () => {
+    if (!campaign) return;
+    const brandId = campaign.brand_id || '';
+    
+    setLoadingAssets(true);
+    try {
+      const res = await fetch(
+        `/api/v1/brand-assets?brand_id=${brandId}`
+      );
+      const { data, success } = await res.json();
+      if (success) {
+        // Filter to only image/logo assets for reference selection
+        const imageAssets = (data || []).filter((a: BrandAsset) => 
+          ['logo', 'product', 'other'].includes(a.asset_type) && a.file_url
+        );
+        setAvailableAssets(imageAssets);
+      }
+    } catch (err) {
+      console.error('Failed to fetch assets:', err);
+    } finally {
+      setLoadingAssets(false);
+    }
+  }, [campaign, setAvailableAssets, setLoadingAssets]);
+  
   // Trigger fetches when campaign changes
   useEffect(() => {
     if (campaign) {
       const timer = setTimeout(() => {
         fetchKBs();
         fetchIdentity();
+        fetchAssets();
       }, 300);
       return () => clearTimeout(timer);
     }
-  }, [campaign, fetchKBs, fetchIdentity]);
+  }, [campaign, fetchKBs, fetchIdentity, fetchAssets]);
   
   const handleCampaignSelect = (c: Campaign) => {
     setCampaign(c);
@@ -116,6 +154,10 @@ export function ChatContextSelector({ compact = false }: ChatContextSelectorProp
   
   const handleKBToggle = (kb: KnowledgeBase) => {
     toggleKB(kb);
+  };
+  
+  const handleAssetToggle = (asset: BrandAsset) => {
+    toggleAsset(asset);
   };
   
   const handleIdentitySelect = (mode: IdentityMode) => {
@@ -331,6 +373,109 @@ export function ChatContextSelector({ compact = false }: ChatContextSelectorProp
                     )}
                   </button>
                 ))}
+                
+                {/* Show loaded identity preview */}
+                {availableIdentity && identityMode === 'isolated' && (
+                  <div className="mt-1 pt-2 px-3 pb-2 border-t border-slate-100">
+                    <div className="flex items-start gap-1.5">
+                      <CheckCircle2 className="h-3.5 w-3.5 text-green-600 shrink-0 mt-0.5" />
+                      <div className="flex-1 min-w-0">
+                        <div className="text-xs font-medium text-green-700">Identity Loaded</div>
+                        <div className="text-[10px] text-slate-500 truncate">
+                          {availableIdentity.brand_name || 'Campaign Brand'}
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                )}
+              </div>
+            </>
+          )}
+        </div>
+      )}
+      
+      {/* Assets Selector - Fourth */}
+      {campaign && (
+        <div className="relative">
+          <button
+            onClick={() => setAssetsOpen(!assetsOpen)}
+            disabled={isLoadingAssets}
+            className="flex items-center gap-2 px-2.5 py-1.5 rounded-lg border border-slate-200 bg-white hover:bg-slate-50 transition-all text-xs font-medium text-slate-600 disabled:opacity-50"
+          >
+            {isLoadingAssets ? (
+              <Loader2 className="h-3.5 w-3.5 animate-spin" />
+            ) : (
+              <Image className="h-3.5 w-3.5" />
+            )}
+            <span>
+              {selectedAssets.length}/{availableAssets.length} Assets
+            </span>
+            <ChevronDown className={`h-3 w-3 transition-transform ${assetsOpen ? 'rotate-180' : ''}`} />
+          </button>
+          
+          {assetsOpen && (
+            <>
+              <div className="fixed inset-0 z-40" onClick={() => setAssetsOpen(false)} />
+              <div className="absolute top-full left-0 mt-1 w-72 bg-white rounded-lg shadow-lg border border-slate-200 z-50 py-1 max-h-[320px] overflow-y-auto">
+                {/* Quick actions */}
+                <div className="px-4 py-2 border-b border-slate-100 flex gap-2">
+                  <Tooltip content="Select all assets" position="bottom">
+                    <button
+                      onClick={selectAllAssets}
+                      className="text-xs text-indigo-600 hover:text-indigo-700 font-medium"
+                    >
+                      Select All
+                    </button>
+                  </Tooltip>
+                  <span className="text-slate-300">|</span>
+                  <Tooltip content="Deselect all assets" position="bottom">
+                    <button
+                      onClick={clearAssets}
+                      className="text-xs text-slate-500 hover:text-slate-700 font-medium"
+                    >
+                      Clear
+                    </button>
+                  </Tooltip>
+                </div>
+                
+                {availableAssets.length === 0 ? (
+                  <div className="px-4 py-4 text-center text-sm text-slate-500">
+                    No brand assets available
+                  </div>
+                ) : (
+                  availableAssets.map((asset) => {
+                    const isSelected = selectedAssets.some(a => a.id === asset.id);
+                    return (
+                      <button
+                        key={asset.id}
+                        onClick={() => handleAssetToggle(asset)}
+                        className="w-full flex items-center gap-2 px-4 py-2 hover:bg-slate-50 transition-colors"
+                      >
+                        <div className={`w-4 h-4 rounded border flex items-center justify-center shrink-0 ${
+                          isSelected 
+                            ? 'bg-indigo-600 border-indigo-600' 
+                            : 'border-slate-300'
+                        }`}>
+                          {isSelected && <Check className="h-3 w-3 text-white" />}
+                        </div>
+                        {/* Thumbnail */}
+                        <div className="w-8 h-8 rounded bg-slate-100 overflow-hidden shrink-0">
+                          {asset.file_url && (
+                            <img 
+                              src={asset.file_url} 
+                              alt={asset.file_name}
+                              className="w-full h-full object-cover"
+                            />
+                          )}
+                        </div>
+                        <div className="flex-1 text-left min-w-0">
+                          <div className="text-sm text-slate-700 truncate">{asset.file_name}</div>
+                          <div className="text-[10px] text-slate-400 capitalize">{asset.asset_type}</div>
+                        </div>
+                      </button>
+                    );
+                  })
+                )}
               </div>
             </>
           )}
@@ -338,7 +483,7 @@ export function ChatContextSelector({ compact = false }: ChatContextSelectorProp
       )}
       
       {/* Context Status Indicator */}
-      {contextReady && (
+      {contextReady && availableIdentity && (
         <div className="hidden sm:flex items-center gap-1.5 text-xs text-green-600 bg-green-50 px-2 py-1 rounded-full">
           <div className="w-1.5 h-1.5 rounded-full bg-green-500" />
           <span>Context Ready</span>
