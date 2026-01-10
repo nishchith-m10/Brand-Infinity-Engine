@@ -12,7 +12,7 @@ const CreateKBSchema = z.object({
   name: z.string().min(1).max(100),
   description: z.string().optional(),
   icon: z.string().default('folder'),
-  color: z.string().regex(/^#[0-9A-Fa-f]{6}$/).default('#6366F1'),
+  color: z.string().default('#6366F1'), // Accept any color format (hex, hsl, rgb)
   tags: z.array(z.string()).default([]),
   is_default: z.boolean().default(false),
 });
