@@ -1,4 +1,14 @@
-import axios, { AxiosError } from 'axios';
+import axios, { AxiosError, InternalAxiosRequestConfig } from 'axios';
+
+// Augment axios types to include metadata for request timing
+declare module 'axios' {
+  export interface InternalAxiosRequestConfig {
+    metadata?: {
+      startTime: number;
+    };
+    _retry?: number;
+  }
+}
 
 // Use relative URL so Next.js rewrites can proxy to backend
 const API_URL = process.env.NEXT_PUBLIC_API_URL || '/api/v1';
@@ -8,34 +18,102 @@ export const apiClient = axios.create({
   headers: {
     'Content-Type': 'application/json',
   },
-  timeout: 30000,
+  timeout: 60000, // Increased to 60s for slow queries
+  // Enable retry for timeout errors
+  validateStatus: (status) => status < 500, // Don't throw on 4xx errors
 });
 
-// Request interceptor for debugging
-apiClient.interceptors.request.use((config) => {
-  if (process.env.NODE_ENV === 'development') {
-    console.log(`[API] ${config.method?.toUpperCase()} ${config.url}`);
+// Request interceptor for auth and debugging
+apiClient.interceptors.request.use(
+  async (config: InternalAxiosRequestConfig) => {
+    const startTime = Date.now();
+    config.metadata = { startTime };
+
+    // Add auth header from cookies if running in browser
+    if (typeof window !== 'undefined') {
+      try {
+        // Get session from Next.js API route instead of direct Supabase call
+        // This avoids client-side auth issues
+        const sessionResp = await fetch('/api/auth/session', {
+          credentials: 'include',
+        });
+        if (sessionResp.ok) {
+          const sessionData = await sessionResp.json();
+          if (sessionData.session?.access_token) {
+            config.headers.Authorization = `Bearer ${sessionData.session.access_token}`;
+          }
+        }
+      } catch (error) {
+        // Silent fail - let the API endpoint handle missing auth
+        if (process.env.NODE_ENV === 'development') {
+          console.warn('[API] Failed to fetch session:', error);
+        }
+      }
+    }
+
+    if (process.env.NODE_ENV === 'development') {
+      console.log(`[API Request] ${config.method?.toUpperCase()} ${config.url}`);
+    }
+    return config;
+  },
+  (error) => {
+    return Promise.reject(error);
   }
-  return config;
-});
+);
 
-// Response interceptor for error handling
+// Response interceptor for error handling and retries
 apiClient.interceptors.response.use(
-  (response) => response,
-  (error: AxiosError) => {
+  (response) => {
+    // Log request duration in development
+    if (process.env.NODE_ENV === 'development' && response.config.metadata?.startTime) {
+      const duration = Date.now() - response.config.metadata.startTime;
+      if (duration > 5000) {
+        console.warn(`[API Slow Response] ${response.config.method?.toUpperCase()} ${response.config.url} took ${duration}ms`);
+      }
+    }
+    return response;
+  },
+  async (error: AxiosError) => {
+    const config = error.config as InternalAxiosRequestConfig & { _retry?: number };
+    
+    // Calculate request duration
+    const duration = config?.metadata?.startTime 
+      ? Date.now() - config.metadata.startTime 
+      : 0;
+
     if (process.env.NODE_ENV === 'development') {
       const errorDetails = {
         message: error.message,
         code: error.code,
         status: error.response?.status,
         data: error.response?.data,
-        url: error.config?.url,
-        method: error.config?.method,
+        url: config?.url,
+        method: config?.method,
+        duration: `${duration}ms`,
       };
       console.error('[API Error Detail]:', JSON.stringify(errorDetails, null, 2));
-      // Log raw error for browser inspection
-      console.error('[API Error Raw]:', error);
     }
+
+    // Retry logic for timeout errors (ECONNABORTED) - max 2 retries
+    if (error.code === 'ECONNABORTED' && config && !config._retry) {
+      config._retry = 1;
+      console.warn(`[API Retry] Retrying ${config.method?.toUpperCase()} ${config.url} after timeout (attempt 1/2)`);
+      
+      // Increase timeout for retry
+      config.timeout = 90000; // 90s for retry
+      return apiClient.request(config);
+    }
+
+    // Second retry for persistent timeouts
+    if (error.code === 'ECONNABORTED' && config?._retry === 1) {
+      config._retry = 2;
+      console.warn(`[API Retry] Final retry ${config.method?.toUpperCase()} ${config.url} after timeout (attempt 2/2)`);
+      
+      // Further increase timeout
+      config.timeout = 120000; // 120s for final retry
+      return apiClient.request(config);
+    }
+
     return Promise.reject(error);
   }
 );
