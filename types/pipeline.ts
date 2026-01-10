@@ -42,6 +42,7 @@ export type EventType =
   | 'task_started'
   | 'task_completed'
   | 'task_failed'
+  | 'task_retried'
   | 'agent_log'
   | 'provider_dispatched'
   | 'provider_completed'
