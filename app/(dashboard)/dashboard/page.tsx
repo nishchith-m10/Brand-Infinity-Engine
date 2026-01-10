@@ -98,8 +98,8 @@ export default function DashboardPage() {
                         <p className="text-sm font-medium text-slate-500">{stat.name}</p>
                         <p className="mt-1 text-3xl font-bold text-slate-800">{stat.value}</p>
                       </div>
-                      <div className="rounded-full bg-lamaSkyLight p-3 transition-colors group-hover:bg-lamaSky/10">
-                        <Icon className="h-6 w-6 text-lamaSky" />
+                    <div className="rounded-full bg-lamaPurpleLight p-3 transition-colors group-hover:bg-lamaPurple/10">
+                      <Icon className="h-6 w-6 text-lamaPurple" />
                       </div>
                     </div>
                     <div className="mt-4 flex items-center">
