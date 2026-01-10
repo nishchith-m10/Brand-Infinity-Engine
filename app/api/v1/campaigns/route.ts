@@ -26,6 +26,7 @@ export async function GET(request: NextRequest) {
     let query = supabase
       .from('campaigns')
       .select('*', { count: 'exact' })
+      .is('deleted_at', null)  // Exclude soft-deleted campaigns
       .order('created_at', { ascending: false })
       .range(offset, offset + limit - 1);
 
