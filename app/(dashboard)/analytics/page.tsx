@@ -9,6 +9,7 @@ import {
   ArrowUp,
   ArrowDown,
   Loader2,
+  TrendingUp,
 } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Select } from '@/components/ui/select';
@@ -75,36 +76,6 @@ const mockPlatformStats = [
     shares: 60,
     engagementRate: 6.7,
     posts: 2,
-  },
-];
-
-const mockTopContent = [
-  {
-    id: 'video_001',
-    name: 'Summer Product Launch',
-    platform: 'tiktok',
-    views: 28500,
-    likes: 2150,
-    engagementRate: 12.4,
-    thumbnail: null,
-  },
-  {
-    id: 'video_002',
-    name: 'Behind the Scenes',
-    platform: 'instagram_reels',
-    views: 18200,
-    likes: 1420,
-    engagementRate: 10.8,
-    thumbnail: null,
-  },
-  {
-    id: 'video_003',
-    name: 'Product Tutorial',
-    platform: 'youtube_shorts',
-    views: 15600,
-    likes: 980,
-    engagementRate: 8.5,
-    thumbnail: null,
   },
 ];
 
@@ -217,7 +188,7 @@ export default function AnalyticsPage() {
           value={overview.totalViews}
           change={overview.viewsChange}
           icon={Eye}
-          iconColor="bg-lamaSkyLight text-lamaSky"
+          iconColor="bg-lamaPurpleLight text-lamaPurple"
         />
         <StatCard
           title="Total Likes"
@@ -259,7 +230,7 @@ export default function AnalyticsPage() {
                   onClick={() => setSelectedMetric(metric.key)}
                   className={`rounded-lg px-3 py-1 text-sm font-medium transition-colors ${
                     selectedMetric === metric.key
-                      ? 'bg-lamaSkyLight text-lamaSky'
+                      ? 'bg-lamaPurpleLight text-lamaPurple'
                       : 'text-gray-500 hover:bg-gray-100'
                   }`}
                 >
@@ -284,7 +255,7 @@ export default function AnalyticsPage() {
                     >
                       <div className="relative w-full flex-1">
                         <div
-                          className="absolute bottom-0 w-full rounded-t-lg bg-lamaSky transition-all group-hover:bg-lamaSky/80"
+                          className="absolute bottom-0 w-full rounded-t-lg bg-lamaPurple transition-all group-hover:bg-lamaPurple/80"
                           style={{ height: `${height}%` }}
                         />
                         {/* Tooltip */}
@@ -417,16 +388,16 @@ export default function AnalyticsPage() {
                           </span>
                         </div>
                       </td>
-                      <td className="py-4 text-right text-gray-900">
+                      <td className="py-4 text-right text-gray-900 hover:text-lamaPurple transition-colors cursor-pointer">
                         {formatNumber(platform.views)}
                       </td>
-                      <td className="py-4 text-right text-gray-900">
+                      <td className="py-4 text-right text-gray-900 hover:text-lamaPurple transition-colors cursor-pointer">
                         {formatNumber(platform.likes)}
                       </td>
-                      <td className="py-4 text-right text-gray-900">
+                      <td className="py-4 text-right text-gray-900 hover:text-lamaPurple transition-colors cursor-pointer">
                         {formatNumber(platform.comments)}
                       </td>
-                      <td className="py-4 text-right text-gray-900">
+                      <td className="py-4 text-right text-gray-900 hover:text-lamaPurple transition-colors cursor-pointer">
                         {formatNumber(platform.shares)}
                       </td>
                       <td className="py-4 text-right">
@@ -453,46 +424,12 @@ export default function AnalyticsPage() {
         </CardHeader>
         <CardContent>
           <div className="space-y-4">
-            {mockTopContent.map((content, index) => (
-              <div
-                key={content.id}
-                className="flex items-center gap-4 rounded-lg border border-gray-200 p-4 transition-colors hover:bg-gray-50"
-              >
-                <div className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-full bg-gray-100 text-lg font-bold text-gray-600">
-                  {index + 1}
-                </div>
-                <div className="aspect-video w-24 flex-shrink-0 rounded-lg bg-gray-200" />
-                <div className="min-w-0 flex-1">
-                  <div className="flex items-center gap-2">
-                    <h3 className="font-medium text-gray-900">{content.name}</h3>
-                    <span
-                      className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-xs font-medium ${getPlatformColor(
-                        content.platform
-                      )}`}
-                    >
-                      {getPlatformIcon(content.platform)}{' '}
-                      {PLATFORM_NAMES[content.platform]}
-                    </span>
-                  </div>
-                  <div className="mt-1 flex items-center gap-4 text-sm text-gray-500">
-                    <span className="flex items-center gap-1">
-                      <Eye className="h-4 w-4" />
-                      {formatNumber(content.views)}
-                    </span>
-                    <span className="flex items-center gap-1">
-                      <Heart className="h-4 w-4" />
-                      {formatNumber(content.likes)}
-                    </span>
-                  </div>
-                </div>
-                <div className="text-right">
-                  <p className="text-lg font-bold text-green-600">
-                    {content.engagementRate}%
-                  </p>
-                  <p className="text-xs text-gray-500">Engagement</p>
-                </div>
-              </div>
-            ))}
+            {/* Empty state - no content data yet */}
+            <div className="flex flex-col items-center justify-center py-12 text-center">
+              <TrendingUp className="h-12 w-12 text-gray-300 mb-3" />
+              <p className="text-sm font-medium text-gray-600">No content data yet</p>
+              <p className="text-xs text-gray-500 mt-1">Analytics will appear as your content gets published</p>
+            </div>
           </div>
         </CardContent>
       </Card>
