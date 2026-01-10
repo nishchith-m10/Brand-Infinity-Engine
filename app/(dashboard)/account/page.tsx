@@ -183,7 +183,7 @@ export default function AccountPage() {
                 </div>
               </div>
               <div className="flex justify-end pt-4">
-                <Button onClick={handleProfileSave} disabled={isSavingProfile}>
+                <Button onClick={handleProfileSave} disabled={isSavingProfile} className="bg-lamaPurple hover:bg-lamaPurple/90 text-white">
                   {isSavingProfile ? (
                     <><Loader2 className="h-4 w-4 mr-2 animate-spin" />Saving...</>
                   ) : (
@@ -266,7 +266,7 @@ export default function AccountPage() {
                 </div>
               </div>
               <div className="flex justify-end pt-4">
-                 <Button variant="outline" onClick={handlePasswordUpdate} disabled={loading}>
+                 <Button onClick={handlePasswordUpdate} disabled={loading} className="bg-lamaPurple hover:bg-lamaPurple/90 text-white">
                    {loading ? (
                      <><Loader2 className="h-4 w-4 mr-2 animate-spin" />Updating...</>
                    ) : (
