@@ -1,5 +1,6 @@
 import useSWR from 'swr';
 import useSWRMutation from 'swr/mutation';
+import { AxiosError } from 'axios';
 import { 
   trendsApi, 
   briefsApi, 
@@ -15,12 +16,52 @@ import {
 } from '../api-client';
 
 // =============================================================================
-// Fetcher Helper
+// Fetcher Helper with Error Handling
 // =============================================================================
 
 const apiFetcher = async <T,>(fetcher: () => Promise<{ data: { data: T } }>) => {
-  const response = await fetcher();
-  return response.data.data;
+  try {
+    const response = await fetcher();
+    return response.data.data;
+  } catch (error) {
+    // Improve error messages for common issues
+    if (error instanceof AxiosError) {
+      if (error.code === 'ECONNABORTED') {
+        throw new Error(`Request timeout: The server took too long to respond. Please try again.`);
+      }
+      if (error.response?.status === 401) {
+        throw new Error(`Authentication required: Please log in again.`);
+      }
+      if (error.response?.status === 403) {
+        throw new Error(`Access denied: You don't have permission to access this resource.`);
+      }
+      if (error.response?.status >= 500) {
+        throw new Error(`Server error: ${error.response.data?.error?.message || 'Please try again later.'}`);
+      }
+    }
+    throw error;
+  }
+};
+
+// SWR default configuration
+export const swrConfig = {
+  // Don't retry on 4xx errors (client errors)
+  shouldRetryOnError: (error: Error) => {
+    if (error.message.includes('Authentication required') || 
+        error.message.includes('Access denied')) {
+      return false;
+    }
+    return true;
+  },
+  // Retry with exponential backoff
+  errorRetryCount: 3,
+  errorRetryInterval: 5000, // Start with 5s delay
+  // Dedupe requests within 2s window
+  dedupingInterval: 2000,
+  // Revalidate on focus for fresh data
+  revalidateOnFocus: true,
+  // Don't revalidate too frequently
+  revalidateOnReconnect: true,
 };
 
 // =============================================================================
@@ -145,14 +186,22 @@ export function usePublication(publicationId: string | null) {
 export function useCampaigns(params?: { status?: string; limit?: number; offset?: number }) {
   return useSWR(
     ['/campaigns', params],
-    () => apiFetcher(() => campaignsApi.list(params))
+    () => apiFetcher(() => campaignsApi.list(params)),
+    {
+      ...swrConfig,
+      // Campaigns can be slow, give it more time
+      errorRetryInterval: 10000, // 10s between retries
+      // Cache for 30s to avoid repeated slow queries
+      dedupingInterval: 30000,
+    }
   );
 }
 
 export function useCampaign(campaignId: string | null) {
   return useSWR(
     campaignId ? `/campaigns/${campaignId}` : null,
-    () => apiFetcher(() => campaignsApi.get(campaignId!))
+    () => apiFetcher(() => campaignsApi.get(campaignId!)),
+    swrConfig
   );
 }
 
