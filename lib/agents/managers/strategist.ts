@@ -22,6 +22,7 @@ export class StrategistAgent {
     task: Task;
     intent: ParsedIntent;
     brandContext?: string;
+    userId?: string; // Owner user ID for background job key retrieval
   }): Promise<{ result: unknown; success: boolean; error?: string }> {
     try {
       const systemPrompt = `You are a Brand Strategist Agent.
@@ -60,6 +61,7 @@ Provide a detailed strategic brief.`;
         ],
         temperature: AGENT_TEMPERATURES.strategist,
         maxTokens: AGENT_MAX_TOKENS.strategist,
+        userId: params.userId, // Pass userId for background job key retrieval
       });
 
       return {
