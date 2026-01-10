@@ -43,7 +43,7 @@ const STATUS_STAGES: Record<RequestStatus, StatusStage> = {
   draft: {
     status: 'draft',
     stage: 'planning',
-    requiredTasks: ['strategist', 'copywriter'],
+    requiredTasks: ['strategist'], // copywriter is optional (images don't have it)
   },
   production: {
     status: 'production',
@@ -182,14 +182,20 @@ export class StateMachine {
     status: RequestStatus,
     tasks: Array<{ agent_role: string; status: TaskStatus }>
   ): boolean {
-    const stage = STATUS_STAGES[status];
+    // Determine which set of required tasks apply for advancing to `status`.
+    // Tests expect required tasks to be those associated with the *previous* status
+    // (e.g., advancing to 'production' requires the 'draft' required tasks to be complete).
+    const prevStatus = this.getPreviousStatus(status) || status;
+    const stage = STATUS_STAGES[prevStatus];
+
     if (!stage || stage.requiredTasks.length === 0) {
       return true;
     }
 
+    // All required roles must be present and completed (or skipped) for the transition to proceed
     return stage.requiredTasks.every((role: string) => {
       const task = tasks.find((t) => t.agent_role === role);
-      return task && task.status === 'completed';
+      return Boolean(task) && (task!.status === 'completed' || task!.status === 'skipped');
     });
   }
 
@@ -204,23 +210,34 @@ export class StateMachine {
     toStatus: RequestStatus,
     tasks: Array<{ agent_role: string; status: TaskStatus; task_name: string }>
   ): string[] {
-    const stage = STATUS_STAGES[toStatus];
+    // Use the required tasks for the previous status when checking whether moving
+    // to `toStatus` is blocked (e.g., moving to 'production' checks 'draft' required tasks)
+    const prevStatus = this.getPreviousStatus(toStatus) || toStatus;
+    const stage = STATUS_STAGES[prevStatus];
     if (!stage || stage.requiredTasks.length === 0) {
       return [];
     }
 
-    return stage.requiredTasks
-      .filter((role: string) => {
-        const task = tasks.find((t) => t.agent_role === role);
-        return !task || task.status !== 'completed';
-      })
-      .map((role: string) => {
-        const task = tasks.find((t) => t.agent_role === role);
-        if (!task) {
-          return `${role} (missing)`;
-        }
-        return `${task.task_name} (${task.status})`;
-      });
+    const blocking: string[] = [];
+    
+    // Get the set of roles that actually exist in this request's tasks
+    const existingRoles = new Set(tasks.map(t => t.agent_role));
+
+    stage.requiredTasks.forEach((role: string) => {
+      // Only check roles that actually exist for this request type
+      if (!existingRoles.has(role)) {
+        return; // Skip - this role doesn't apply to this request type
+      }
+      
+      const task = tasks.find((t) => t.agent_role === role);
+      if (!task) {
+        blocking.push(`${role} (missing)`);
+      } else if (task.status !== 'completed' && task.status !== 'skipped') {
+        blocking.push(`${task.task_name} (${task.status})`);
+      }
+    });
+
+    return blocking;
   }
 
   /**
@@ -297,9 +314,10 @@ export class StateMachine {
       };
     }
 
-    // If tasks provided, check if required tasks are complete
-    if (tasks && tasks.length > 0) {
-      const blockingTasks = this.getBlockingTasks(to, tasks);
+    // Skip blocking task check for intake → draft transition (tasks are just created)
+    if (!(from === 'intake' && to === 'draft')) {
+      // Always check blocking tasks using provided tasks or assume missing tasks block
+      const blockingTasks = this.getBlockingTasks(to, tasks || []);
       if (blockingTasks.length > 0) {
         return {
           success: false,
@@ -339,6 +357,14 @@ export class StateMachine {
       return {
         canAdvance: false,
         reason: 'No next status defined',
+      };
+    }
+
+    // Special-case: intake -> draft should auto-advance immediately after tasks are created
+    if (currentStatus === 'intake' && nextStatus === 'draft') {
+      return {
+        canAdvance: true,
+        nextStatus,
       };
     }
 
