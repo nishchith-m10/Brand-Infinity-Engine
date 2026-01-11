@@ -17,6 +17,11 @@ const GenerateImageSchema = z.object({
   campaign_id: z.string().uuid().optional(),
   brand_id: z.string().uuid().optional(),
   use_brand_context: z.boolean().default(true),
+  pollinations: z.object({
+    imageModel: z.string().optional(),
+    nologo: z.boolean().optional(),
+    enhance: z.boolean().optional(),
+  }).optional(),
 });
 
 /**
