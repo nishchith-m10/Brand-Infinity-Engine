@@ -219,7 +219,7 @@ export class StrategistAdapter {
           .in('id', assetIds);
 
         if (!error && assets?.length) {
-          const assetContext = assets.map(a => 
+          const assetContext = assets.map((a: { asset_type: string; file_name: string; file_url: string }) => 
             `- ${a.asset_type}: ${a.file_name} (URL: ${a.file_url})`
           ).join('\n');
           brandElements.push(`\nReference Brand Assets:\n${assetContext}`);
