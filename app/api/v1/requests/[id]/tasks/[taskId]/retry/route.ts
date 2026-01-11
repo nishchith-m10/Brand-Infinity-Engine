@@ -36,9 +36,9 @@ import { eventLogger } from '@/lib/orchestrator/EventLogger';
  */
 export async function POST(
   request: NextRequest,
-  { params }: { params: { id: string; taskId: string } } // removed Promise wrapper
+  { params }: { params: Promise<{ id: string; taskId: string }> }
 ) {
-  const { id: requestId, taskId } = params;
+  const { id: requestId, taskId } = await params;
 
   // Parse request body
   let force = false;
