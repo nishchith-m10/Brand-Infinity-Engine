@@ -103,7 +103,7 @@ export async function POST(request: NextRequest) {
       .order('created_at', { ascending: true })
       .limit(20); // Last 20 messages for context
 
-    const conversationHistory = (historyMessages || []).map(m => ({
+    const conversationHistory = (historyMessages || []).map((m: { role: string; content: string }) => ({
       role: m.role as 'user' | 'assistant',
       content: m.content,
     }));
