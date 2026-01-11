@@ -13,7 +13,7 @@
  * - Drag-and-drop (future enhancement)
  */
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { createClient } from '@/lib/supabase/client';
 import RequestCard from './RequestCard';
 import RequestDetailModal from './RequestDetailModal';
@@ -42,8 +42,9 @@ export default function PipelineBoard() {
   const [selectedRequest, setSelectedRequest] = useState<ContentRequest | null>(null);
   const [loading, setLoading] = useState(true);
   const [filter, setFilter] = useState<'all' | 'mine'>('all');
+  const initialLoadRef = useRef(true);
 
-  const loadRequests = async () => {
+  const loadRequests = useCallback(async () => {
     const supabase = createClient();
     
     let query = supabase
@@ -60,20 +61,49 @@ export default function PipelineBoard() {
 
     const { data: requests } = await query;
 
-    if (requests) {
-      const grouped = columns.map(col => ({
+    if (requests && Array.isArray(requests)) {
+      // Create initial columns structure
+      const initialColumns: ColumnData[] = [
+        { id: 'intake', title: 'Intake', color: 'hsl(var(--primary))', requests: [] },
+        { id: 'draft', title: 'Draft', color: 'hsl(var(--blue))', requests: [] },
+        { id: 'production', title: 'Production', color: 'hsl(var(--orange))', requests: [] },
+        { id: 'qa', title: 'QA', color: 'hsl(var(--lama-purple))', requests: [] },
+        { id: 'approval', title: 'Approval', color: 'hsl(var(--teal))', requests: [] },
+        { id: 'published', title: 'Published', color: 'hsl(var(--success))', requests: [] },
+      ];
+      
+      const grouped = initialColumns.map(col => ({
         ...col,
-        requests: requests.filter(r => r.status === col.id),
+        requests: requests.filter((r: ContentRequest) => r.status === col.id),
       }));
-      setColumns(grouped);
+      return grouped;
     }
+    return null;
+  }, [filter]);
 
+  const updateColumns = useCallback((newColumns: ColumnData[] | null) => {
+    if (newColumns) {
+      setColumns(newColumns);
+    }
     setLoading(false);
-  };
+  }, []);
 
   useEffect(() => {
-    loadRequests();
+    const fetchData = async () => {
+      const newColumns = await loadRequests();
+      updateColumns(newColumns);
+    };
 
+    if (initialLoadRef.current) {
+      initialLoadRef.current = false;
+      fetchData();
+    } else {
+      // Only reload when filter changes after initial load
+      fetchData();
+    }
+  }, [filter, loadRequests, updateColumns]);
+
+  useEffect(() => {
     // Subscribe to real-time updates
     const supabase = createClient();
     const channel = supabase
@@ -85,8 +115,9 @@ export default function PipelineBoard() {
           schema: 'public',
           table: 'content_requests',
         },
-        () => {
-          loadRequests();
+        async () => {
+          const newColumns = await loadRequests();
+          updateColumns(newColumns);
         }
       )
       .subscribe();
@@ -94,7 +125,7 @@ export default function PipelineBoard() {
     return () => {
       supabase.removeChannel(channel);
     };
-  }, [filter]);
+  }, [loadRequests, updateColumns]);
 
   if (loading) {
     return (
