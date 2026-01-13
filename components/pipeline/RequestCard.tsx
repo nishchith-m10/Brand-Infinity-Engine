@@ -72,7 +72,7 @@ export default function RequestCard({ request, onClick }: RequestCardProps) {
         </div>
 
         {/* User Avatar */}
-        <div className="w-6 h-6 rounded-full bg-gradient-to-br from-orange-400 to-orange-600" />
+        <div className="w-6 h-6 rounded-full bg-linear-to-br from-orange-400 to-orange-600" />
       </div>
     </div>
   );

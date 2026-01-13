@@ -35,16 +35,16 @@ const iconMap: Record<string, React.ComponentType<{ className?: string; style?: 
   'trending-up': TrendingUp,
 };
 
-// Color presets for KB colors
+// Color presets for KB colors (using Tailwind design tokens)
 const colorPresets = [
-  '#6366F1', // Indigo
-  '#8B5CF6', // Purple
-  '#EC4899', // Pink
-  '#EF4444', // Red
-  '#F59E0B', // Amber
-  '#10B981', // Emerald
-  '#3B82F6', // Blue
-  '#6B7280', // Gray
+  'hsl(var(--primary))', // Primary (Indigo)
+  'hsl(var(--lama-purple))', // Purple
+  'hsl(var(--pink))', // Pink
+  'hsl(var(--destructive))', // Red
+  'hsl(var(--amber))', // Amber
+  'hsl(var(--success))', // Emerald
+  'hsl(var(--blue))', // Blue
+  'hsl(var(--muted-foreground))', // Gray
 ];
 
 interface KnowledgeBase {
@@ -265,25 +265,29 @@ export function KBManager({ brandId, campaignId, onKBSelect }: KBManagerProps) {
                     </Tooltip>
                     {!kb.is_core && (
                       <>
-                        <button
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            setEditingKB(kb);
-                            setShowCreateModal(true);
-                          }}
-                          className="p-1.5 rounded-md text-slate-400 hover:text-slate-600 hover:bg-slate-100"
-                        >
-                          <Pencil className="h-4 w-4" />
-                        </button>
-                        <button
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            handleDeleteClick(kb);
-                          }}
-                          className="p-1.5 rounded-md text-slate-400 hover:text-red-500 hover:bg-red-50"
-                        >
-                          <Trash2 className="h-4 w-4" />
-                        </button>
+                        <Tooltip content="Edit knowledge base" position="top">
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setEditingKB(kb);
+                              setShowCreateModal(true);
+                            }}
+                            className="p-1.5 rounded-md text-slate-400 hover:text-slate-600 hover:bg-slate-100"
+                          >
+                            <Pencil className="h-4 w-4" />
+                          </button>
+                        </Tooltip>
+                        <Tooltip content="Delete knowledge base" position="top">
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handleDeleteClick(kb);
+                            }}
+                            className="p-1.5 rounded-md text-slate-400 hover:text-red-500 hover:bg-red-50"
+                          >
+                            <Trash2 className="h-4 w-4" />
+                          </button>
+                        </Tooltip>
                       </>
                     )}
                   </div>

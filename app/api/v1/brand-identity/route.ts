@@ -95,10 +95,9 @@ export async function GET(request: NextRequest) {
     const message = error instanceof Error ? error.message : 'Unknown error';
     console.error('[API] Brand identity GET error:', message);
     return NextResponse.json({
-      success: true,
-      data: null,
-      meta: { source: 'error', mode: 'default' },
-    });
+      success: false,
+      error: { code: 'INTERNAL_ERROR', message: 'Failed to fetch brand identity' },
+    }, { status: 500 });
   }
 }
 

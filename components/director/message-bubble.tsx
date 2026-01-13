@@ -22,7 +22,7 @@ export function MessageBubble({ message, isPending = false }: MessageBubbleProps
   return (
     <div className={`flex gap-3 ${isUser ? 'flex-row-reverse' : 'flex-row'} ${isPending ? 'opacity-70' : ''}`}>
       {/* Avatar */}
-      <div className={`flex-shrink-0 w-8 h-8 rounded-full flex items-center justify-center ${
+      <div className={`shrink-0 w-8 h-8 rounded-full flex items-center justify-center ${
         isUser ? 'bg-blue-600' : isSystem ? 'bg-gray-400' : 'bg-purple-600'
       }`}>
         {isUser ? (
@@ -41,7 +41,7 @@ export function MessageBubble({ message, isPending = false }: MessageBubbleProps
             ? 'bg-gray-100 text-gray-900'
             : 'bg-gray-100 text-gray-900'
         }`}>
-          <div className="text-sm whitespace-pre-wrap break-words">
+          <div className="text-sm whitespace-pre-wrap wrap-break-word">
             {message.content}
           </div>
           

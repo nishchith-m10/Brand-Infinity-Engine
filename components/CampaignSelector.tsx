@@ -101,7 +101,7 @@ export function CampaignSelector() {
           {/* Menu */}
           <div className="absolute top-full left-0 mt-1 w-full min-w-[250px] bg-white dark:bg-card rounded-lg shadow-lg border border-slate-200 dark:border-border z-50 py-1 max-h-[300px] overflow-y-auto">
             {activeCampaigns.length === 0 ? (
-              <div className="px-3 py-4 text-center text-sm text-slate-500 dark:text-slate-400">
+              <div className="px-4 py-4 text-center text-sm text-slate-500 dark:text-slate-400">
                 No campaigns yet
               </div>
             ) : (
@@ -109,7 +109,7 @@ export function CampaignSelector() {
                 <button
                   key={camp.id}
                   onClick={() => handleSelect(camp as Campaign)}
-                  className="w-full flex items-center gap-2 px-3 py-2 hover:bg-slate-50 dark:hover:bg-muted transition-colors text-slate-800 dark:text-slate-300"
+                  className="w-full flex items-center gap-2 px-4 py-2 hover:bg-slate-50 dark:hover:bg-muted transition-colors text-slate-800 dark:text-slate-300"
                   style={{ color: 'rgb(var(--foreground-rgb))', opacity: 1 }}
                 >
                   <div className={`w-2 h-2 rounded-full shrink-0 ${
@@ -134,7 +134,7 @@ export function CampaignSelector() {
             {/* Create New */}
             <button
               onClick={handleCreateNew}
-              className="w-full flex items-center gap-2 px-3 py-2 hover:bg-indigo-50 dark:hover:bg-indigo-950/30 transition-colors text-indigo-600 dark:text-indigo-400"
+              className="w-full flex items-center gap-2 px-4 py-2 hover:bg-indigo-50 dark:hover:bg-indigo-950/30 transition-colors text-indigo-600 dark:text-indigo-400"
             >
               <Plus className="h-4 w-4" />
               <span className="text-sm font-medium">Create New Campaign</span>
