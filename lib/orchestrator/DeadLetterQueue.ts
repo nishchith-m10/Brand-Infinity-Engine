@@ -151,7 +151,7 @@ export class DeadLetterQueue {
       .eq('event_type', 'task_failed')
       .order('created_at', { ascending: true });
 
-    const errorHistory = (failureEvents || []).map((event, index) => ({
+    const errorHistory = (failureEvents || []).map((event: any, index: number) => ({
       attempt: index + 1,
       error: event.description,
       timestamp: event.created_at,
@@ -210,16 +210,16 @@ export class DeadLetterQueue {
 
     // Parse DLQ entries from event metadata
     let entries = events
-      .map(event => event.metadata?.dlq_entry as DLQEntry)
-      .filter(entry => entry);
+      .map((event: any) => event.metadata?.dlq_entry as DLQEntry)
+      .filter((entry: any) => entry);
 
     // Apply filters
     if (filters?.resolution_status) {
-      entries = entries.filter(e => e.resolution_status === filters.resolution_status);
+      entries = entries.filter((e: any) => e.resolution_status === filters.resolution_status);
     }
 
     if (filters?.agent_role) {
-      entries = entries.filter(e => e.agent_role === filters.agent_role);
+      entries = entries.filter((e: any) => e.agent_role === filters.agent_role);
     }
 
     return entries;
