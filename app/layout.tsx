@@ -22,7 +22,7 @@ export default async function RootLayout({
   const themeCookie = cookieStore.get('theme')?.value ?? null;
 
   return (
-    <html lang="en" className={themeCookie ?? undefined} style={themeCookie ? { colorScheme: themeCookie === 'dark' ? 'dark' : 'light' } : undefined}>
+    <html lang="en" className={themeCookie ?? undefined} style={themeCookie ? { colorScheme: themeCookie === 'dark' ? 'dark' : 'light' } : undefined} suppressHydrationWarning>
       <head>
         <script dangerouslySetInnerHTML={{ __html: `(function() {
           try {
