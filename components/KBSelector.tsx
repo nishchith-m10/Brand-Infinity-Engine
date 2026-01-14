@@ -114,7 +114,16 @@ export function KBSelector({ brandId, selectedIds, onChange, disabled }: KBSelec
       {/* Dropdown */}
       {open && (
         <>
-          <div className="fixed inset-0 z-40" onClick={() => setOpen(false)} />
+          <div 
+            className="fixed inset-0 z-40" 
+            onClick={() => setOpen(false)}
+            onKeyDown={(e) => {
+              if (e.key === 'Escape') {
+                setOpen(false);
+              }
+            }}
+            aria-hidden="true"
+          />
           <div className="absolute z-50 w-full mt-1 bg-white border border-slate-200 rounded-lg shadow-lg max-h-64 overflow-auto">
             {kbs.map((kb) => {
               const isSelected = selectedIds.includes(kb.id);
