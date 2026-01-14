@@ -1,5 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createAdminClient } from '@/lib/supabase/admin';
+import { CreatePublicationSchema } from '@/lib/validations/api-schemas';
+import { validationErrorResponse, errorResponse, successResponse } from '@/lib/api/response';
+import { ErrorCodes } from '@/lib/api/error-codes';
 
 // =============================================================================
 // GET /api/v1/publications - List platform posts
@@ -31,23 +34,19 @@ export async function GET(request: NextRequest) {
 
     if (error) {
       console.error('[API] Publications GET error:', error);
-      return NextResponse.json(
-        { success: false, error: { code: 'DB_ERROR', message: error.message } },
-        { status: 500 }
-      );
+      return errorResponse(ErrorCodes.DATABASE_ERROR, error.message);
     }
 
+    // Return data with meta information included in the response
     return NextResponse.json({
       success: true,
       data: data || [],
-      meta: { count: count || 0, limit, offset, timestamp: new Date().toISOString() },
+      meta: { count: count || 0, limit, offset },
+      timestamp: new Date().toISOString(),
     });
   } catch (error) {
     console.error('[API] Publications GET unexpected error:', error);
-    return NextResponse.json(
-      { success: false, error: { code: 'INTERNAL_ERROR', message: 'Internal server error' } },
-      { status: 500 }
-    );
+    return errorResponse(ErrorCodes.INTERNAL_ERROR, 'Internal server error');
   }
 }
 
@@ -59,19 +58,19 @@ export async function POST(request: NextRequest) {
     const supabase = createAdminClient();
     const body = await request.json();
 
-    // Validate required fields
-    if (!body.variant_id || !body.scheduled_time) {
-      return NextResponse.json(
-        { success: false, error: { code: 'VALIDATION_ERROR', message: 'variant_id and scheduled_time are required' } },
-        { status: 400 }
-      );
+    // Validate request body
+    const validation = CreatePublicationSchema.safeParse(body);
+    if (!validation.success) {
+      return validationErrorResponse(validation.error);
     }
+
+    const { variant_id, scheduled_time, platform, caption, hashtags } = validation.data;
 
     // Verify variant exists
     const { data: variant, error: variantError } = await supabase
       .from('platform_variants')
       .select('*')
-      .eq('variant_id', body.variant_id)
+      .eq('variant_id', variant_id)
       .single();
 
     if (variantError && variantError.code !== 'PGRST116') {
@@ -82,36 +81,29 @@ export async function POST(request: NextRequest) {
     const { data: post, error } = await supabase
       .from('platform_posts')
       .insert({
-        variant_id: body.variant_id,
-        platform: body.platform || variant?.platform || 'unknown',
+        variant_id,
+        platform: platform || variant?.platform || 'unknown',
         status: 'scheduled',
-        scheduled_time: body.scheduled_time,
-        caption: body.caption || '',
-        hashtags: body.hashtags || [],
+        scheduled_time,
+        caption: caption || '',
+        hashtags: hashtags || [],
       })
       .select()
       .single();
 
     if (error) {
       console.error('[API] Publications POST error:', error);
-      return NextResponse.json(
-        { success: false, error: { code: 'DB_ERROR', message: error.message } },
-        { status: 500 }
-      );
+      return errorResponse(ErrorCodes.DATABASE_ERROR, error.message);
     }
 
     return NextResponse.json({
       success: true,
       data: post,
       message: 'Post scheduled',
-      meta: { timestamp: new Date().toISOString() },
+      timestamp: new Date().toISOString(),
     }, { status: 201 });
   } catch (error) {
     console.error('[API] Publications POST unexpected error:', error);
-    return NextResponse.json(
-      { success: false, error: { code: 'INTERNAL_ERROR', message: 'Internal server error' } },
-      { status: 500 }
-    );
+    return errorResponse(ErrorCodes.INTERNAL_ERROR, 'Internal server error');
   }
 }
-
