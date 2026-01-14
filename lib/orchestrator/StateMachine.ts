@@ -43,7 +43,7 @@ const STATUS_STAGES: Record<RequestStatus, StatusStage> = {
   draft: {
     status: 'draft',
     stage: 'planning',
-    requiredTasks: ['strategist'], // copywriter is optional (images don't have it)
+    requiredTasks: ['strategist', 'copywriter'],
   },
   production: {
     status: 'production',
@@ -192,10 +192,10 @@ export class StateMachine {
       return true;
     }
 
-    // All required roles must be present and completed (or skipped) for the transition to proceed
+    // All required roles must be present and completed for the transition to proceed
     return stage.requiredTasks.every((role: string) => {
       const task = tasks.find((t) => t.agent_role === role);
-      return Boolean(task) && (task!.status === 'completed' || task!.status === 'skipped');
+      return Boolean(task) && task!.status === 'completed';
     });
   }
 
@@ -219,20 +219,12 @@ export class StateMachine {
     }
 
     const blocking: string[] = [];
-    
-    // Get the set of roles that actually exist in this request's tasks
-    const existingRoles = new Set(tasks.map(t => t.agent_role));
 
     stage.requiredTasks.forEach((role: string) => {
-      // Only check roles that actually exist for this request type
-      if (!existingRoles.has(role)) {
-        return; // Skip - this role doesn't apply to this request type
-      }
-      
       const task = tasks.find((t) => t.agent_role === role);
       if (!task) {
         blocking.push(`${role} (missing)`);
-      } else if (task.status !== 'completed' && task.status !== 'skipped') {
+      } else if (task.status !== 'completed') {
         blocking.push(`${task.task_name} (${task.status})`);
       }
     });
