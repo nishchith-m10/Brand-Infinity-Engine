@@ -57,6 +57,8 @@ export function getStageForStatus(
     case 'published':
     case 'cancelled':
       return 'done';
+    default:
+      return 'planning';
   }
 }
 

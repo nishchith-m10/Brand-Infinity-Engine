@@ -303,12 +303,61 @@ export class AgentOrchestrator {
         }
 
         case 'producer': {
-          return await this.producer.executeTask({
+          // 1. Create production plan
+          const planResult = await this.producer.executeTask({
             task,
             intent,
             previousResults,
             brandContext,
           });
+
+          if (!planResult.success) return planResult;
+
+          // 2. Trigger background workflow (n8n)
+          try {
+            const workflowType = intent.content_type === 'video' ? 'video_production' : 'content_generation';
+            
+            // Extract data for workflow
+            const brief = (previousResults?.find(r => (r as { type?: string })?.type === 'strategic_brief') as { content?: string } | undefined)?.content || '';
+            const script = (previousResults?.find(r => (r as { type?: string })?.type === 'script') as { content?: string } | undefined)?.content || '';
+            
+            const workflowData = workflowType === 'video_production' 
+                ? {
+                    script,
+                    visual_specs: (planResult.result as any)?.plan || {},
+                    brand_assets: [], // TODO: Extract from brandContext
+                }
+                : {
+                    content_type: intent.content_type || 'unknown',
+                    brief,
+                    specifications: (planResult.result as any)?.plan || {},
+                    brand_id: brandContext || 'unknown',
+                };
+
+            const workflowResult = await this.producer.triggerN8NWorkflow({
+              workflowType,
+              data: workflowData,
+              sessionId: this.currentPlanId || 'unknown'
+            });
+
+            return {
+              success: true,
+              result: {
+                ...planResult.result as object,
+                executionId: workflowResult.execution_id,
+                status: 'background_processing',
+                workflowType
+              }
+            };
+          } catch (error) {
+            console.error('[Orchestrator] Failed to trigger background workflow:', error);
+            // Return success with plan but error note, or fail? 
+            // For now, fail the task if background delegation fails
+            return {
+              success: false,
+              error: `Background delegation failed: ${error instanceof Error ? error.message : 'Unknown error'}`
+            };
+          }
         }
 
         default:
