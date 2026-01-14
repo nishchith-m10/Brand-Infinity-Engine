@@ -1,5 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createAdminClient } from '@/lib/supabase/admin';
+import { CreateVariantSchema } from '@/lib/validations/api-schemas';
+import { validationErrorResponse, errorResponse } from '@/lib/api/response';
+import { ErrorCodes } from '@/lib/api/error-codes';
 
 // =============================================================================
 // GET /api/v1/variants - Get platform variants for distribution
@@ -28,10 +31,7 @@ export async function GET(request: NextRequest) {
 
     if (error) {
       console.error('[API] Variants GET error:', error);
-      return NextResponse.json(
-        { success: false, error: { code: 'DB_ERROR', message: error.message } },
-        { status: 500 }
-      );
+      return errorResponse(ErrorCodes.DATABASE_ERROR, error.message);
     }
 
     return NextResponse.json({
@@ -41,10 +41,7 @@ export async function GET(request: NextRequest) {
     });
   } catch (error) {
     console.error('[API] Variants GET unexpected error:', error);
-    return NextResponse.json(
-      { success: false, error: { code: 'INTERNAL_ERROR', message: 'Internal server error' } },
-      { status: 500 }
-    );
+    return errorResponse(ErrorCodes.INTERNAL_ERROR, 'Internal server error');
   }
 }
 
@@ -54,15 +51,14 @@ export async function GET(request: NextRequest) {
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
-    const { video_id, platforms } = body;
-
-    if (!video_id || !platforms || !Array.isArray(platforms)) {
-      return NextResponse.json(
-        { success: false, error: { code: 'INVALID_REQUEST', message: 'video_id and platforms[] required' } },
-        { status: 400 }
-      );
+    
+    // Validate request body
+    const validation = CreateVariantSchema.safeParse(body);
+    if (!validation.success) {
+      return validationErrorResponse(validation.error);
     }
 
+    const { video_id, platforms } = validation.data;
     const supabase = createAdminClient();
 
     // Create variant records for each platform
@@ -80,10 +76,7 @@ export async function POST(request: NextRequest) {
 
     if (error) {
       console.error('[API] Variants POST error:', error);
-      return NextResponse.json(
-        { success: false, error: { code: 'DB_ERROR', message: error.message } },
-        { status: 500 }
-      );
+      return errorResponse(ErrorCodes.DATABASE_ERROR, error.message);
     }
 
     return NextResponse.json({
@@ -93,9 +86,6 @@ export async function POST(request: NextRequest) {
     });
   } catch (error) {
     console.error('[API] Variants POST unexpected error:', error);
-    return NextResponse.json(
-      { success: false, error: { code: 'INTERNAL_ERROR', message: 'Internal server error' } },
-      { status: 500 }
-    );
+    return errorResponse(ErrorCodes.INTERNAL_ERROR, 'Internal server error');
   }
 }
