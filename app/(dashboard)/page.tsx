@@ -123,14 +123,14 @@ export default function DashboardPage() {
                  <div className="flex-1 w-full min-h-0">
                     <ResponsiveContainer width="100%" height="100%">
                       <LineChart data={trends}>
-                        <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" />
-                        <XAxis dataKey="date" stroke="#94a3b8" fontSize={12} tickLine={false} axisLine={false} />
-                        <YAxis stroke="#94a3b8" fontSize={12} tickLine={false} axisLine={false} />
+                        <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
+                        <XAxis dataKey="date" stroke="hsl(var(--muted-foreground))" fontSize={12} tickLine={false} axisLine={false} />
+                        <YAxis stroke="hsl(var(--muted-foreground))" fontSize={12} tickLine={false} axisLine={false} />
                         <Tooltip 
-                          contentStyle={{ background: 'var(--tooltip-bg, rgba(255, 255, 255, 0.95))', borderRadius: '12px', border: '1px solid var(--tooltip-border, #e2e8f0)', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)', color: 'var(--tooltip-text, #1e293b)' }}
+                          contentStyle={{ background: 'hsl(var(--card))', borderRadius: '12px', border: '1px solid hsl(var(--border))', boxShadow: '0 4px 6px -1px hsl(var(--foreground) / 0.1)', color: 'hsl(var(--foreground))' }}
                         />
-                        <Line type="monotone" dataKey="views" stroke="#C3EBFA" strokeWidth={3} dot={{ r: 4, fill: "#C3EBFA" }} activeDot={{ r: 6 }} />
-                        <Line type="monotone" dataKey="engagement" stroke="#FAE27C" strokeWidth={3} dot={{ r: 4, fill: "#FAE27C" }} />
+                        <Line type="monotone" dataKey="views" stroke="hsl(var(--primary))" strokeWidth={3} dot={{ r: 4, fill: "hsl(var(--primary))" }} activeDot={{ r: 6 }} />
+                        <Line type="monotone" dataKey="engagement" stroke="hsl(var(--lamaSky))" strokeWidth={3} dot={{ r: 4, fill: "hsl(var(--lamaSky))" }} />
                       </LineChart>
                     </ResponsiveContainer>
                  </div>
