@@ -77,13 +77,14 @@ export function CampaignSelector() {
         {isSwitching ? (
           <Loader2 className="h-4 w-4 text-indigo-500 shrink-0 animate-spin" />
         ) : (
-          <FolderOpen className="h-4 w-4 text-slate-500 shrink-0" />
+          <FolderOpen className="h-4 w-4 dark:text-slate-300 shrink-0" style={{ color: 'black' }} />
         )}
-        <span className="text-sm font-medium text-slate-800 dark:text-slate-300 truncate flex-1 text-left">
+        <span className="text-sm font-medium dark:text-slate-300 truncate flex-1 text-left" style={{ color: 'black' }}>
           {isSwitching ? 'Switching...' : (isLoading ? 'Loading...' : displayName)}
         </span>
         <ChevronDown 
-            className={`h-4 w-4 text-slate-400 shrink-0 transition-transform ml-auto ${isOpen ? 'rotate-180' : ''}`} 
+            className={`h-4 w-4 dark:text-slate-300 shrink-0 transition-transform ml-auto ${isOpen ? 'rotate-180' : ''}`}
+            style={{ color: 'black' }}
         />
       </button>
       </Tooltip>
@@ -108,7 +109,8 @@ export function CampaignSelector() {
                 <button
                   key={camp.id}
                   onClick={() => handleSelect(camp as Campaign)}
-                  className="w-full flex items-center gap-2 px-3 py-2 hover:bg-slate-50 dark:hover:bg-muted transition-colors"
+                  className="w-full flex items-center gap-2 px-3 py-2 hover:bg-slate-50 dark:hover:bg-muted transition-colors dark:text-slate-300"
+                  style={{ color: 'black' }}
                 >
                   <div className={`w-2 h-2 rounded-full shrink-0 ${
                     camp.status === 'active' ? 'bg-green-500' : 
@@ -116,7 +118,7 @@ export function CampaignSelector() {
                     camp.status === 'completed' ? 'bg-blue-500' : 
                     'bg-slate-300'
                   }`} />
-                  <span className="text-sm text-slate-800 dark:text-slate-300 truncate flex-1 text-left">
+                  <span className="text-sm dark:text-slate-300 truncate flex-1 text-left" style={{ color: 'black' }}>
                     {camp.campaign_name}
                   </span>
                   {camp.id === campaignId && (
