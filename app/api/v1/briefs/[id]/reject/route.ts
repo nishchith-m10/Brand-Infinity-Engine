@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createAdminClient } from '@/lib/supabase/admin';
+import { RejectResourceSchema, validateRequest } from '@/lib/validations/api-schemas';
 
 // =============================================================================
 // POST /api/v1/briefs/[id]/reject - Reject a creative brief
