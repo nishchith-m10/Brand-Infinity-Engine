@@ -1,6 +1,21 @@
 import { NextResponse } from 'next/server';
+import { errorResponse } from '@/lib/api/response';
+import { ErrorCodes } from '@/lib/api/error-codes';
+import { logger } from '@/lib/monitoring/logger';
 
-// Debug endpoint removed - keep a harmless stub to avoid 404 noise in logs
+/**
+ * Debug endpoint - DISABLED IN PRODUCTION
+ * Returns 404 to prevent information disclosure
+ */
 export async function GET() {
-  return NextResponse.json({ success: false, error: 'Not found' }, { status: 404 });
+  // Log access attempt for security monitoring
+  if (process.env.NODE_ENV === 'production') {
+    logger.warn('DebugRoute', 'Production access attempt to debug/session endpoint', {
+      route: '/api/debug/session',
+      environment: process.env.NODE_ENV,
+      timestamp: new Date().toISOString(),
+    });
+  }
+  
+  return errorResponse(ErrorCodes.NOT_FOUND, 'Not found', 404);
 }
