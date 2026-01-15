@@ -1,5 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createAdminClient } from '@/lib/supabase/admin';
+import { successResponse, errorResponse } from '@/lib/api/response';
+import { ErrorCodes } from '@/lib/api/error-codes';
 
 // =============================================================================
 // GET /api/v1/analytics - Get analytics data
@@ -90,20 +92,19 @@ export async function GET(request: NextRequest) {
         : 0,
     }));
 
-    return NextResponse.json({
-      success: true,
-      data: {
-        overview,
-        platformStats: platformStatsArray,
-        dailyStats: [], // Would need daily aggregation
-      },
-      meta: { timeRange, timestamp: new Date().toISOString() },
+    // Analytics is non-critical, return partial data with errors flag
+    return successResponse({
+      overview,
+      platformStats: platformStatsArray,
+      dailyStats: [], // Would need daily aggregation
     });
   } catch (error) {
     console.error('[API] Analytics GET error:', error);
-    return NextResponse.json(
-      { success: false, error: { code: 'INTERNAL_ERROR', message: 'Internal server error' } },
-      { status: 500 }
+    // Analytics failures are non-critical, but we still return an error
+    return errorResponse(
+      ErrorCodes.INTERNAL_ERROR,
+      'Failed to fetch analytics data',
+      500
     );
   }
 }
