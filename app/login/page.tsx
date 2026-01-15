@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { createClient } from '@/lib/supabase/client';
 import { LogIn, Loader2, Mail, Lock } from 'lucide-react';
@@ -14,19 +14,71 @@ export default function LoginPage() {
   const router = useRouter();
   const supabase = createClient();
 
+  // On mount, perform a quick check to redirect authenticated users away from login
+  // This helps when middleware does not redirect early (e.g., prefetch/no-cookie requests)
+  useEffect(() => {
+    let mounted = true;
+    (async () => {
+      try {
+        const resp = await fetch('/api/auth/session', { credentials: 'include' });
+        if (!mounted) return;
+        if (resp.ok) {
+          const json = await resp.json();
+          if (json?.data?.authenticated && json?.data?.passcodeVerified) {
+            console.log('[Login] User already authenticated and passcode verified, redirecting to /dashboard');
+            window.location.href = '/dashboard';
+          }
+        }
+      } catch (e) {
+        console.warn('[Login] session check failed during mount', e);
+      }
+    })();
+    return () => { mounted = false; };
+  }, []);
+
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
     setError('');
 
     try {
-      const { error } = await supabase.auth.signInWithPassword({
+      const { data, error } = await supabase.auth.signInWithPassword({
         email,
         password,
       });
 
       if (error) throw error;
 
+      const session = (data as any)?.session;
+      // Ensure we have both access and refresh tokens to create a server-side session
+      if (!session?.access_token || !session?.refresh_token) {
+        setError('Sign-in incomplete. Please sign in again.');
+        return;
+      }
+
+      // Store server-side session so middleware can validate cookies on subsequent requests
+      const storeRes = await fetch('/api/auth/store-session', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          access_token: session.access_token,
+          refresh_token: session.refresh_token,
+        }),
+        credentials: 'include',
+      });
+
+      const storeJson = await storeRes.json();
+
+      if (!storeRes.ok || !storeJson.success) {
+        if (storeJson?.error?.code === 'MISSING_REFRESH_TOKEN') {
+          setError('Sign-in incomplete. Please sign in again.');
+          return;
+        }
+        setError(storeJson?.error?.message || 'Failed to establish server session');
+        return;
+      }
+
+      // Successfully set server-side session, proceed to passcode
       router.push('/verify-passcode');
       router.refresh();
     } catch (err) {
