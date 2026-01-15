@@ -8,7 +8,7 @@ import { createAdminClient } from '@/lib/supabase/admin';
 // Use edge-compatible encryption (works in both Node.js and Edge Runtime)
 import { decryptProviderKey } from '@/lib/encryption/provider-keys-edge';
 
-export type ProviderType = 'openai' | 'anthropic' | 'deepseek' | 'elevenlabs' | 'midjourney' | 'pollo' | 'runway' | 'pika' | 'openrouter' | 'gemini' | 'other';
+export type ProviderType = 'openai' | 'anthropic' | 'deepseek' | 'elevenlabs' | 'midjourney' | 'pollo' | 'openrouter' | 'other';
 
 /**
  * Get decrypted provider key for a specific user
