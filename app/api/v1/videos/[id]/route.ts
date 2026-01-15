@@ -97,12 +97,10 @@ export async function PATCH(
       );
     }
 
-    const { status: newStatus } = body;
-
-    // Get current video
+    // Get current video (needed for status check)
     const { data: video, error: fetchError } = await supabase
       .from('generation_jobs')
-      .select('status, approval_status, approved_at, approved_by, campaigns!inner(user_id)')
+      .select('status, campaigns!inner(user_id)')
       .eq('id', jobId)
       .single();
 
@@ -116,49 +114,27 @@ export async function PATCH(
       throw fetchError;
     }
 
-    // Enforce approval before publishing
-    if (newStatus === 'published') {
-      if (video.approval_status !== 'approved' || !video.approved_at) {
-        return NextResponse.json(
-          { 
-            success: false, 
-            error: { 
-              code: 'APPROVAL_REQUIRED', 
-              message: 'Video must be approved before publishing. Use /api/v1/videos/[id]/approve endpoint first.',
-              details: {
-                currentApprovalStatus: video.approval_status,
-                requiredApprovalStatus: 'approved'
-              }
-            } 
-          },
-          { status: 403 }
-        );
-      }
+    // Phase II, Pillar 3: Status removed - use /transition endpoint instead
+    // Reject if status field is present
+    if ('status' in body) {
+      return NextResponse.json(
+        { 
+          success: false, 
+          error: { 
+            code: 'STATUS_UPDATE_NOT_ALLOWED',
+            message: 'Status cannot be updated via PATCH. Use POST /api/v1/videos/:id/transition instead.',
+            details: {
+              currentStatus: video.status,
+              hint: 'Use the transition endpoint to change video status with state machine validation.'
+            }
+          } 
+        },
+        { status: 400 }
+      );
     }
 
-    // Validate state transitions
-    if (newStatus && newStatus !== video.status) {
-      if (!validateVideoTransition(video.status, newStatus)) {
-        return NextResponse.json(
-          { 
-            success: false,
-            error: { 
-              code: 'INVALID_TRANSITION',
-              message: `Invalid status transition: ${video.status} \u2192 ${newStatus}`,
-              details: {
-                currentStatus: video.status,
-                requestedStatus: newStatus,
-                allowedTransitions: VALID_VIDEO_TRANSITIONS[video.status] || []
-              }
-            } 
-          },
-          { status: 400 }
-        );
-      }
-    }
-
-    // Update video
-    const allowedFields = ['status', 'metadata', 'output_url'];
+    // Update video (status field excluded)
+    const allowedFields = ['metadata', 'output_url'];
     const updateData: Record<string, unknown> = {};
     
     for (const field of allowedFields) {
@@ -174,51 +150,20 @@ export async function PATCH(
       );
     }
 
-    // If publishing, prefer to use the service role admin client to avoid RLS restrictions
-    const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || process.env.SUPABASE_URL;
-    const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+    // Update video fields (non-status only)
+    const { data: updatedVideo, error: updateError } = await supabase
+      .from('generation_jobs')
+      .update(updateData)
+      .eq('id', jobId)
+      .select()
+      .single();
 
-    let updatedVideo = null;
-    if (newStatus === 'published' && supabaseUrl && serviceRoleKey) {
-      const adminClient = (await import('@supabase/supabase-js')).createClient(supabaseUrl, serviceRoleKey);
-      const { data: adminData, error: adminError } = await adminClient
-        .from('generation_jobs')
-        .update(updateData)
-        .eq('id', jobId)
-        .select()
-        .single();
-
-      if (adminError) {
-        if (adminError.code === 'PGRST116') {
-          return NextResponse.json(
-            { success: false, error: { code: 'UPDATE_FAILED', message: 'Failed to publish video. Status may have changed.' } },
-            { status: 409 }
-          );
-        }
-        console.error('[API] Video PATCH error (admin):', adminError);
-        return NextResponse.json(
-          { success: false, error: { code: 'DB_ERROR', message: adminError.message } },
-          { status: 500 }
-        );
-      }
-      updatedVideo = adminData;
-    } else {
-      const { data: rlsData, error: rlsError } = await supabase
-        .from('generation_jobs')
-        .update(updateData)
-        .eq('id', jobId)
-        .select()
-        .single();
-
-      if (rlsError) {
-        console.error('[API] Video PATCH error:', rlsError);
-        return NextResponse.json(
-          { success: false, error: { code: 'DB_ERROR', message: rlsError.message } },
-          { status: 500 }
-        );
-      }
-
-      updatedVideo = rlsData;
+    if (updateError) {
+      console.error('[API] Video PATCH error:', updateError);
+      return NextResponse.json(
+        { success: false, error: { code: 'DB_ERROR', message: updateError.message } },
+        { status: 500 }
+      );
     }
 
     return NextResponse.json({
