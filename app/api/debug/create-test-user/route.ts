@@ -1,40 +1,54 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createAdminClient } from '@/lib/supabase/admin';
+import { 
+  successResponse, 
+  errorResponse, 
+  serverErrorResponse 
+} from '@/lib/api/response';
+import { ErrorCodes } from '@/lib/api/error-codes';
+import { logger } from '@/lib/monitoring/logger';
 
 // Dev-only helper to create/delete test users for local E2E debugging
 // - POST:  { email?, password? } -> creates a user (email_confirm=true) and returns tokens
 // - DELETE: { user_id } -> deletes the user
-// Security: disabled in production by default. To enable in production set ALLOW_E2E_CREATE_TEST_USER=true
+// Security: DISABLED IN PRODUCTION. Returns 404 in production environment.
+// Override only for staging/testing: ALLOW_E2E_CREATE_TEST_USER=true
 
-function ensureAllowed() {
-  if (process.env.NODE_ENV === 'production' && process.env.ALLOW_E2E_CREATE_TEST_USER !== 'true') {
-    throw new Error('Not allowed in production');
-  }
+function isProductionBlocked(): boolean {
+  return process.env.NODE_ENV === 'production' && process.env.ALLOW_E2E_CREATE_TEST_USER !== 'true';
+}
 
-  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || process.env.SUPABASE_URL;
-  const anonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || process.env.SUPABASE_ANON_KEY;
-
-  if (!supabaseUrl) {
-    throw new Error('Missing NEXT_PUBLIC_SUPABASE_URL or SUPABASE_URL');
-  }
-
-  if (!anonKey) {
-    throw new Error('Missing NEXT_PUBLIC_SUPABASE_ANON_KEY or SUPABASE_ANON_KEY');
-  }
+function logAccessAttempt(method: string, allowed: boolean) {
+  logger.warn('DebugRoute', 'Debug route access attempt', {
+    route: '/api/debug/create-test-user',
+    method,
+    allowed,
+    environment: process.env.NODE_ENV,
+    timestamp: new Date().toISOString(),
+  });
 }
 
 export async function GET() {
-  return NextResponse.json({
-    success: true,
-    message:
-      'Dev helper: POST to create { email?, password? } -> creates user and returns tokens. DELETE with { user_id } deletes user. Disabled in production unless ALLOW_E2E_CREATE_TEST_USER=true.',
+  if (isProductionBlocked()) {
+    logAccessAttempt('GET', false);
+    return errorResponse(ErrorCodes.NOT_FOUND, 'Not found', 404);
+  }
+  
+  return successResponse({
+    message: 'Dev helper: POST to create { email?, password? } -> creates user and returns tokens. DELETE with { user_id } deletes user.',
+    environment: process.env.NODE_ENV,
   });
 }
 
 export async function POST(req: NextRequest) {
+  if (isProductionBlocked()) {
+    logAccessAttempt('POST', false);
+    return errorResponse(ErrorCodes.NOT_FOUND, 'Not found', 404);
+  }
+  
   try {
-    ensureAllowed();
-
+    logAccessAttempt('POST', true);
+    
     const body = await req.json().catch(() => ({}));
     const email = body.email || `e2e-test+${Date.now()}@example.com`;
     const password = body.password || 'TempTest!2345';
@@ -49,8 +63,12 @@ export async function POST(req: NextRequest) {
     } as any);
 
     if ((createResult as any).error) {
-      console.error('[debug:create-test-user] create error', (createResult as any).error);
-      return NextResponse.json({ success: false, error: (createResult as any).error.message || 'Failed to create user' }, { status: 500 });
+      logger.error('DebugRoute', 'Failed to create test user', (createResult as any).error);
+      return errorResponse(
+        ErrorCodes.INTERNAL_ERROR,
+        (createResult as any).error.message || 'Failed to create user',
+        500
+      );
     }
 
     // Response shape varies; try to get user object
@@ -60,9 +78,12 @@ export async function POST(req: NextRequest) {
     const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || process.env.SUPABASE_URL;
     const anonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || process.env.SUPABASE_ANON_KEY;
 
-    // Ensure anonKey is a defined string for HeadersInit (TypeScript-safe)
     if (!anonKey) {
-      throw new Error('Missing NEXT_PUBLIC_SUPABASE_ANON_KEY or SUPABASE_ANON_KEY');
+      return errorResponse(
+        ErrorCodes.INTERNAL_ERROR,
+        'Missing NEXT_PUBLIC_SUPABASE_ANON_KEY or SUPABASE_ANON_KEY',
+        500
+      );
     }
 
     const tokenResp = await fetch(`${supabaseUrl}/auth/v1/token?grant_type=password`, {
@@ -77,37 +98,49 @@ export async function POST(req: NextRequest) {
     const tokens = await tokenResp.json();
 
     if (!tokenResp.ok) {
-      console.warn('[debug:create-test-user] token exchange failed', tokens);
+      logger.warn('DebugRoute', 'Token exchange failed for test user', { email });
     }
 
-    return NextResponse.json({ success: true, data: { user, tokens } });
+    logger.info('DebugRoute', 'Test user created successfully', { email });
+    return successResponse({ user, tokens });
   } catch (err: any) {
-    console.error('[debug:create-test-user] unexpected error', err);
-    return NextResponse.json({ success: false, error: err.message || 'Unexpected error' }, { status: 500 });
+    logger.error('DebugRoute', 'Unexpected error creating test user', err);
+    return serverErrorResponse(err);
   }
 }
 
 export async function DELETE(req: NextRequest) {
+  if (isProductionBlocked()) {
+    logAccessAttempt('DELETE', false);
+    return errorResponse(ErrorCodes.NOT_FOUND, 'Not found', 404);
+  }
+  
   try {
-    ensureAllowed();
-
+    logAccessAttempt('DELETE', true);
+    
     const body = await req.json().catch(() => ({}));
     const userId = body.user_id || body.id;
+    
     if (!userId) {
-      return NextResponse.json({ success: false, error: 'Missing user_id in body' }, { status: 400 });
+      return errorResponse(ErrorCodes.MISSING_REQUIRED_FIELD, 'Missing user_id in body', 400);
     }
 
     const admin = createAdminClient();
     const deleteResult = await admin.auth.admin.deleteUser(userId as string);
 
     if ((deleteResult as any).error) {
-      console.error('[debug:create-test-user] delete error', (deleteResult as any).error);
-      return NextResponse.json({ success: false, error: (deleteResult as any).error.message || 'Failed to delete user' }, { status: 500 });
+      logger.error('DebugRoute', 'Failed to delete test user', (deleteResult as any).error);
+      return errorResponse(
+        ErrorCodes.INTERNAL_ERROR,
+        (deleteResult as any).error.message || 'Failed to delete user',
+        500
+      );
     }
 
-    return NextResponse.json({ success: true, data: { user_id: userId } });
+    logger.info('DebugRoute', 'Test user deleted successfully', { userId });
+    return successResponse({ user_id: userId });
   } catch (err: any) {
-    console.error('[debug:create-test-user] unexpected error', err);
-    return NextResponse.json({ success: false, error: err.message || 'Unexpected error' }, { status: 500 });
+    logger.error('DebugRoute', 'Unexpected error deleting test user', err);
+    return serverErrorResponse(err);
   }
 }
