@@ -353,7 +353,7 @@ export async function getAvailableBudget(campaignId: string): Promise<number> {
       .select('cost_usd')
       .eq('campaign_id', campaignId);
 
-    const spent = spentData?.reduce((sum, row) => sum + Number(row.cost_usd), 0) || 0;
+    const spent = spentData?.reduce((sum: number, row: { cost_usd: string | number }) => sum + Number(row.cost_usd), 0) || 0;
 
     // Get total reserved (not yet converted or released)
     const { data: reservedData } = await supabase
@@ -362,7 +362,7 @@ export async function getAvailableBudget(campaignId: string): Promise<number> {
       .eq('campaign_id', campaignId)
       .eq('status', 'reserved');
 
-    const reserved = reservedData?.reduce((sum, row) => sum + Number(row.amount_usd), 0) || 0;
+    const reserved = reservedData?.reduce((sum: number, row: { amount_usd: string | number }) => sum + Number(row.amount_usd), 0) || 0;
 
     const limit = Number(campaign.budget_limit);
     const available = limit - spent - reserved;
@@ -435,8 +435,8 @@ export async function withBudget<T>(
   operation: () => Promise<T>,
   getActualCost?: (result: T) => number
 ): Promise<{ result: T; reservation?: BudgetReservation }> {
-  // No budget tracking if no campaign ID
-  if (!campaignId) {
+  // No budget tracking if no campaign ID or zero cost (free providers)
+  if (!campaignId || estimatedCost === 0) {
     const result = await operation();
     return { result };
   }
