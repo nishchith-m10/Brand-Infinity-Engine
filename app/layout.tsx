@@ -37,10 +37,8 @@ export default async function RootLayout({
             if (theme) {
               docEl.classList.add(theme);
               docEl.style.colorScheme = theme === 'dark' ? 'dark' : 'light';
-            } else if (window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches) {
-              docEl.classList.add('dark');
-              docEl.style.colorScheme = 'dark';
             } else {
+              // Default to light mode when no preference is set
               docEl.classList.add('light');
               docEl.style.colorScheme = 'light';
             }
