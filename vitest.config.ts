@@ -40,13 +40,8 @@ export default defineConfig({
     },
     setupFiles: ['tests/utils/test-setup.ts'],
     pool: 'threads',
-    poolOptions: {
-      threads: {
-        singleThread: false,
-        maxThreads: 4,
-        minThreads: 1
-      }
-    },
+    // poolOptions removed for compatibility with current Vitest types; adjust if using a custom runner
+
     isolate: true,
     passWithNoTests: false,
     // bail: false, // Commented out due to type conflict
