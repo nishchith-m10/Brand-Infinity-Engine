@@ -66,7 +66,7 @@ export class RequestOrchestrator {
       return {
         success: true,
         requestId,
-        finalStatus: 'intake' as RequestStatus,
+        finalStatus: 'intake' as RequestStatus, // Will be updated by the active run
       };
     }
 
@@ -74,69 +74,39 @@ export class RequestOrchestrator {
     this.processingLocks.set(requestId, true);
 
     try {
-      let currentRequest: ContentRequest | null = null;
-      let iterations = 0;
-      const MAX_ITERATIONS = 10; // Prevent infinite loops
-
-      while (iterations < MAX_ITERATIONS) {
-        iterations++;
-        
-        // 1. Load/Reload the request
-        currentRequest = await this.loadRequest(requestId);
-        if (!currentRequest) {
-          throw new OrchestratorError(
-            `Request not found: ${requestId}`,
-            'REQUEST_NOT_FOUND',
-            requestId
-          );
-        }
-
-        const statusBefore = currentRequest.status;
-
-        // 2. Check if already terminal
-        if (stateMachine.isTerminalStatus(statusBefore as RequestStatus)) {
-          console.log(`[Orchestrator] Request ${requestId} reached terminal status: ${statusBefore}`);
-          break;
-        }
-
-        // 3. Dispatch to appropriate handler based on current status
-        // Handler returns true if it performed an action (like starting a task)
-        await this.dispatchToHandler(currentRequest);
-
-        // 4. Check if we should auto-advance to next status
-        await this.checkAndAdvanceStatus(currentRequest);
-
-        // 5. Reload and check if status changed
-        const reloadedRequest = await this.loadRequest(requestId);
-        const statusAfter = reloadedRequest?.status;
-
-        // If status didn't change and no task was started, we're likely waiting for async or human
-        // For now, we'll look at task status too
-        const tasks = await this.getTasksForRequest(requestId);
-        const inProgressTask = tasks.find(t => t.status === 'in_progress');
-        
-        if (statusBefore === statusAfter && !inProgressTask) {
-          // If a task is ready but wasn't started, continue. If not, break and wait for callback.
-          const nextTask = await taskFactory.getNextRunnableTask(requestId);
-          if (!nextTask) {
-            console.log(`[Orchestrator] No more immediate actions for request ${requestId}, waiting...`);
-            break;
-          }
-        } else if (inProgressTask) {
-            // If some task is in progress (especially if it's long-running or async),
-            // current loop cycle should probably end and wait for its completion.
-            console.log(`[Orchestrator] Task ${inProgressTask.task_name} in progress, finishing current run`);
-            break;
-        }
-
-        console.log(`[Orchestrator] Loop iteration ${iterations} complete for ${requestId}. Status: ${statusBefore} -> ${statusAfter}`);
+      // 1. Load the request
+      const request = await this.loadRequest(requestId);
+      if (!request) {
+        throw new OrchestratorError(
+          `Request not found: ${requestId}`,
+          'REQUEST_NOT_FOUND',
+          requestId
+        );
       }
 
-      const finalRequest = await this.loadRequest(requestId);
+      // 2. Check if already terminal
+      if (stateMachine.isTerminalStatus(request.status as RequestStatus)) {
+        console.log(`[Orchestrator] Request ${requestId} is in terminal status: ${request.status}`);
+        return {
+          success: true,
+          requestId,
+          finalStatus: request.status as RequestStatus,
+        };
+      }
+
+      // 3. Dispatch to appropriate handler based on current status
+      await this.dispatchToHandler(request);
+
+      // 4. Check if we should auto-advance to next status
+      await this.checkAndAdvanceStatus(request);
+
+      // 5. Get final status
+      const updatedRequest = await this.loadRequest(requestId);
+      
       return {
         success: true,
         requestId,
-        finalStatus: finalRequest?.status as RequestStatus,
+        finalStatus: updatedRequest?.status as RequestStatus,
       };
 
     } catch (error) {
@@ -359,7 +329,9 @@ export class RequestOrchestrator {
       (providerData?.provider_name as string) || 'unknown',
       (providerData?.external_job_id as string) || 'unknown',
       status,
-      outputUrl
+      outputUrl,
+      errorMessage,
+      providerData?.cost_incurred as number
     );
 
     // Resume the request to check for next tasks
@@ -435,10 +407,18 @@ export class RequestOrchestrator {
 
     console.log(`[Orchestrator] Created ${createdTasks.length} tasks for request ${request.id}`);
     
-    // 2. Start the first ready task
-    const started = await this.startNextReadyTask(request);
+    // 2. Find and start the first runnable task (usually strategist)
+    const nextTask = await taskFactory.getNextRunnableTask(request.id);
     
-    if (started) {
+    if (nextTask) {
+      console.log(`[Orchestrator] Starting first task: ${nextTask.task_name} (${nextTask.agent_role})`);
+      
+      // Import AgentRunner dynamically to avoid circular deps
+      const { agentRunner } = await import('./AgentRunner');
+      
+      // Run the task (this will mark it in_progress and execute the agent)
+      await agentRunner.runTask(request, nextTask);
+      
       console.log(`[Orchestrator] First task started for request ${request.id}`);
     } else {
       console.warn(`[Orchestrator] No runnable tasks found for request ${request.id}`);
@@ -454,27 +434,18 @@ export class RequestOrchestrator {
   private async handleDraft(request: ContentRequest): Promise<void> {
     console.log(`[Orchestrator] Handling DRAFT for request: ${request.id}`);
 
-    // 1. Check if all draft tasks are complete
+    // Check if all draft tasks are complete
     const tasks = await this.getTasksForRequest(request.id);
 
     // Log task snapshot for debugging auto-advance behavior
     console.log(`[Orchestrator] Draft tasks for ${request.id}:`, tasks.map(t => ({ id: t.id, role: t.agent_role, status: t.status })));
 
-    const draftTasks = tasks.filter((t) => ['strategist', 'copywriter', 'task_planner'].includes(t.agent_role));
+    const draftTasks = tasks.filter((t) => ['strategist', 'copywriter'].includes(t.agent_role));
     const draftTasksComplete = draftTasks.length > 0 && draftTasks.every((t) => t.status === 'completed' || t.status === 'skipped');
 
     if (draftTasksComplete) {
       await this.transitionStatus(request, 'production');
-      return;
-    }
-
-    // 2. If not complete, try to start the next task
-    // Check if any draft task is already in progress
-    const inProgressTask = tasks.find(t => t.status === 'in_progress');
-    if (!inProgressTask) {
-      await this.startNextReadyTask(request);
-    } else {
-      console.log(`[Orchestrator] Draft task ${inProgressTask.task_name} already in progress`);
+      await this.processRequest(request.id);
     }
   }
 
@@ -502,43 +473,28 @@ export class RequestOrchestrator {
     } else if (producerTask.status === 'completed') {
       // Producer done - advance to QA
       await this.transitionStatus(request, 'qa');
-    } else if (producerTask.status === 'pending') {
-      // Start the producer task
-      await this.startNextReadyTask(request);
+      await this.processRequest(request.id);
     }
   }
 
   /**
-   * Handle QA status: Run QA agent to review the produced content.
+   * Handle QA status: Run QA agent or auto-approve.
    */
   private async handleQA(request: ContentRequest): Promise<void> {
     console.log(`[Orchestrator] Handling QA for request: ${request.id}`);
+    const supabase = createAdminClient();
 
-    // Get the QA task
-    const tasks = await this.getTasksForRequest(request.id);
-    const qaTask = tasks.find((t) => t.agent_role === 'qa');
+    // Auto-approve QA (default behavior) - skip QA and publish
+    console.log(`[Orchestrator] Auto-approving QA for request: ${request.id}`);
 
-    if (!qaTask) {
-      // No QA task exists - auto-publish (legacy behavior)
-      console.log(`[Orchestrator] No QA task found, auto-publishing request: ${request.id}`);
-      await this.transitionStatus(request, 'published');
-      return;
-    }
+    // Mark QA task as skipped
+    await supabase
+      .from('request_tasks')
+      .update({ status: 'skipped' })
+      .eq('request_id', request.id)
+      .eq('agent_role', 'qa');
 
-    if (qaTask.status === 'in_progress') {
-      // Still waiting for QA to complete
-      console.log(`[Orchestrator] QA task in progress, waiting for completion`);
-      return;
-    } else if (qaTask.status === 'completed') {
-      // QA done - advance to published
-      await this.transitionStatus(request, 'published');
-    } else if (qaTask.status === 'pending') {
-      // Start the QA task
-      await this.startNextReadyTask(request);
-    } else if (qaTask.status === 'skipped') {
-      // QA was skipped (e.g., auto-approve enabled) - advance to published
-      await this.transitionStatus(request, 'published');
-    }
+    await this.transitionStatus(request, 'published');
   }
 
   /**
@@ -618,6 +574,7 @@ export class RequestOrchestrator {
 
     if (canAdvance.canAdvance && canAdvance.nextStatus) {
       await this.transitionStatus(request, canAdvance.nextStatus);
+      await this.processRequest(request.id);
     } else {
       // Log blocked auto-advance for troubleshooting
       await eventLogger.logEvent({
@@ -650,26 +607,6 @@ export class RequestOrchestrator {
     }
 
     return (data || []) as RequestTask[];
-  }
-
-  /**
-   * Helper to start the next available task for a request.
-   */
-  private async startNextReadyTask(request: ContentRequest): Promise<boolean> {
-    const nextTask = await taskFactory.getNextRunnableTask(request.id);
-    
-    if (nextTask) {
-      console.log(`[Orchestrator] Starting next task: ${nextTask.task_name} (${nextTask.agent_role})`);
-      
-      // Import AgentRunner dynamically to avoid circular deps
-      const { agentRunner } = await import('./AgentRunner');
-      
-      // Run the task (this will mark it in_progress and execute the agent)
-      await agentRunner.runTask(request, nextTask);
-      return true;
-    }
-    
-    return false;
   }
 
   /**
