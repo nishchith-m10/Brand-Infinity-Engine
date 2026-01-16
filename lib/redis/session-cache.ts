@@ -423,39 +423,110 @@ export async function clearCachedConfirmation(sessionId: string): Promise<void> 
 // IDEMPOTENCY CACHING
 // ============================================================================
 
+import { createAdminClient } from '@/lib/supabase/admin';
+
 /**
  * Get cached response for idempotency key
+ * Tries Redis first, then Postgres
  */
 export async function getIdempotencyResponse<T>(key: string): Promise<T | null> {
   const redis = getRedisClient();
-  if (!redis) return null;
 
+  // 1. Try Redis first (fast path)
+  if (redis) {
+    try {
+      const cached = await redis.get<T>(REDIS_KEYS.IDEMPOTENCY(key));
+      if (cached) {
+        return cached;
+      }
+    } catch (error) {
+      console.error('[SessionCache] Redis get idempotency failed:', error);
+    }
+  }
+
+  // 2. Fallback to Postgres (durable path)
   try {
-    return await redis.get<T>(REDIS_KEYS.IDEMPOTENCY(key));
-  } catch (error) {
-    console.error('[SessionCache] Failed to get idempotency response:', error);
+    const supabase = createAdminClient();
+    const { data, error } = await supabase
+      .from('idempotency_keys')
+      .select('response_payload, expires_at')
+      .eq('key', key)
+      .single();
+
+    if (error) {
+      if (error.code !== 'PGRST116') { // Not found is fine
+        console.error('[SessionCache] DB get idempotency failed:', error);
+      }
+      return null;
+    }
+
+    // Check expiration
+    if (new Date(data.expires_at) < new Date()) {
+      return null;
+    }
+
+    // Cache back to Redis for next time
+    if (redis && data.response_payload) {
+      const ttl = Math.ceil((new Date(data.expires_at).getTime() - Date.now()) / 1000);
+      if (ttl > 0) {
+        await redis.setex(
+          REDIS_KEYS.IDEMPOTENCY(key),
+          ttl,
+          data.response_payload
+        );
+      }
+    }
+
+    return data.response_payload as T;
+
+  } catch (err) {
+    console.error('[SessionCache] Unexpected error in idempotency get:', err);
     return null;
   }
 }
 
 /**
  * Set response for idempotency key
+ * Writes to both Redis and Postgres
  */
 export async function setIdempotencyResponse<T>(
   key: string,
   response: T,
   ttlSeconds?: number
 ): Promise<void> {
-  const redis = getRedisClient();
-  if (!redis) return;
-
+  const ttl = ttlSeconds ?? REDIS_TTL.IDEMPOTENCY;
+  const expiresAt = new Date(Date.now() + ttl * 1000).toISOString();
+  
+  // 1. Write to Postgres (primary)
   try {
-    await redis.setex(
-      REDIS_KEYS.IDEMPOTENCY(key),
-      ttlSeconds ?? REDIS_TTL.IDEMPOTENCY,
-      response
-    );
-  } catch (error) {
-    console.error('[SessionCache] Failed to set idempotency response:', error);
+    const supabase = createAdminClient();
+    const { error } = await supabase.from('idempotency_keys').upsert({
+      key,
+      response_payload: response,
+      expires_at: expiresAt
+    }, {
+      onConflict: 'key'
+    });
+
+    if (error) {
+      console.error('[SessionCache] DB set idempotency failed:', error);
+      // We continue to Redis even if DB fails, to at least have transient idempotency
+    }
+  } catch (err) {
+    console.error('[SessionCache] DB set unexpected error:', err);
+  }
+
+  // 2. Write to Redis (cache)
+  const redis = getRedisClient();
+  if (redis) {
+    try {
+      await redis.setex(
+        REDIS_KEYS.IDEMPOTENCY(key),
+        ttl,
+        response
+      );
+    } catch (error) {
+      console.error('[SessionCache] Redis set idempotency failed:', error);
+    }
   }
 }
