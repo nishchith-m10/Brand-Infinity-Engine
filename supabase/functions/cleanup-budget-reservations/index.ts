@@ -9,7 +9,9 @@
  * Purpose: Prevent budget leaks from failed/abandoned operations
  */
 
+// @ts-ignore - Deno standard library import for Supabase Edge Function
 import { serve } from 'https://deno.land/std@0.168.0/http/server.ts';
+// @ts-ignore - ESM import for Supabase Edge Function runtime
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 
 const corsHeaders = {
@@ -37,9 +39,10 @@ serve(async (req: Request) => {
     }
 
     // Create Supabase client with service role
-    const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
-    const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
-    
+    // Prefer process.env (local) else try Deno runtime env. Use globals to avoid TypeScript Deno name errors.
+    const supabaseUrl = (typeof process !== 'undefined' && process.env.SUPABASE_URL) || (globalThis as any).Deno?.env?.get('SUPABASE_URL') || '';
+    const supabaseServiceKey = (typeof process !== 'undefined' && process.env.SUPABASE_SERVICE_ROLE_KEY) || (globalThis as any).Deno?.env?.get('SUPABASE_SERVICE_ROLE_KEY') || '';
+
     const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
     // Call the cleanup function
