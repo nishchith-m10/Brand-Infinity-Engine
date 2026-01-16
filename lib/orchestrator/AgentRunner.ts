@@ -16,6 +16,7 @@ import { eventLogger } from './EventLogger';
 import { createStrategistAdapter } from '../adapters/StrategistAdapter';
 import { createCopywriterAdapter } from '../adapters/CopywriterAdapter';
 import { createProducerAdapter } from '../adapters/ProducerAdapter';
+import { commitBudget, releaseBudget, ESTIMATED_COSTS } from '../budget/reservation';
 
 /**
  * AgentRunner class manages task execution.
@@ -58,6 +59,10 @@ export class AgentRunner {
 
     const startTime = Date.now();
 
+    // Phase II, Pillar 2: Track estimated cost for budget conversion later
+    const estimatedCost = this.getEstimatedCostForAgent(agentRole);
+    const campaignId = request.campaign_id || undefined;
+
     try {
       // Build execution params
       const params = await this.buildExecutionParams(request, task);
@@ -75,6 +80,15 @@ export class AgentRunner {
 
       // Update task based on result
       if (result.success) {
+        // Phase II, Pillar 2: Convert budget reservation to actual cost on success
+        if (campaignId && estimatedCost > 0) {
+          const actualCost = this.getActualCostFromResult(result, estimatedCost);
+          await commitBudget(campaignId, estimatedCost, actualCost).catch((err) => {
+            console.error(`[AgentRunner] Failed to commit budget for task ${task.id}:`, err);
+            // Don't fail the task if budget commit fails - log for reconciliation
+          });
+        }
+
         if (result.isAsync) {
           // Task will be completed via callback - keep in_progress
           const supabase = await createClient();
@@ -131,6 +145,13 @@ export class AgentRunner {
           };
         }
       } else {
+        // Phase II, Pillar 2: Release budget on task failure
+        if (campaignId && estimatedCost > 0) {
+          await releaseBudget(campaignId, estimatedCost).catch((err) => {
+            console.error(`[AgentRunner] Failed to release budget for task ${task.id}:`, err);
+          });
+        }
+
         // Task failed
         await this.failTask(task.id, result.error!);
         
@@ -155,6 +176,13 @@ export class AgentRunner {
 
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error);
+
+      // Phase II, Pillar 2: Release budget on exception
+      if (campaignId && estimatedCost > 0) {
+        await releaseBudget(campaignId, estimatedCost).catch((err) => {
+          console.error(`[AgentRunner] Failed to release budget after exception for task ${task.id}:`, err);
+        });
+      }
 
       // Diagnostic log: agent exception
       console.error(`[AgentRunner] Error running task ${task.id}:`, error);
@@ -473,6 +501,48 @@ export class AgentRunner {
     };
 
     return durations[agentRole] || 60;
+  }
+
+  /**
+   * Get estimated cost for an agent role.
+   * Phase II, Pillar 2: Used for budget tracking
+   * 
+   * @param agentRole - The agent role
+   * @returns Estimated cost in USD
+   */
+  private getEstimatedCostForAgent(agentRole: AgentRole): number {
+    const costMap: Record<AgentRole, number> = {
+      executive: 0, // No external API calls
+      task_planner: 0, // No external API calls
+      strategist: ESTIMATED_COSTS.brief_generation,
+      copywriter: ESTIMATED_COSTS.script_generation,
+      producer: ESTIMATED_COSTS.video_generation,
+      qa: 0, // Auto-approve for now
+    };
+
+    return costMap[agentRole] || 0;
+  }
+
+  /**
+   * Extract actual cost from agent result.
+   * Phase II, Pillar 2: Used for budget conversion
+   * 
+   * @param result - Agent execution result
+   * @param estimatedCost - Estimated cost (fallback)
+   * @returns Actual cost in USD
+   */
+  private getActualCostFromResult(
+    result: AgentExecutionResult,
+    estimatedCost: number
+  ): number {
+    // Check if result contains actual cost information
+    const output = result.output_data as Record<string, unknown> | undefined;
+    if (output?.cost_incurred && typeof output.cost_incurred === 'number') {
+      return output.cost_incurred;
+    }
+
+    // Fallback to estimated cost
+    return estimatedCost;
   }
 }
 
