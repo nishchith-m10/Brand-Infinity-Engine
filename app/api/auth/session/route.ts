@@ -26,6 +26,15 @@ export async function GET(req: NextRequest) {
     // Capture cookies to set in response
     const cookiesToSet: Array<{ name: string; value: string; options: any }> = [];
 
+    // Safe debug: log incoming cookie names for this request (do not log values)
+    try {
+      const cookieHeader = req.headers.get('cookie') ?? '';
+      const cookieNames = cookieHeader ? cookieHeader.split(';').map(c => c.split('=')[0].trim()) : [];
+      console.log('[Auth:session] Incoming cookie names:', cookieNames);
+    } catch (e) {
+      // ignore logging failures
+    }
+
     const supabase = createServerClient(
       supabaseUrl,
       anonKey,
@@ -49,7 +58,14 @@ export async function GET(req: NextRequest) {
 
     if (userError) {
       // Map known auth errors to clearer responses and avoid noisy stack traces
-      if ((userError as any)?.code === 'refresh_token_not_found') {
+      const errCode = (userError as any)?.code;
+      const errMsg = String((userError as any)?.message ?? '');
+
+      // Supabase may return the refresh-token problem either as an error code or as a message string
+      if (
+        errCode === 'refresh_token_not_found' ||
+        /refresh token not found|invalid refresh token/i.test(errMsg)
+      ) {
         console.warn('[Auth:session] Refresh token missing or invalid, treating as unauthenticated');
         return NextResponse.json({
           success: false,
