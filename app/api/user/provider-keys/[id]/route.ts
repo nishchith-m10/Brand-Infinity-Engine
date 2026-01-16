@@ -26,15 +26,17 @@ export async function DELETE(
     }
 
 
+    // Phase III, Pillar 2: Soft delete for data recovery capability
     // Delete only if belongs to authenticated user (RLS enforced)
     const { error } = await supabase
       .from('user_provider_keys')
-      .delete()
+      .update({ deleted_at: new Date().toISOString() })
       .eq('id', id)
-      .eq('user_id', user.id);
+      .eq('user_id', user.id)
+      .is('deleted_at', null); // Only soft delete if not already deleted
 
     if (error) {
-      console.error('Error deleting provider key:', error);
+      console.error('Error soft-deleting provider key:', error);
       return NextResponse.json(
         { success: false, error: 'Failed to delete provider key' },
         { status: 500 }
