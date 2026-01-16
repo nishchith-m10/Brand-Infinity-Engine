@@ -527,7 +527,7 @@ export default function CampaignsPage() {
               value={createForm.budget_tier}
               onChange={(e) => setCreateForm({ ...createForm, budget_tier: e.target.value })}
               options={[
-                { value: 'low', label: 'Low ($50)' },
+                { value: 'low', label: 'Low ($0 - Free)' },
                 { value: 'medium', label: 'Medium ($150)' },
                 { value: 'high', label: 'High ($500)' },
                 { value: 'premium', label: 'Premium ($2,000)' },
