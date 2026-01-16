@@ -29,10 +29,15 @@ export interface ApiKeysState {
   deepseek: string;
   kimi: string;
   openrouter: string;
+  pollo: string; // Pollo AI (video)
+  runway: string;
+  pika: string;
   elevenlabs: string;
   tiktok: string;
   instagram: string;
   youtube: string;
+  twitter: string;
+  linkedin: string;
   // Free provider settings
   useFreeProviders: boolean;
   pollinationsPreferences: PollinationsPreferences;
@@ -68,10 +73,15 @@ const defaultState: ApiKeysState = {
   deepseek: '',
   kimi: '',
   openrouter: '',
+  pollo: '',
+  runway: '',
+  pika: '',
   elevenlabs: '',
   tiktok: '',
   instagram: '',
   youtube: '',
+  twitter: '',
+  linkedin: '',
   useFreeProviders: true, // Default to using free providers
   pollinationsPreferences: {
     imageModel: 'flux',
