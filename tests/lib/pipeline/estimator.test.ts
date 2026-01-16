@@ -198,6 +198,68 @@ describe('calculateEstimate', () => {
     });
   });
   
+  describe('free providers', () => {
+    it('should return zero cost for Pollinations provider', () => {
+      const estimate = calculateEstimate({
+        type: 'image',
+        provider: 'pollinations',
+        tier: 'standard',
+        hasVoiceover: false,
+        autoScript: false
+      });
+      
+      expect(estimate.cost).toBe(0);
+      expect(estimate.timeSeconds).toBeGreaterThan(0); // Processing still takes time
+      expect(estimate.breakdown).toContainEqual(
+        expect.objectContaining({ component: 'free provider', cost: 0 })
+      );
+    });
+
+    it('should return zero cost for Pollinations provider (case-insensitive)', () => {
+      const lowercase = calculateEstimate({
+        type: 'image',
+        provider: 'pollinations',
+        tier: 'standard',
+        hasVoiceover: false,
+        autoScript: false
+      });
+
+      const uppercase = calculateEstimate({
+        type: 'image',
+        provider: 'POLLINATIONS',
+        tier: 'standard',
+        hasVoiceover: false,
+        autoScript: false
+      });
+
+      const titleCase = calculateEstimate({
+        type: 'image',
+        provider: 'Pollinations',
+        tier: 'standard',
+        hasVoiceover: false,
+        autoScript: false
+      });
+
+      expect(lowercase.cost).toBe(0);
+      expect(uppercase.cost).toBe(0);
+      expect(titleCase.cost).toBe(0);
+    });
+
+    it('should calculate time estimate for free video providers', () => {
+      const estimate = calculateEstimate({
+        type: 'video_no_vo',
+        duration: 30,
+        provider: 'pollinations',
+        tier: 'standard',
+        hasVoiceover: false,
+        autoScript: true
+      });
+      
+      expect(estimate.cost).toBe(0);
+      expect(estimate.timeSeconds).toBeGreaterThan(0);
+    });
+  });
+
   describe('edge cases', () => {
     it('should handle zero duration gracefully', () => {
       const estimate = calculateEstimate({
