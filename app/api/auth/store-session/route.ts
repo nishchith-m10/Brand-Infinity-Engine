@@ -9,7 +9,35 @@ export async function POST(request: NextRequest) {
 
     if (!access_token) {
       console.error('[Auth:store-session] No access token provided');
-      return NextResponse.json({ success: false, error: 'access_token required' }, { status: 400 });
+      return NextResponse.json({
+        success: false,
+        error: {
+          code: 'MISSING_TOKEN',
+          message: 'access_token required',
+          details: {}
+        },
+        meta: {
+          timestamp: new Date().toISOString(),
+          requestId: 'mock-request-id'
+        }
+      }, { status: 400 });
+    }
+
+    // If the refresh token is missing, return a clear error instead of calling setSession
+    if (!refresh_token) {
+      console.error('[Auth:store-session] No refresh token provided');
+      return NextResponse.json({
+        success: false,
+        error: {
+          code: 'MISSING_REFRESH_TOKEN',
+          message: 'refresh_token required to set server session',
+          details: {}
+        },
+        meta: {
+          timestamp: new Date().toISOString(),
+          requestId: 'mock-request-id'
+        }
+      }, { status: 400 });
     }
 
     console.log('[Auth:store-session] Creating Supabase client and setting session...');
@@ -22,7 +50,18 @@ export async function POST(request: NextRequest) {
 
     if (!supabaseUrl || !anonKey) {
       console.error('[Auth:store-session] Missing Supabase URL or anon key');
-      return NextResponse.json({ success: false, error: 'Missing Supabase URL or anon key' }, { status: 500 });
+      return NextResponse.json({
+        success: false,
+        error: {
+          code: 'MISSING_CONFIG',
+          message: 'Missing Supabase URL or anon key',
+          details: {}
+        },
+        meta: {
+          timestamp: new Date().toISOString(),
+          requestId: 'mock-request-id'
+        }
+      }, { status: 500 });
     }
 
     const supabase = createServerClient(
@@ -45,14 +84,34 @@ export async function POST(request: NextRequest) {
 
     if (error) {
       console.error('[Auth:store-session] setSession error:', error.message);
-      return NextResponse.json({ success: false, error: error.message }, { status: 500 });
+      return NextResponse.json({
+        success: false,
+        error: {
+          code: 'SET_SESSION_ERROR',
+          message: error.message,
+          details: {}
+        },
+        meta: {
+          timestamp: new Date().toISOString(),
+          requestId: 'mock-request-id'
+        }
+      }, { status: 500 });
     }
 
     console.log('[Auth:store-session] ✅ Session set for user:', data.user?.email);
     console.log('[Auth:store-session] Setting', cookiesToSet.length, 'cookies in response');
     
     // Create response and set all cookies
-    const response = NextResponse.json({ success: true, session: data.session ?? null });
+    const response = NextResponse.json({
+      success: true,
+      data: {
+        session: data.session ?? null
+      },
+      meta: {
+        timestamp: new Date().toISOString(),
+        requestId: 'mock-request-id'
+      }
+    });
     cookiesToSet.forEach(({ name, value, options }) => {
       response.cookies.set(name, value, options);
       console.log('[Auth:store-session] Set cookie:', name);
@@ -61,6 +120,17 @@ export async function POST(request: NextRequest) {
     return response;
   } catch (err) {
     console.error('[Auth:store-session] Unexpected error:', err);
-    return NextResponse.json({ success: false, error: (err as Error).message }, { status: 500 });
+    return NextResponse.json({
+      success: false,
+      error: {
+        code: 'UNEXPECTED_ERROR',
+        message: (err as Error).message,
+        details: {}
+      },
+      meta: {
+        timestamp: new Date().toISOString(),
+        requestId: 'mock-request-id'
+      }
+    }, { status: 500 });
   }
 }
