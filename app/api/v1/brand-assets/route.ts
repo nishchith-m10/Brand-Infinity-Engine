@@ -73,6 +73,7 @@ export async function GET(request: NextRequest) {
   let query = supabase
     .from('brand_knowledge_base')
     .select('*')
+    .is('deleted_at', null) // Phase III, Pillar 2: Exclude soft-deleted
     .order('created_at', { ascending: false });
 
   if (brandId) {
@@ -225,11 +226,12 @@ export async function DELETE(request: NextRequest) {
     );
   }
 
-  // Check if user owns the asset's brand
+  // Phase III, Pillar 2: Check if asset exists and is not soft-deleted
   const { data: asset } = await supabase
     .from('brand_knowledge_base')
     .select('brand_id')
     .eq('id', id)
+    .is('deleted_at', null)
     .single();
 
   if (!asset) {
@@ -253,10 +255,12 @@ export async function DELETE(request: NextRequest) {
     );
   }
 
+  // Phase III, Pillar 2: Soft delete for data recovery capability
   const { error } = await supabase
     .from('brand_knowledge_base')
-    .delete()
-    .eq('id', id);
+    .update({ deleted_at: new Date().toISOString() })
+    .eq('id', id)
+    .is('deleted_at', null); // Only soft delete if not already deleted
 
   if (error) {
     return NextResponse.json(
@@ -295,11 +299,12 @@ export async function PATCH(request: NextRequest) {
     );
   }
 
-  // Check if user owns the asset's brand
+  // Phase III, Pillar 2: Check if asset exists and is not soft-deleted
   const { data: asset } = await supabase
     .from('brand_knowledge_base')
     .select('brand_id')
     .eq('id', id)
+    .is('deleted_at', null)
     .single();
 
   if (!asset) {
