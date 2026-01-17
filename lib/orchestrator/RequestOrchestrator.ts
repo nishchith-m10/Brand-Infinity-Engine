@@ -435,12 +435,21 @@ export class RequestOrchestrator {
     console.log(`[Orchestrator] Handling DRAFT for request: ${request.id}`);
 
     // Check if all draft tasks are complete
+    // Loop through all runnable tasks sequentially
+    let nextTask = await taskFactory.getNextRunnableTask(request.id);
+    
+    while (nextTask) {
+      console.log(`[Orchestrator] Starting next draft task: ${nextTask.task_name} (${nextTask.agent_role})`);
+      const { agentRunner } = await import('./AgentRunner');
+      await agentRunner.runTask(request, nextTask);
+      
+      // Refresh task to see if we can continue
+      nextTask = await taskFactory.getNextRunnableTask(request.id);
+    }
+
+    // Check if all draft tasks are complete
     const tasks = await this.getTasksForRequest(request.id);
-
-    // Log task snapshot for debugging auto-advance behavior
-    console.log(`[Orchestrator] Draft tasks for ${request.id}:`, tasks.map(t => ({ id: t.id, role: t.agent_role, status: t.status })));
-
-    const draftTasks = tasks.filter((t) => ['strategist', 'copywriter'].includes(t.agent_role));
+    const draftTasks = tasks.filter((t) => ['strategist', 'copywriter', 'task_planner'].includes(t.agent_role));
     const draftTasksComplete = draftTasks.length > 0 && draftTasks.every((t) => t.status === 'completed' || t.status === 'skipped');
 
     if (draftTasksComplete) {
@@ -459,6 +468,18 @@ export class RequestOrchestrator {
     console.log(`[Orchestrator] Handling PRODUCTION for request: ${request.id}`);
 
     // Get the producer task
+    // Check for next runnable task (Producer)
+    let nextTask = await taskFactory.getNextRunnableTask(request.id);
+    
+    while (nextTask) {
+      console.log(`[Orchestrator] Starting production task: ${nextTask.task_name}`);
+      const { agentRunner } = await import('./AgentRunner');
+      await agentRunner.runTask(request, nextTask);
+      
+      nextTask = await taskFactory.getNextRunnableTask(request.id);
+    }
+
+    // Get the producer task to check status
     const tasks = await this.getTasksForRequest(request.id);
     const producerTask = tasks.find((t) => t.agent_role === 'producer');
 
@@ -466,14 +487,12 @@ export class RequestOrchestrator {
       throw new Error('Producer task not found');
     }
 
-    if (producerTask.status === 'in_progress') {
-      // Still waiting for callback
-      console.log(`[Orchestrator] Producer task in progress, waiting for callback`);
-      return;
-    } else if (producerTask.status === 'completed') {
+    if (producerTask.status === 'completed') {
       // Producer done - advance to QA
       await this.transitionStatus(request, 'qa');
       await this.processRequest(request.id);
+    } else if (producerTask.status === 'in_progress') {
+       console.log(`[Orchestrator] Producer task in progress, waiting for callback`);
     }
   }
 
