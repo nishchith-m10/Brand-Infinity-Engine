@@ -38,6 +38,7 @@ const CreateRequestSchema = z.object({
       .optional()
       .default('Medium'),
     voice_id: z.string().optional(),
+    pollinations_model: z.enum(['flux', 'flux-realism', 'flux-anime', 'flux-3d', 'turbo']).optional(),
   }),
 
   settings: z
@@ -169,6 +170,11 @@ export async function POST(request: NextRequest) {
       // Estimates
       estimated_cost: estimate.cost,
       estimated_time_seconds: estimate.timeSeconds,
+
+      // Additional metadata for provider-specific options
+      metadata: {
+        pollinations_model: input.requirements.pollinations_model,
+      },
     };
 
     // 6. Reserve budget if campaign is provided (Phase II, Pillar 2)
