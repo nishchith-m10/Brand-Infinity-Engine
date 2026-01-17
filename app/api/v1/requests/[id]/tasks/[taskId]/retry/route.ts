@@ -42,14 +42,18 @@ export async function POST(
 
   // Parse request body
   let force = false;
+  let feedback: string | undefined;
   try {
     const body = await request.json();
     force = body.force === true;
+    // Phase 2: Accept user feedback for regeneration
+    feedback = body.feedback as string | undefined;
   } catch {
     // No body or invalid JSON - ignore
   }
 
-  console.log(`[Task Retry API] Retry request for task ${taskId} (force: ${force})`);
+  console.log(`[Task Retry API] Retry request for task ${taskId} (force: ${force}, feedback: ${feedback ? 'provided' : 'none'})`);
+
 
   // Verify user authentication
   const supabase = await createClient();
@@ -117,6 +121,17 @@ export async function POST(
   }
 
   try {
+    // Phase 2: Merge feedback into input_data for regeneration
+    const updatedInputData = {
+      ...(task.input_data || {}),
+      // Add regeneration context if feedback provided
+      ...(feedback && {
+        regeneration_feedback: feedback,
+        regeneration_attempt: retryCount + 1,
+        previous_error: task.error_message,
+      }),
+    };
+
     // Reset task to pending and increment retry_count
     const { error: updateError } = await supabase
       .from('request_tasks')
@@ -125,6 +140,7 @@ export async function POST(
         error_message: null,
         retry_count: retryCount + 1,
         completed_at: null, // Clear completion timestamp
+        input_data: updatedInputData, // Phase 2: Include feedback
       })
       .eq('id', taskId)
       .eq('request_id', requestId); // make sure we update the task for this request only
