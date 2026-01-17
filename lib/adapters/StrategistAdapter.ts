@@ -14,6 +14,8 @@ import type {
   AgentExecutionResult,
 } from '@/lib/orchestrator/types';
 import type { ParsedIntent } from '@/lib/agents/types';
+import { searchKnowledgeBases, type BrandContext } from '@/lib/ai/rag';
+import { getBrandPromptContext } from '@/lib/ai/brand-prompt-builder';
 
 interface AgentResult {
   type?: string;
@@ -53,8 +55,8 @@ export class StrategistAdapter {
         inputs: {},
       };
 
-      // Get brand context if available
-      const brandContext = this.extractBrandContext(params);
+      // Get brand context if available (includes KB content via RAG)
+      const brandContext = await this.extractBrandContext(params);
 
       // Execute strategist agent with userId from request owner
       const result = await this.agent.executeTask({
@@ -124,35 +126,88 @@ export class StrategistAdapter {
   }
 
   /**
-   * Extract brand context from request
+   * Extract brand context from request, including KB content via RAG and brand identity
+   * Phase 1 Critical Fix: KB Content Injection
+   * Phase 2: Brand Voice Enforcement
    */
-  private extractBrandContext(params: AgentExecutionParams): string | undefined {
+  private async extractBrandContext(params: AgentExecutionParams): Promise<string | undefined> {
     const metadata = params.request.metadata || {} as Record<string, unknown>;
-
     const brandElements: string[] = [];
 
-    // Brand voice
-    if (metadata.brand_voice) {
+    // Phase 2: Fetch brand identity and add system prompt prefix
+    try {
+      const brandId = params.request.brand_id;
+      const campaignId = (params.request as any).campaign_id as string | undefined;
+      
+      if (brandId) {
+        const brandContext = await getBrandPromptContext(brandId, campaignId);
+        if (brandContext.systemPromptPrefix) {
+          brandElements.push(brandContext.systemPromptPrefix);
+          console.log('[StrategistAdapter] Injected brand identity into context');
+        }
+      }
+    } catch (error) {
+      console.warn('[StrategistAdapter] Failed to fetch brand identity:', error);
+    }
+
+    // Phase 1 Critical: Fetch KB content using RAG if selected_kb_ids exist
+    const selectedKbIds = (params.request as any).selected_kb_ids as string[] | undefined;
+    if (selectedKbIds && selectedKbIds.length > 0 && params.request.prompt) {
+      try {
+        console.log(`[StrategistAdapter] Fetching KB content for ${selectedKbIds.length} knowledge bases`);
+        const ragContext = await searchKnowledgeBases(
+          params.request.prompt,
+          selectedKbIds,
+          { matchThreshold: 0.6, matchCount: 5 }
+        );
+
+        // Add matched KB assets to brand context
+        if (ragContext.assets && ragContext.assets.length > 0) {
+          brandElements.push('=== KNOWLEDGE BASE CONTEXT ===');
+          for (const asset of ragContext.assets) {
+            brandElements.push(`[${asset.asset_type}] ${asset.file_name}:`);
+            // Truncate long content to avoid token limits
+            const content = asset.content.length > 1000 
+              ? asset.content.substring(0, 1000) + '...' 
+              : asset.content;
+            brandElements.push(content);
+          }
+          console.log(`[StrategistAdapter] Injected ${ragContext.assets.length} KB assets into context`);
+        }
+
+        // Add brand voice if found
+        if (ragContext.brand_voice) {
+          brandElements.push(`Brand Voice: ${ragContext.brand_voice}`);
+        }
+
+        // Add brand colors if found
+        if (ragContext.primary_colors && ragContext.primary_colors.length > 0) {
+          brandElements.push(`Brand Colors: ${ragContext.primary_colors.join(', ')}`);
+        }
+      } catch (error) {
+        console.error('[StrategistAdapter] RAG search failed, falling back to static metadata:', error);
+        // Continue with static metadata fallback
+      }
+    }
+
+    // Static metadata fallback (always include if present)
+    if (metadata.brand_voice && !brandElements.some(e => e.includes('Brand Voice:'))) {
       brandElements.push(`Brand Voice: ${metadata.brand_voice}`);
     }
 
-    // Brand values
     if (metadata.brand_values) {
       const values = metadata.brand_values;
       brandElements.push(`Brand Values: ${Array.isArray(values) ? values.join(', ') : values}`);
     }
 
-    // Brand guidelines
     if (metadata.brand_guidelines) {
       brandElements.push(`Guidelines: ${metadata.brand_guidelines}`);
     }
 
-    // Company info
     if (metadata.company_name) {
       brandElements.push(`Company: ${metadata.company_name}`);
     }
 
-    // Product/service info
     if (metadata.product_name) {
       brandElements.push(`Product: ${metadata.product_name}`);
     }
