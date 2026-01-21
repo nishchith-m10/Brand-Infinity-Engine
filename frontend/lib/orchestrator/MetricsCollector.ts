@@ -202,7 +202,7 @@ export class MetricsCollector {
     // Group by request type
     const typeGroups = new Map<string, ContentRequest[]>();
     
-    for (const request of requests as ContentRequest[]) {
+    for (const request of requests as unknown as ContentRequest[]) {
       if (!typeGroups.has(request.request_type)) {
         typeGroups.set(request.request_type, []);
       }
