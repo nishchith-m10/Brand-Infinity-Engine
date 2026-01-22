@@ -6,7 +6,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
 import { RetryRequestResponse } from '@/types/pipeline';
 
-export async function POST(request: NextRequest, { params }: { params: { id: string } }) {
+export async function POST(request: NextRequest, context: { params: { id: string } | Promise<{ id: string }> }) {
   try {
     const supabase = await createClient();
     const {
@@ -18,6 +18,8 @@ export async function POST(request: NextRequest, { params }: { params: { id: str
       return NextResponse.json({ success: false, error: 'Unauthorized' }, { status: 401 });
     }
 
+    // Normalize params (support both Promise and plain object)
+    const params = await (context.params as any) as { id: string };
     const requestId = params.id;
 
     // Verify request exists
