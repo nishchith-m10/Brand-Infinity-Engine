@@ -125,6 +125,5 @@ export function VideoProviderSelector({
           {budgetTier === 'premium' && 'Recommended: Runway (premium quality)'}
         </p>
       </div>
-    </TooltipProvider>
   );
 }
