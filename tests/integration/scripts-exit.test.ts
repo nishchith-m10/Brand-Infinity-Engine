@@ -1,4 +1,4 @@
-import { describe, test, expect } from 'vitest';
+// Using Jest (project default test runner)
 import { spawn } from 'child_process';
 import path from 'path';
 
@@ -33,7 +33,7 @@ function runScript(scriptPath: string, env: Record<string, string> = {}) {
   });
 }
 
-describe('one-off job scripts', { timeout: 20000 }, () => {
+describe('one-off job scripts', () => {
 
   test('add_embedding_job exits cleanly', async () => {
     const script = path.join('scripts', 'add_embedding_job.ts');
@@ -41,7 +41,7 @@ describe('one-off job scripts', { timeout: 20000 }, () => {
     expect(res.code).toBe(0);
     expect(res.stdout).toMatch(/Added job id:/);
     expect(res.stdout).toMatch(/Closed queue connections/);
-  });
+  }, 20000);
 
   test('add_video_job exits cleanly', async () => {
     const script = path.join('scripts', 'add_video_job.ts');
@@ -49,5 +49,5 @@ describe('one-off job scripts', { timeout: 20000 }, () => {
     expect(res.code).toBe(0);
     expect(res.stdout).toMatch(/Added job id:/);
     expect(res.stdout).toMatch(/Closed queue connections/);
-  });
+  }, 20000);
 });
