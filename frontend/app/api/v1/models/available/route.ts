@@ -25,12 +25,15 @@ let cachedModels: ProviderModels[] | null = null;
 let cacheTimestamp = 0;
 const CACHE_DURATION = 60 * 60 * 1000; // 1 hour
 
-export async function GET() {
+export async function GET(request: Request) {
   try {
+    const { searchParams } = new URL(request.url);
+    const openrouterKey = searchParams.get('openrouter_key');
+    
     const now = Date.now();
     
-    // Return cached data if still valid
-    if (cachedModels && (now - cacheTimestamp) < CACHE_DURATION) {
+    // Return cached data if still valid (only if no custom key is provided)
+    if (!openrouterKey && cachedModels && (now - cacheTimestamp) < CACHE_DURATION) {
       return NextResponse.json({ success: true, data: cachedModels, cached: true });
     }
 
@@ -83,10 +86,8 @@ export async function GET() {
       provider: 'deepseek',
       icon: '',
       models: [
-        { id: 'deepseek-v3.2-speciale', name: 'DeepSeek V3.2 Speciale', provider: 'deepseek', pricingTier: '$', category: 'deepseek' },
-        { id: 'deepseek-chat-v3.2', name: 'DeepSeek V3.2', provider: 'deepseek', pricingTier: '$', category: 'deepseek' },
-        { id: 'deepseek-chat', name: 'DeepSeek V3', provider: 'deepseek', pricingTier: '$', category: 'deepseek' },
-        { id: 'deepseek-reasoner', name: 'DeepSeek Reasoner', provider: 'deepseek', pricingTier: '$', category: 'deepseek' },
+        { id: 'deepseek-chat-v3.2', name: 'DeepSeek V3.2 Speciale', provider: 'deepseek', pricingTier: '$', category: 'deepseek' },
+        { id: 'deepseek-v3', name: 'DeepSeek V3', provider: 'deepseek', pricingTier: '$', category: 'deepseek' },
       ],
     });
 
@@ -95,21 +96,25 @@ export async function GET() {
       provider: 'kimi',
       icon: '',
       models: [
-        { id: 'kimi-k2-thinking', name: 'Kimi K2 Thinking', provider: 'kimi', contextWindow: 2000000, pricingTier: '$$', category: 'kimi' },
-        { id: 'kimi-k2', name: 'Kimi K2', provider: 'kimi', contextWindow: 2000000, pricingTier: '$$', category: 'kimi' },
+        { id: 'kimi-k2-thinking', name: 'Kimi K2 Thinking', provider: 'kimi', pricingTier: '$$', category: 'kimi' },
+        { id: 'kimi-k2-chat', name: 'Kimi K2 Chat', provider: 'kimi', pricingTier: '$', category: 'kimi' },
       ],
     });
 
     // ========================================================================
-    // OpenRouter - Always visible (opens modal when clicked)
+    // OpenRouter - Dynamically fetch if API key is provided
     // ========================================================================
     let openrouterModels: ModelInfo[] = [];
     
-    if (process.env.OPENROUTER_API_KEY) {
+    const apiKey = openrouterKey || process.env.OPENROUTER_API_KEY;
+    
+    if (apiKey) {
       try {
         const response = await fetch('https://openrouter.ai/api/v1/models', {
           headers: {
-            'Authorization': `Bearer ${process.env.OPENROUTER_API_KEY}`,
+            'Authorization': `Bearer ${apiKey}`,
+            'HTTP-Referer': process.env.NEXT_PUBLIC_SITE_URL || 'https://brand-infinity.com',
+            'X-Title': 'Brand Infinity Engine',
           },
         });
         
