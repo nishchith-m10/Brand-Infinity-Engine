@@ -22,9 +22,9 @@ export class ProducerAgent {
   async executeTask(params: {
     task: Task;
     intent: ParsedIntent;
-    previousResults?: any[];
+    previousResults?: unknown[];
     brandContext?: string;
-  }): Promise<{ result: any; success: boolean; error?: string }> {
+  }): Promise<{ result: unknown; success: boolean; error?: string }> {
     try {
       const systemPrompt = `You are a Production Coordinator Agent.
 Organize and coordinate content production workflows.
@@ -100,8 +100,8 @@ Return as JSON.`;
   async generateWorkflowPayload(params: {
     workflowType: string;
     content: string;
-    specifications: any;
-  }): Promise<any> {
+    specifications: unknown;
+  }): Promise<unknown> {
     return {
       workflow_type: params.workflowType,
       content: params.content,
@@ -117,8 +117,8 @@ Return as JSON.`;
   async createAssetRequirements(params: {
     contentType: string;
     platforms: string[];
-    specifications?: any;
-  }): Promise<any> {
+    specifications?: unknown;
+  }): Promise<unknown> {
     const prompt = `List required assets for:
 
 Content Type: ${params.contentType}
@@ -154,7 +154,7 @@ Return as JSON array.`;
   async createTimeline(params: {
     tasks: string[];
     deadline?: string;
-  }): Promise<any> {
+  }): Promise<unknown> {
     const prompt = `Create production timeline for:
 
 Tasks: ${params.tasks.join(', ')}
@@ -182,7 +182,7 @@ Return as JSON with milestones and dates.`;
    */
   async triggerN8NWorkflow(params: {
     workflowType: 'content_generation' | 'video_production';
-    data: Record<string, any>;
+    data: Record<string, unknown>;
     sessionId: string;
   }): Promise<{ execution_id: string }> {
     const n8n = getN8NClient();
