@@ -109,6 +109,7 @@ export async function POST(request: NextRequest) {
       .single();
 
     if (error) {
+      console.error('[Campaign Create] Supabase error:', JSON.stringify(error, null, 2));
       throw error;
     }
 
