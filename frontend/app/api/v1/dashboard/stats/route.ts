@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { createAdminClient } from '@/lib/supabase/admin';
+import { createClient } from '@/lib/supabase/server';
 
 // Statuses that should NOT be counted in "Total Campaigns" on dashboard
 const EXCLUDED_STATUSES = ['archived', 'pending_deletion'];
@@ -9,7 +9,7 @@ const EXCLUDED_STATUSES = ['archived', 'pending_deletion'];
 // =============================================================================
 export async function GET() {
   try {
-    const supabase = createAdminClient();
+    const supabase = await createClient();
 
     // Get first of current month for cost calculation
     const now = new Date();
