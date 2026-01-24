@@ -36,19 +36,20 @@ export async function POST(request: NextRequest) {
       const response = NextResponse.json({ success: true });
       
       // Set secure httpOnly cookie for 7 days
-      response.cookies.set('dashboard_passcode_verified', 'true', {
+      const cookieOptions = {
         httpOnly: true,
         secure: process.env.NODE_ENV === 'production',
-        sameSite: 'lax',
+        sameSite: 'lax' as const,
         maxAge: 60 * 60 * 24 * 7, // 7 days
         path: '/',
-      });
+      };
       
-      console.log('[Passcode] Cookie set with config:', {
-        httpOnly: true,
-        secure: process.env.NODE_ENV === 'production',
-        sameSite: 'lax',
-        path: '/',
+      response.cookies.set('dashboard_passcode_verified', 'true', cookieOptions);
+      
+      console.log('[Passcode] Cookie set with options:', {
+        ...cookieOptions,
+        value: 'true',
+        name: 'dashboard_passcode_verified',
       });
       
       return response;
