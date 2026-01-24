@@ -127,10 +127,13 @@ export function ChatInterface({ brandId, sessionId, onSessionCreate }: ChatInter
   };
 
   const startConversation = async (message: string) => {
+    console.log('[Chat] Starting conversation with message:', message);
     setLoading(true);
     try {
       const [provider, modelId] = selectedModel.split(':');
       const contextPayload = getContextPayload();
+      
+      console.log('[Chat] Sending to API with provider:', provider, 'model:', modelId);
       
       const res = await fetch('/api/v1/conversation/start', {
         method: 'POST',
@@ -144,27 +147,39 @@ export function ChatInterface({ brandId, sessionId, onSessionCreate }: ChatInter
         }),
       });
 
+      console.log('[Chat] API response status:', res.status);
       const data = (await res.json()) as { success: boolean; session_id: string; response: { content: string; questions?: ClarifyingQuestion[] } };
+      console.log('[Chat] API response data:', data);
       
       if (data.success) {
         setCurrentSessionId(data.session_id);
         onSessionCreate?.(data.session_id);
         
+        console.log('[Chat] Adding user message to state');
         // Add user message
-        setMessages(prev => [...prev, {
-          id: `temp-${Date.now()}`,
-          role: 'user',
-          content: message,
-          created_at: new Date().toISOString(),
-        } as ConversationMessage]);
+        setMessages(prev => {
+          const newMessages = [...prev, {
+            id: `temp-${Date.now()}`,
+            role: 'user',
+            content: message,
+            created_at: new Date().toISOString(),
+          } as ConversationMessage];
+          console.log('[Chat] Messages after adding user:', newMessages.length);
+          return newMessages;
+        });
 
+        console.log('[Chat] Adding assistant message to state');
         // Add assistant response
-        setMessages(prev => [...prev, {
-          id: `temp-${Date.now()}-1`,
-          role: 'assistant',
-          content: data.response.content,
-          created_at: new Date().toISOString(),
-        } as ConversationMessage]);
+        setMessages(prev => {
+          const newMessages = [...prev, {
+            id: `temp-${Date.now()}-1`,
+            role: 'assistant',
+            content: data.response.content,
+            created_at: new Date().toISOString(),
+          } as ConversationMessage];
+          console.log('[Chat] Messages after adding assistant:', newMessages.length);
+          return newMessages;
+        });
 
         // Handle questions
         if (data.response.questions) {
@@ -175,6 +190,8 @@ export function ChatInterface({ brandId, sessionId, onSessionCreate }: ChatInter
         if (showCustomInput) {
           setAdaptiveSuggestions(generateAdaptiveSuggestions(message));
         }
+      } else {
+        console.error('[Chat] API returned success: false');
       }
     } catch (error) {
       console.error('Failed to start conversation:', error);
