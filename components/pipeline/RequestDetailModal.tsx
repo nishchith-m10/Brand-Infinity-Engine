@@ -187,8 +187,8 @@ export default function RequestDetailModal({
                   <div>
                     <span className="text-gray-500">Status:</span>{' '}
                     <span className={`font-medium capitalize ${
-                      currentRequest.status === 'published' ? 'text-green-600' :
-                      currentRequest.status === 'failed' ? 'text-red-600' :
+                      (currentRequest.status as string) === 'published' ? 'text-green-600' :
+                      (currentRequest.status as string) === 'failed' ? 'text-red-600' :
                       currentRequest.status === 'cancelled' ? 'text-gray-500' :
                       'text-blue-600'
                     }`}>{currentRequest.status}</span>
