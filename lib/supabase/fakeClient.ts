@@ -9,7 +9,7 @@ class QueryBuilder {
   db: Map<string, any[]>;
   action: 'select' | 'insert' | 'delete' | 'update' | null = null;
   payload: any = null;
-  filters: Array<{ type: 'eq' | 'like'; field: string; value: any }> = [];
+  filters: Array<{ type: 'eq' | 'like' | 'in'; field: string; value: any }> = [];
   orderBy: { field: string; ascending?: boolean } | null = null;
 
   constructor(table: string, db: Map<string, any[]>) {
