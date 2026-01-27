@@ -6,12 +6,13 @@
 import { RequestType, ProviderTier } from '@/types/pipeline';
 
 export interface EstimateParams {
-  type: RequestType;
+  type: RequestType | 'text' | 'carousel';
   duration?: number;
   provider?: string;
   tier: ProviderTier;
   hasVoiceover: boolean;
   autoScript: boolean;
+  slideCount?: number;
 }
 
 // Alias for backwards compatibility
@@ -20,13 +21,7 @@ export type EstimateInput = EstimateParams;
 export interface CostEstimate {
   cost: number;
   timeSeconds: number;
-  breakdown: {
-    strategy: number;
-    script: number;
-    video: number;
-    voice: number;
-    qa: number;
-  };
+  breakdown: Array<{ component: string; cost: number }>;
 }
 
 // Base costs by provider tier (in USD)
@@ -84,7 +79,9 @@ export function calculateEstimate(params: EstimateParams): CostEstimate {
   const voiceCost = params.hasVoiceover ? duration * tierCosts.voice_per_second : 0;
   const qaCost = tierCosts.qa;
 
-  const totalCost = strategyCost + scriptCost + videoCost + voiceCost + qaCost;
+  // Adjust QA cost for text requests (text does not incur the same QA overhead)
+  const qaCostAdjusted = params.type === 'text' ? 0 : qaCost;
+  const totalCost = strategyCost + scriptCost + videoCost + voiceCost + qaCostAdjusted;
 
   // Calculate time
   const strategyTime = params.autoScript ? TIME_ESTIMATES.strategy : 0;
@@ -95,22 +92,53 @@ export function calculateEstimate(params: EstimateParams): CostEstimate {
     videoTime = duration * TIME_ESTIMATES.video_per_second;
   } else if (params.type === 'image') {
     videoTime = TIME_ESTIMATES.video_per_second * 5;
+  } else if (params.type === 'carousel') {
+    const slides = params.slideCount ?? 5;
+    videoTime = slides * 2; // quick per-slide processing time
+  } else if (params.type === 'text') {
+    videoTime = 5; // tiny processing time
   }
 
   const voiceTime = params.hasVoiceover ? duration * TIME_ESTIMATES.voice_per_second : 0;
-  const qaTime = TIME_ESTIMATES.qa;
+  // For text we don't include QA cost (text is quick)
+  const qaTime = params.type === 'text' ? 0 : TIME_ESTIMATES.qa;
 
   const totalTime = strategyTime + scriptTime + videoTime + voiceTime + qaTime;
 
+  // Build breakdown as an array of components (tests expect array)
+  const breakdown: Array<{ component: string; cost: number }> = [];
+  if (strategyCost > 0) breakdown.push({ component: 'strategy', cost: parseFloat(strategyCost.toFixed(4)) });
+  if (scriptCost > 0) breakdown.push({ component: 'script generation', cost: parseFloat(scriptCost.toFixed(4)) });
+
+  // Additional non-video components (image, carousel, text)
+  let extraCost = 0;
+  if (params.type === 'image') {
+    breakdown.push({ component: 'image generation', cost: parseFloat(videoCost.toFixed(4)) });
+    extraCost = videoCost;
+  } else if (params.type === 'carousel') {
+    const slides = params.slideCount ?? 5;
+    const slideCost = (tierCosts.video_per_second || 0) * 1 * slides * 0.1;
+    breakdown.push({ component: 'carousel generation', cost: parseFloat(slideCost.toFixed(4)) });
+    extraCost = slideCost;
+  } else if (params.type === 'text') {
+    const textCost = 0.05; // minimal fixed cost for text
+    breakdown.push({ component: 'text generation', cost: parseFloat(textCost.toFixed(4)) });
+    extraCost = textCost;
+  } else {
+    // video types
+    breakdown.push({ component: 'video generation', cost: parseFloat(videoCost.toFixed(4)) });
+    extraCost = videoCost;
+  }
+
+  if (params.hasVoiceover && voiceCost > 0) breakdown.push({ component: 'voiceover', cost: parseFloat(voiceCost.toFixed(4)) });
+
+  if (qaCostAdjusted > 0) breakdown.push({ component: 'qa', cost: parseFloat(qaCostAdjusted.toFixed(4)) });
+
+  const finalCost = totalCost + (extraCost - videoCost); // ensure extraCost is included (videoCost is part of totalCost for video types)
+
   return {
-    cost: parseFloat(totalCost.toFixed(4)),
+    cost: parseFloat(finalCost.toFixed(4)),
     timeSeconds: Math.round(totalTime),
-    breakdown: {
-      strategy: parseFloat(strategyCost.toFixed(4)),
-      script: parseFloat(scriptCost.toFixed(4)),
-      video: parseFloat(videoCost.toFixed(4)),
-      voice: parseFloat(voiceCost.toFixed(4)),
-      qa: parseFloat(qaCost.toFixed(4)),
-    },
+    breakdown,
   };
 }
