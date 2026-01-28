@@ -359,9 +359,7 @@ export class RequestOrchestrator {
       (providerData?.provider_name as string) || 'unknown',
       (providerData?.external_job_id as string) || 'unknown',
       status,
-      outputUrl,
-      errorMessage,
-      providerData?.cost_incurred as number
+      outputUrl
     );
 
     // Resume the request to check for next tasks
