@@ -41,7 +41,7 @@ const SHOT_TYPES = ['Close-up', 'Wide', 'Medium', 'POV', 'Aerial'];
 export default function RequestForm({ onSubmit }: RequestFormProps) {
   // Fetch campaigns
   const { data: campaignsData, isLoading: campaignsLoading } = useCampaigns();
-  const campaigns = Array.isArray(campaignsData) ? campaignsData : campaignsData?.data || [];
+  const campaigns = campaignsData || [];
   const activeCampaigns = campaigns.filter(c => !c.deleted_at && !['archived', 'pending_deletion'].includes(c.status));
 
   // Use shared campaign context from ChatContextSelector
