@@ -20,7 +20,8 @@ import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
 import { eventLogger } from '@/lib/orchestrator/EventLogger';
 import { requestOrchestrator } from '@/lib/orchestrator/RequestOrchestrator';
-import crypto from 'crypto';
+import { validateWebhookSignature } from '@/lib/security/webhook-signature';
+import { getIdempotencyResponse, setIdempotencyResponse } from '@/lib/redis/session-cache';
 
 interface N8nCallbackPayload {
   requestId: string;
@@ -42,43 +43,37 @@ interface N8nCallbackPayload {
 
 export async function POST(request: NextRequest) {
   try {
-    // **SECURITY: Verify webhook signature to prevent unauthorized triggers**
-    const signature = request.headers.get('x-n8n-signature');
-    const webhookSecret = process.env.N8N_WEBHOOK_SECRET;
-    
-    if (!webhookSecret) {
-      console.error('[n8n Callback] N8N_WEBHOOK_SECRET not configured!');
-      return NextResponse.json(
-        { success: false, error: 'Webhook authentication not configured' },
-        { status: 500 }
-      );
-    }
-    
-    if (!signature) {
-      console.error('[n8n Callback] Missing signature header');
-      return NextResponse.json(
-        { success: false, error: 'Missing webhook signature' },
-        { status: 401 }
-      );
-    }
-    
     // Read raw body for signature validation
     const rawBody = await request.text();
-    const expectedSignature = crypto
-      .createHmac('sha256', webhookSecret)
-      .update(rawBody)
-      .digest('hex');
     
-    // Constant-time comparison to prevent timing attacks
-    if (!crypto.timingSafeEqual(
-      Buffer.from(signature),
-      Buffer.from(expectedSignature)
-    )) {
-      console.error('[n8n Callback] Invalid signature');
-      return NextResponse.json(
-        { success: false, error: 'Invalid webhook signature' },
-        { status: 401 }
-      );
+    // **SECURITY: Verify webhook signature to prevent unauthorized triggers**
+    const validation = validateWebhookSignature(rawBody, request.headers);
+    
+    if (!validation.valid) {
+      switch (validation.error) {
+        case 'MISSING_SECRET':
+          console.error('[n8n Callback] N8N_WEBHOOK_SECRET not configured!');
+          return NextResponse.json(
+            { success: false, error: 'Webhook authentication not configured' },
+            { status: 500 }
+          );
+        case 'MISSING_SIGNATURE':
+          console.error('[n8n Callback] Missing signature header');
+          return NextResponse.json(
+            { success: false, error: 'Missing webhook signature' },
+            { status: 401 }
+          );
+        case 'INVALID_SIGNATURE':
+          console.error('[n8n Callback] Invalid signature');
+          return NextResponse.json(
+            { success: false, error: 'Invalid webhook signature' },
+            { status: 401 }
+          );
+      }
+    }
+    
+    if (validation.error === 'BYPASSED') {
+      console.warn('[n8n Callback] ⚠️ Signature validation bypassed!');
     }
     
     // Parse callback payload after validation
@@ -101,6 +96,28 @@ export async function POST(request: NextRequest) {
       status: payload.status,
       executionId: payload.executionId,
     });
+
+    // **IDEMPOTENCY: Check if this execution was already processed**
+    // Uses executionId as the unique key to prevent duplicate processing
+    const idempotencyKey = `n8n_callback:${payload.executionId}`;
+    
+    const cachedResponse = await getIdempotencyResponse<{
+      success: boolean;
+      message: string;
+      taskId: string;
+      cached: boolean;
+    }>(idempotencyKey);
+    
+    if (cachedResponse) {
+      console.log('[n8n Callback] Returning cached response for duplicate callback', {
+        executionId: payload.executionId,
+        taskId: payload.taskId,
+      });
+      return NextResponse.json({
+        ...cachedResponse,
+        cached: true,
+      });
+    }
 
     const supabase = await createClient();
 
@@ -195,11 +212,16 @@ export async function POST(request: NextRequest) {
       console.log('[n8n Callback] Task completed, resuming orchestrator');
       await requestOrchestrator.resumeRequest(payload.requestId);
 
-      return NextResponse.json({
+      const responseAction = {
         success: true,
         message: 'Task completed successfully',
         taskId: payload.taskId,
-      });
+      };
+
+      // Cache success response (24h TTL)
+      await setIdempotencyResponse(idempotencyKey, responseAction, 86400);
+
+      return NextResponse.json(responseAction);
 
     } else {
       // Handle error callback
@@ -240,11 +262,16 @@ export async function POST(request: NextRequest) {
       console.log('[n8n Callback] Task failed, resuming orchestrator');
       await requestOrchestrator.resumeRequest(payload.requestId);
 
-      return NextResponse.json({
+      const responseAction = {
         success: true,
         message: 'Task failure recorded',
         taskId: payload.taskId,
-      });
+      };
+
+      // Cache failure recording response (24h TTL)
+      await setIdempotencyResponse(idempotencyKey, responseAction, 86400);
+
+      return NextResponse.json(responseAction);
     }
 
   } catch (error) {
@@ -253,7 +280,10 @@ export async function POST(request: NextRequest) {
     return NextResponse.json(
       {
         success: false,
-        error: error instanceof Error ? error.message : 'Internal server error',
+        error: {
+          code: 'CALLBACK_PROCESSING_FAILED',
+          message: error instanceof Error ? error.message : 'Internal server error',
+        },
       },
       { status: 500 }
     );
