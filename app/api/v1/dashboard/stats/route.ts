@@ -1,7 +1,9 @@
 import { NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
+import { getCacheHeaders, CACHE_DURATIONS } from '@/lib/performance/query-optimization';
 
-export const dynamic = 'force-dynamic'; // Prevent caching
+// Enable response caching for dashboard stats (60 seconds)
+export const revalidate = CACHE_DURATIONS.DASHBOARD_STATS;
 
 // Statuses that should NOT be counted in "Total Campaigns" on dashboard
 const EXCLUDED_STATUSES = ['archived', 'pending_deletion'];
@@ -92,7 +94,7 @@ export async function GET() {
       .filter(([status]) => ['active', 'paused'].includes(status))
       .reduce((sum, [, count]) => sum + count, 0);
 
-    return NextResponse.json({
+    const response = NextResponse.json({
       success: true,
       data: {
         campaigns: {
@@ -114,8 +116,23 @@ export async function GET() {
         },
         recent_activity: recentCampaignsResult.data || [],
       },
-      meta: { timestamp: new Date().toISOString() },
+      meta: { 
+        timestamp: new Date().toISOString(),
+        cached_until: new Date(Date.now() + CACHE_DURATIONS.DASHBOARD_STATS * 1000).toISOString(),
+      },
     });
+
+    // Add cache headers for client-side caching
+    const cacheHeaders = getCacheHeaders(CACHE_DURATIONS.DASHBOARD_STATS, {
+      staleWhileRevalidate: 120, // Allow stale data for 2 minutes while revalidating
+      private: true, // User-specific data
+    });
+
+    Object.entries(cacheHeaders).forEach(([key, value]) => {
+      response.headers.set(key, value);
+    });
+
+    return response;
   } catch (error) {
     console.error('[API] Dashboard stats error:', error);
     return NextResponse.json(
