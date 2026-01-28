@@ -188,9 +188,7 @@ export async function POST(request: NextRequest) {
         'n8n',
         payload.executionId || 'unknown',
         'completed',
-        payload.result?.output_url,
-        undefined,
-        undefined
+        payload.result?.output_url
       );
 
       // Trigger orchestrator to process next steps
@@ -235,10 +233,7 @@ export async function POST(request: NextRequest) {
         payload.taskId,
         'n8n',
         payload.executionId || 'unknown',
-        'failed',
-        undefined,
-        errorMessage,
-        undefined
+        'failed'
       );
 
       // Trigger orchestrator to handle failure
