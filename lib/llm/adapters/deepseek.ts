@@ -5,32 +5,47 @@
 
 import { BaseLLMAdapter } from './base';
 import type { LLMRequest, LLMResponse } from '../types';
+import { getEffectiveProviderKey } from '@/lib/providers/get-user-key';
 
 export class DeepSeekAdapter extends BaseLLMAdapter {
-  private apiKey: string;
+  private apiKey: string | null;
   private baseURL: string;
+  private apiKeyPromise: Promise<string | null>;
 
-  constructor() {
+  constructor(apiKey?: string) {
     super();
-    this.apiKey = process.env.DEEPSEEK_API_KEY || '';
     this.baseURL = 'https://api.deepseek.com/v1';
     
-    if (!this.apiKey) {
-      console.warn('[DeepSeek] API key not configured');
+    // If API key provided directly, use it
+    if (apiKey) {
+      this.apiKey = apiKey;
+      this.apiKeyPromise = Promise.resolve(apiKey);
+    } else {
+      // Otherwise, fetch user key from database (async)
+      this.apiKey = null;
+      this.apiKeyPromise = getEffectiveProviderKey('deepseek', process.env.DEEPSEEK_API_KEY);
     }
   }
 
-  async generateCompletion(request: LLMRequest): Promise<LLMResponse> {
+  private async ensureApiKey(): Promise<string> {
     if (!this.apiKey) {
-      throw new Error('DeepSeek API key not configured');
+      this.apiKey = await this.apiKeyPromise;
     }
+    if (!this.apiKey) {
+      throw new Error('DeepSeek API key not configured. Please add your DeepSeek key in Settings.');
+    }
+    return this.apiKey;
+  }
+
+  async generateCompletion(request: LLMRequest): Promise<LLMResponse> {
+    const apiKey = await this.ensureApiKey();
 
     try {
       const response = await fetch(`${this.baseURL}/chat/completions`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'Authorization': `Bearer ${this.apiKey}`,
+          'Authorization': `Bearer ${apiKey}`,
         },
         body: JSON.stringify({
           model: request.model,
