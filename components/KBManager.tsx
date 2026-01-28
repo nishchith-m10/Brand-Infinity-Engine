@@ -373,7 +373,7 @@ function KBCreateModal({ brandId, campaignId, editingKB, showToast, onClose, onS
   const [name, setName] = useState(editingKB?.name || '');
   const [description, setDescription] = useState(editingKB?.description || '');
   const [icon, setIcon] = useState(editingKB?.icon || 'folder');
-  const [color, setColor] = useState(editingKB?.color || '#6366F1');
+  const [color, setColor] = useState(editingKB?.color || 'hsl(var(--primary))');
   const [tags, setTags] = useState(editingKB?.tags.join(', ') || '');
   const [isDefault, setIsDefault] = useState(editingKB?.is_default || false);
   const [saving, setSaving] = useState(false);
@@ -483,7 +483,7 @@ function KBCreateModal({ brandId, campaignId, editingKB, showToast, onClose, onS
                           : 'border-slate-200 hover:border-slate-300'
                       }`}
                     >
-                      <Icon className="h-4 w-4" style={{ color: icon === key ? color : '#64748b' }} />
+                      <Icon className="h-4 w-4" style={{ color: icon === key ? color : 'hsl(var(--muted-foreground))' }} />
                     </button>
                   ))}
                 </div>
