@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
 import { createClient as createSupabaseClient } from '@supabase/supabase-js';
+import { ApproveResourceSchema, validateRequest } from '@/lib/validations/api-schemas';
 
 // =============================================================================
 // POST /api/v1/videos/[id]/approve - Approve a video (generation job)
