@@ -73,6 +73,15 @@ export default function VerifyPasscodePage() {
           return;
         }
 
+        // Handle explicit missing refresh token error with a re-login flow
+        if (storeJson?.error?.code === 'MISSING_REFRESH_TOKEN') {
+          console.warn('[VerifyPasscode] Missing refresh token, user needs to re-authenticate', storeJson);
+          setError('Sign-in incomplete. Please sign in again to continue.');
+          // Redirect to login so the full server-side flow can be performed
+          window.location.href = '/login?reason=missing_refresh_token';
+          return;
+        }
+
         console.warn('[VerifyPasscode] Failed to store session on server, falling back to redirect', storeJson);
         window.location.href = '/dashboard';
       } catch (err) {
