@@ -6,6 +6,7 @@ import OpenAI from 'openai';
 import { z } from 'zod';
 import { logger } from '@/lib/monitoring/logger';
 import { getEffectiveProviderKey } from '@/lib/providers/get-user-key';
+import { rateLimiters, checkRateLimit } from '@/lib/utils/rate-limit-helpers';
 
 async function getOpenAI(): Promise<OpenAI> {
   const apiKey = await getEffectiveProviderKey('openai', process.env.OPENAI_API_KEY);
@@ -49,6 +50,13 @@ export async function POST(request: NextRequest) {
         { success: false, error: { code: 'UNAUTHORIZED', message: 'Not authenticated' } },
         { status: 401 }
       );
+    }
+
+    // Check rate limit (30 requests/minute for director)
+    const rateLimitResponse = await checkRateLimit(rateLimiters.directorChat, user.id);
+    if (rateLimitResponse) {
+      logger.warn('Director', 'Rate limit exceeded', { userId: user.id });
+      return rateLimitResponse;
     }
 
     const url = new URL(request.url);
@@ -173,7 +181,13 @@ Only return valid JSON, no markdown.`;
   } catch (error) {
     console.error('Director parse error:', error);
     return NextResponse.json(
-      { error: error instanceof Error ? error.message : 'Failed to parse prompt' },
+      { 
+        success: false,
+        error: { 
+          code: 'PARSE_FAILED',
+          message: error instanceof Error ? error.message : 'Failed to parse prompt' 
+        }
+      },
       { status: 500 }
     );
   }
