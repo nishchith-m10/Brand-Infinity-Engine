@@ -142,8 +142,8 @@ export class N8NClient {
         lastError = error as Error;
         this.updateCircuitBreaker(false);
         
-        // Don't retry on client errors (4xx)
-        if (error instanceof Error && error.message.includes('HTTP 4')) {
+        // Don't retry on client errors (4xx) or other non-retryable errors
+        if (this.isNonRetryableError(error)) {
           throw error;
         }
         
@@ -163,6 +163,26 @@ export class N8NClient {
   }
 
   /**
+   * Check if an error should not trigger retry
+   * @param error - The error to check
+   * @returns true if error is non-retryable
+   */
+  private isNonRetryableError(error: unknown): boolean {
+    if (error instanceof Error) {
+      const message = error.message;
+      // Don't retry on 4xx client errors
+      if (/HTTP 4\d{2}/.test(message)) return true;
+      // Don't retry on auth errors
+      if (message.includes('401') || message.includes('403')) return true;
+      // Don't retry on not found
+      if (message.includes('404')) return true;
+      // Don't retry on validation errors
+      if (message.includes('validation') || message.includes('invalid')) return true;
+    }
+    return false;
+  }
+
+  /**
    * Trigger content generation workflow
    */
   async triggerContentGeneration(params: {
@@ -174,29 +194,36 @@ export class N8NClient {
     request_id?: string;
     task_id?: string;
   }): Promise<{ execution_id: string; webhook_url: string }> {
+    // Check circuit breaker before making request
+    if (!this.canMakeRequest()) {
+      throw new Error('n8n service temporarily unavailable (circuit breaker open)');
+    }
+
     const workflowUrl = `${this.baseUrl}/production/dispatch`;
 
     try {
-      const response = await fetch(workflowUrl, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          ...(this.apiKey && { 'Authorization': `Bearer ${this.apiKey}` }),
-        },
-        body: JSON.stringify({
-          trigger: 'content_generation',
-          data: params,
-          request_id: params.request_id,
-          task_id: params.task_id,
-          timestamp: new Date().toISOString(),
-        }),
-      });
+      const result = await this.executeWithRetry(async () => {
+        const response = await fetch(workflowUrl, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            ...(this.apiKey && { 'Authorization': `Bearer ${this.apiKey}` }),
+          },
+          body: JSON.stringify({
+            trigger: 'content_generation',
+            data: params,
+            request_id: params.request_id,
+            task_id: params.task_id,
+            timestamp: new Date().toISOString(),
+          }),
+        });
 
-      if (!response.ok) {
-        throw new Error(`n8n workflow failed: ${response.statusText}`);
-      }
+        if (!response.ok) {
+          throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+        }
 
-      const result = await response.json();
+        return await response.json();
+      }, 3, 1000);
       
       logger.info('N8N', 'Content generation workflow triggered', {
         execution_id: result.execution_id,
@@ -224,29 +251,36 @@ export class N8NClient {
     request_id?: string;
     task_id?: string;
   }): Promise<{ execution_id: string }> {
+    // Check circuit breaker before making request
+    if (!this.canMakeRequest()) {
+      throw new Error('n8n service temporarily unavailable (circuit breaker open)');
+    }
+
     const workflowUrl = `${this.baseUrl}/production/dispatch`;
 
     try {
-      const response = await fetch(workflowUrl, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          ...(this.apiKey && { 'Authorization': `Bearer ${this.apiKey}` }),
-        },
-        body: JSON.stringify({
-          trigger: 'video_production',
-          data: params,
-          request_id: params.request_id,
-          task_id: params.task_id,
-          timestamp: new Date().toISOString(),
-        }),
-      });
+      const result = await this.executeWithRetry(async () => {
+        const response = await fetch(workflowUrl, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            ...(this.apiKey && { 'Authorization': `Bearer ${this.apiKey}` }),
+          },
+          body: JSON.stringify({
+            trigger: 'video_production',
+            data: params,
+            request_id: params.request_id,
+            task_id: params.task_id,
+            timestamp: new Date().toISOString(),
+          }),
+        });
 
-      if (!response.ok) {
-        throw new Error(`n8n workflow failed: ${response.statusText}`);
-      }
+        if (!response.ok) {
+          throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+        }
 
-      const result = await response.json();
+        return await response.json();
+      }, 3, 1000);
 
       logger.info('N8N', 'Video production workflow triggered', {
         execution_id: result.execution_id,
@@ -265,20 +299,33 @@ export class N8NClient {
    * Check workflow status (polling)
    */
   async checkStatus(executionId: string): Promise<N8NWorkflowStatus> {
+    // Check circuit breaker before making request
+    if (!this.canMakeRequest()) {
+      return {
+        execution_id: executionId,
+        status: 'failed',
+        error: 'n8n service temporarily unavailable (circuit breaker open)',
+      };
+    }
+
     const statusUrl = `${this.baseUrl}/status/${executionId}`;
 
     try {
-      const response = await fetch(statusUrl, {
-        headers: {
-          ...(this.apiKey && { 'Authorization': `Bearer ${this.apiKey}` }),
-        },
-      });
+      // Use shorter delays for status checks (500ms base, 2 retries)
+      const status = await this.executeWithRetry(async () => {
+        const response = await fetch(statusUrl, {
+          headers: {
+            ...(this.apiKey && { 'Authorization': `Bearer ${this.apiKey}` }),
+          },
+        });
 
-      if (!response.ok) {
-        throw new Error(`Failed to check status: ${response.statusText}`);
-      }
+        if (!response.ok) {
+          throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+        }
 
-      const status = await response.json();
+        return await response.json();
+      }, 2, 500);
+
       return status;
     } catch (error) {
       logger.error('N8N', 'Failed to check workflow status', error);
