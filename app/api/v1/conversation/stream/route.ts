@@ -11,6 +11,7 @@ import { getLLMService } from '@/lib/llm';
 import { rateLimiters, checkRateLimit } from '@/lib/utils/rate-limit-helpers';
 import { DirectorChatSchema } from '@/lib/validations/api-schemas';
 import { logger } from '@/lib/monitoring/logger';
+import { reserveBudget, commitBudget, releaseBudget, ESTIMATED_COSTS } from '@/lib/budget/reservation';
 
 export const runtime = 'edge'; // Use edge runtime for streaming
 
@@ -112,6 +113,30 @@ export async function POST(request: NextRequest) {
     const modelToUse = model_id 
       ? `${provider || 'openrouter'}/${model_id}`
       : 'anthropic/claude-3-5-sonnet-20241022';
+
+    // Budget tracking for campaign-linked conversations
+    const campaignId = context?.campaign_id;
+    const estimatedCost = ESTIMATED_COSTS.llm_chat;
+    let budgetReserved = false;
+
+    // Reserve budget if campaign is specified
+    if (campaignId) {
+      const reservation = await reserveBudget(campaignId, estimatedCost);
+      if (!reservation.success) {
+        return new Response(
+          JSON.stringify({
+            success: false,
+            error: {
+              code: 'INSUFFICIENT_BUDGET',
+              message: 'Insufficient campaign budget',
+              details: { campaignId, estimatedCost }
+            }
+          }),
+          { status: 402, headers: { 'Content-Type': 'application/json' } }
+        );
+      }
+      budgetReserved = true;
+    }
 
     // Create readable stream
     const encoder = new TextEncoder();
@@ -237,13 +262,25 @@ export async function POST(request: NextRequest) {
           controller.enqueue(encoder.encode('data: [DONE]\n\n'));
           controller.close();
 
+          // Commit budget on successful completion
+          if (budgetReserved && campaignId) {
+            // Commit with estimated cost (actual cost tracking would require token counting)
+            await commitBudget(campaignId, estimatedCost, estimatedCost);
+          }
+
           // Log successful completion
           logger.info('DirectorChat', 'Streaming response completed', { 
             userId: user.id,
             sessionId: session_id,
-            messageLength: totalContent.length 
+            messageLength: totalContent.length,
+            budgetTracked: budgetReserved
           });
         } catch (error) {
+          // Release budget on stream error
+          if (budgetReserved && campaignId) {
+            await releaseBudget(campaignId, estimatedCost);
+          }
+          
           logger.error('DirectorChat', 'Stream error', error);
           console.error('[Stream] Error:', error);
           const errorData = `data: ${JSON.stringify({ error: 'Stream failed' })}\n\n`;
