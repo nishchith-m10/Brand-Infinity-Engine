@@ -240,37 +240,49 @@ export default function AnalyticsPage() {
             </div>
           </CardHeader>
           <CardContent>
+            {/* Top border inset to match Platform Performance */}
+            <div className="border-b border-gray-200 px-6" />
+          <CardContent>
             {/* Simple Bar Chart */}
-            <div className="h-64">
-              <div className="flex h-full items-end justify-between gap-2">
-                {dailyStats.map((day: { date: string; views: number; likes: number; comments: number; shares: number }) => {
-                  const value = day[selectedMetric as keyof typeof day] as number;
-                  const height = (value / chartMax) * 100;
-                  const date = new Date(day.date);
-                  
-                  return (
-                    <div
-                      key={day.date}
-                      className="group flex flex-1 flex-col items-center"
-                    >
-                      <div className="relative w-full flex-1">
-                        <div
-                          className="absolute bottom-0 w-full rounded-t-lg bg-lamaPurple transition-all group-hover:bg-lamaPurple/80"
-                          style={{ height: `${height}%` }}
-                        />
-                        {/* Tooltip */}
-                        <div className="absolute -top-8 left-1/2 hidden -translate-x-1/2 whitespace-nowrap rounded bg-gray-900 px-2 py-1 text-xs text-white group-hover:block">
-                          {formatNumber(value)}
+            {dailyStats && dailyStats.length > 0 ? (
+              <div className="h-64">
+                <div className="flex h-full items-end justify-between gap-2">
+                  {dailyStats.map((day: { date: string; views: number; likes: number; comments: number; shares: number }) => {
+                    const value = day[selectedMetric as keyof typeof day] as number;
+                    const height = (value / chartMax) * 100;
+                    const date = new Date(day.date);
+                    
+                    return (
+                      <div
+                        key={day.date}
+                        className="group flex flex-1 flex-col items-center"
+                      >
+                        <div className="relative w-full flex-1">
+                          <div
+                            className="absolute bottom-0 w-full rounded-t-lg bg-lamaPurple transition-all group-hover:bg-lamaPurple/80"
+                            style={{ height: `${height}%` }}
+                          />
+                          {/* Tooltip */}
+                          <div className="absolute -top-8 left-1/2 hidden -translate-x-1/2 whitespace-nowrap rounded bg-gray-900 px-2 py-1 text-xs text-white group-hover:block">
+                            {formatNumber(value)}
+                          </div>
                         </div>
+                        <span className="mt-2 text-xs text-gray-500">
+                          {date.toLocaleDateString('en-US', { weekday: 'short' })}
+                        </span>
                       </div>
-                      <span className="mt-2 text-xs text-gray-500">
-                        {date.toLocaleDateString('en-US', { weekday: 'short' })}
-                      </span>
-                    </div>
-                  );
-                })}
+                    );
+                  })}
+                </div>
               </div>
-            </div>
+            ) : (
+              <div className="h-64 flex items-center justify-center rounded-lg">
+                <div className="text-center">
+                  <p className="text-gray-500 font-medium">No performance data available</p>
+                  <p className="text-sm text-gray-400 mt-1">Performance metrics will appear once videos are published</p>
+                </div>
+              </div>
+            )}
           </CardContent>
         </Card>
 
@@ -297,7 +309,7 @@ export default function AnalyticsPage() {
                     cy="50"
                     r="45"
                     fill="none"
-                    stroke="rgb(14, 165, 233)"
+                    stroke="#8B5CF6"
                     strokeWidth="10"
                     strokeLinecap="round"
                     strokeDasharray={`${overview.engagementRate * 28.27} 282.7`}
