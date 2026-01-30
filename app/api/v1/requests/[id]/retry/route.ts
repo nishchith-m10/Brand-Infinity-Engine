@@ -5,6 +5,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
 import { RetryRequestResponse } from '@/types/pipeline';
+import { RetryRequestSchema, validateRequest } from '@/lib/validations/api-schemas';
 
 export async function POST(request: NextRequest, context: { params: { id: string } | Promise<{ id: string }> }) {
   try {
@@ -22,6 +23,25 @@ export async function POST(request: NextRequest, context: { params: { id: string
     const params = await (context.params as any) as { id: string };
     const requestId = params.id;
 
+    // Validate request body
+    const body = await request.json();
+    const validation = validateRequest(RetryRequestSchema, body);
+    if (!validation.success) {
+      return NextResponse.json(
+        {
+          success: false,
+          error: {
+            code: 'VALIDATION_ERROR',
+            message: 'Invalid request data',
+            details: validation.error.format(),
+          },
+        },
+        { status: 400 }
+      );
+    }
+
+    const { task_ids, force } = validation.data;
+
     // Verify request exists
     const { data: contentRequest, error: fetchError } = await supabase
       .from('content_requests')
@@ -33,8 +53,8 @@ export async function POST(request: NextRequest, context: { params: { id: string
       return NextResponse.json({ success: false, error: 'Request not found' }, { status: 404 });
     }
 
-    // Don't retry cancelled requests
-    if (contentRequest.status === 'cancelled') {
+    // Don't retry cancelled requests unless forced
+    if (contentRequest.status === 'cancelled' && !force) {
       return NextResponse.json(
         { success: false, error: 'Cannot retry cancelled requests' },
         { status: 400 }
@@ -42,11 +62,18 @@ export async function POST(request: NextRequest, context: { params: { id: string
     }
 
     // Find failed tasks that haven't exceeded max retries
-    const { data: failedTasks, error: tasksError } = await supabase
+    let query = supabase
       .from('request_tasks')
       .select('*')
       .eq('request_id', requestId)
       .eq('status', 'failed');
+
+    // If specific task_ids provided, filter by them
+    if (task_ids && task_ids.length > 0) {
+      query = query.in('id', task_ids);
+    }
+
+    const { data: failedTasks, error: tasksError } = await query;
 
     if (tasksError) {
       console.error('Failed to fetch tasks:', tasksError);
