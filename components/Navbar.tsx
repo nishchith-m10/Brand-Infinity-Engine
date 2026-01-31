@@ -160,13 +160,13 @@ export default function Navbar() {
                       }}
                       className="w-full text-left px-3 py-2 rounded hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors"
                     >
-                      <div className="font-medium text-sm dark:text-slate-200" style={{ color: '#0f172a' }}>{result.campaign_name}</div>
-                      <div className="text-xs capitalize dark:text-slate-400" style={{ color: '#475569' }}>{result.status}</div>
+                      <div className="font-medium text-sm text-foreground">{result.campaign_name}</div>
+                      <div className="text-xs capitalize text-muted-foreground">{result.status}</div>
                     </button>
                   ))}
                 </div>
               ) : (
-                <div className="p-4 text-sm text-center dark:text-slate-400" style={{ color: '#64748b' }}>
+                <div className="p-4 text-sm text-center text-muted-foreground">
                   No campaigns found
                 </div>
               )}
