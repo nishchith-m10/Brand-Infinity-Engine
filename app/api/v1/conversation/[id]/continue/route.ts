@@ -15,6 +15,7 @@ import {
   clearCachedQuestions,
 } from "@/lib/redis/session-cache";
 import { createExecutiveAgent } from "@/lib/agents/executive";
+import { rateLimiters, checkRateLimit } from "@/lib/utils/rate-limit-helpers";
 import type { ClarifyingQuestion, TaskPlan } from "@/lib/agents/types";
 
 interface ContextPayload {
@@ -82,6 +83,12 @@ export async function POST(
         },
         { status: 401 }
       );
+    }
+
+    // Step 1.5: Check rate limit (30 requests/minute for conversation continue)
+    const rateLimitResponse = await checkRateLimit(rateLimiters.conversationContinue, user.id);
+    if (rateLimitResponse) {
+      return rateLimitResponse as NextResponse<ContinueResponse>;
     }
 
     // Step 2: Verify ownership
