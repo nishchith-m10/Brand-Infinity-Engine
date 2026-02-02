@@ -4,6 +4,7 @@
 // =============================================================================
 
 import { createClient } from '@/lib/supabase/server';
+import { createAdminClient } from '@/lib/supabase/admin';
 import {
   ContentRequest,
   RequestTask,
@@ -403,7 +404,7 @@ export class AgentRunner {
     status: string,
     additionalData?: Partial<RequestTask>
   ): Promise<void> {
-    const supabase = await createClient();
+    const supabase = createAdminClient();
 
     const updates: Record<string, unknown> = {
       status,
@@ -414,10 +415,15 @@ export class AgentRunner {
       updates.started_at = new Date().toISOString();
     }
 
-    await supabase
+    const { error } = await supabase
       .from('request_tasks')
       .update(updates)
       .eq('id', taskId);
+
+    if (error) {
+      console.error(`[AgentRunner] Failed to update task ${taskId} status to ${status}:`, error);
+      throw error;
+    }
   }
 
   /**
@@ -427,9 +433,9 @@ export class AgentRunner {
     taskId: string,
     result: AgentExecutionResult
   ): Promise<void> {
-    const supabase = await createClient();
+    const supabase = createAdminClient();
 
-    await supabase
+    const { error } = await supabase
       .from('request_tasks')
       .update({
         status: 'completed',
@@ -438,6 +444,11 @@ export class AgentRunner {
         completed_at: new Date().toISOString(),
       })
       .eq('id', taskId);
+
+    if (error) {
+      console.error(`[AgentRunner] Failed to mark task ${taskId} as completed:`, error);
+      throw error;
+    }
   }
 
   /**
@@ -445,18 +456,23 @@ export class AgentRunner {
    */
   private async failTask(
     taskId: string,
-    error: { code: string; message: string; retriable?: boolean }
+    errorObj: { code: string; message: string; retriable?: boolean }
   ): Promise<void> {
-    const supabase = await createClient();
+    const supabase = createAdminClient();
 
-    await supabase
+    const { error } = await supabase
       .from('request_tasks')
       .update({
         status: 'failed',
-        error_message: `${error.code}: ${error.message}`,
-        completed_at: new Date().toISOString(),
+        error_message: errorObj.message,
+        // retry_count is incremented by orchestrator retry logic
       })
       .eq('id', taskId);
+
+    if (error) {
+      console.error(`[AgentRunner] Failed to mark task ${taskId} as failed:`, error);
+      // We log but don't re-throw to avoid loops in error handling
+    }
   }
 
   /**
