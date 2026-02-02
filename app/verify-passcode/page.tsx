@@ -5,18 +5,16 @@ import { useRouter } from 'next/navigation';
 import { Lock, Loader2, LogOut } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { useAuth } from '@/lib/auth/auth-provider';
-import { createClient } from '@supabase/supabase-js';
 
-// Client-side Supabase helper (used to complete OAuth callback on the client)
-const supabase = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
-);
+// Use app's shared Supabase client helper to avoid multiple GoTrueClient instances
+import { createClient as createSupabaseClient } from '@/lib/supabase/client';
+const supabase = createSupabaseClient();
 
 export default function VerifyPasscodePage() {
   const [passcode, setPasscode] = useState('');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
+  const [needsReauth, setNeedsReauth] = useState(false);
   const router = useRouter();
   const { user, signOut } = useAuth();
 
@@ -73,12 +71,12 @@ export default function VerifyPasscodePage() {
           return;
         }
 
-        // Handle explicit missing refresh token error with a re-login flow
+        // Handle explicit missing refresh token error with a re-auth flow
         if (storeJson?.error?.code === 'MISSING_REFRESH_TOKEN') {
           console.warn('[VerifyPasscode] Missing refresh token, user needs to re-authenticate', storeJson);
-          setError('Sign-in incomplete. Please sign in again to continue.');
-          // Redirect to login so the full server-side flow can be performed
-          window.location.href = '/login?reason=missing_refresh_token';
+          setError('Sign-in incomplete. Please re-authenticate to grant offline access.');
+          setNeedsReauth(true);
+          // Do NOT auto-redirect back to /login: show user a clear re-auth option
           return;
         }
 
@@ -194,6 +192,36 @@ export default function VerifyPasscodePage() {
                 className="rounded-xl p-3 text-sm bg-red-50 text-red-700 border border-red-100"
               >
                 {error}
+                {needsReauth && (
+                  <div className="mt-3 flex gap-2">
+                    <button
+                      type="button"
+                      onClick={async () => {
+                        setLoading(true);
+                        // Trigger Google OAuth again and request offline access
+                        await supabase.auth.signInWithOAuth({
+                          provider: 'google',
+                          options: {
+                            redirectTo: '/verify-passcode',
+                            scopes: 'openid email profile',
+                            queryParams: { access_type: 'offline', prompt: 'consent' }
+                          }
+                        });
+                        setLoading(false);
+                      }}
+                      className="py-2 px-3 rounded bg-lamaPurple text-white text-sm"
+                    >
+                      Re-authenticate with Google
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => window.location.href = '/login'}
+                      className="py-2 px-3 rounded border border-slate-200 text-sm"
+                    >
+                      Back to login
+                    </button>
+                  </div>
+                )}
               </motion.div>
             )}
 
