@@ -13,7 +13,7 @@
  * - Drag-and-drop (future enhancement)
  */
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { createClient } from '@/lib/supabase/client';
 import RequestCard from './RequestCard';
 import RequestDetailModal from './RequestDetailModal';
@@ -43,7 +43,7 @@ export default function PipelineBoard() {
   const [loading, setLoading] = useState(true);
   const [filter, setFilter] = useState<'all' | 'mine'>('all');
 
-  const loadRequests = async () => {
+  const loadRequests = useCallback(async () => {
     const supabase = createClient();
     
     let query = supabase
@@ -58,21 +58,24 @@ export default function PipelineBoard() {
       }
     }
 
-    const { data: requests } = await query;
+    const { data } = await query;
+    const requests = data as ContentRequest[] | null;
 
     if (requests) {
-      const grouped = columns.map(col => ({
+      setColumns(prev => prev.map(col => ({
         ...col,
         requests: requests.filter(r => r.status === col.id),
-      }));
-      setColumns(grouped);
+      })));
     }
 
     setLoading(false);
-  };
+  }, [filter]);
 
   useEffect(() => {
-    loadRequests();
+    const fetchData = async () => {
+      await loadRequests();
+    };
+    fetchData();
 
     // Subscribe to real-time updates
     const supabase = createClient();
@@ -94,7 +97,7 @@ export default function PipelineBoard() {
     return () => {
       supabase.removeChannel(channel);
     };
-  }, [filter]);
+  }, [loadRequests]);
 
   if (loading) {
     return (
@@ -164,7 +167,7 @@ export default function PipelineBoard() {
 
       {/* Board - Two Row Grid */}
       <section className="grid grid-cols-3 gap-4 flex-1 overflow-hidden" aria-label="Content pipeline stages">
-        {columns.map((column, index) => (
+        {columns.map((column) => (
           <div
             key={column.id}
             className="flex flex-col bg-white rounded-2xl border border-gray-200 p-4 shadow-sm overflow-hidden"
