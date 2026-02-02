@@ -272,6 +272,11 @@ export class ProducerAdapter {
     input.voice_id = params.request.voice_id;
     input.preferred_provider = params.request.preferred_provider;
 
+    // Phase 1 Critical Fix: Pass KB and asset IDs to n8n workflows
+    input.selected_kb_ids = (params.request as any).selected_kb_ids || [];
+    input.selected_asset_ids = (params.request as any).selected_asset_ids || [];
+    input.brand_id = params.request.brand_id;
+
     // Include provider-specific metadata (e.g., pollinations_model)
     if (params.request.metadata) {
       const metadata = params.request.metadata as Record<string, unknown>;
@@ -319,7 +324,9 @@ export class ProducerAdapter {
         // Wrap with retry logic
         return await retryWithBackoff(
           async () => {
-            const url = `${this.config.baseUrl}/api/v1/workflows/${workflowId}/execute`;
+            // Using fixed slug to ensure match with Webhook Node configuration
+            // const url = `${this.config.baseUrl}/webhook/${workflowId}`;
+            const url = `${this.config.baseUrl}/webhook/video-production`;
 
             // Create abort controller for timeout
             const controller = new AbortController();
@@ -347,11 +354,29 @@ export class ProducerAdapter {
 
               const result = await response.json();
 
+              // Handle n8n array response (common in webhook nodes)
+              let data = result;
+              if (Array.isArray(result) && result.length > 0) {
+                 data = result[0].json || result[0]; 
+              }
+              // Handle standard API response wrapper
+              if (data.data) {
+                data = data.data;
+              }
+
+              // Check for synchronous completion (direct artifact return)
+              if (data.video_url || data.image_url || data.audio_url) {
+                  return {
+                      success: true,
+                      output: data
+                  };
+              }
+
               return {
-                executionId: result.data?.executionId || result.executionId || 'unknown',
+                executionId: data.executionId || 'unknown',
                 workflowId,
-                status: result.data?.status || 'pending',
-                message: result.message,
+                status: data.status || 'pending',
+                message: data.message,
               };
             } catch (error) {
               clearTimeout(timeoutId);
