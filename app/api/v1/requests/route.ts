@@ -103,49 +103,43 @@ export async function POST(request: NextRequest) {
     }
 
     // 4. Calculate cost and time estimates
-    const estimate = calculateEstimate({
+    const estimateParams = {
       type: input.type,
       duration: input.requirements.duration,
       provider: input.settings?.provider,
       tier: input.settings?.tier || 'standard',
       hasVoiceover: input.type === 'video_with_vo',
       autoScript: input.settings?.auto_script ?? true,
+    };
+    
+    // DEBUG: Log provider and estimate params
+    console.log('[DEBUG] Request estimate params:', {
+      provider: estimateParams.provider,
+      type: estimateParams.type,
+      tier: estimateParams.tier,
+      settings: input.settings
+    });
+    
+    const estimate = calculateEstimate(estimateParams);
+    
+    console.log('[DEBUG] Calculated estimate:', {
+      cost: estimate.cost,
+      provider: estimateParams.provider,
+      isFreeProvider: estimateParams.provider && (['pollinations', 'Pollinations', 'POLLINATIONS', 'pollinations-flux', 'pollinations-realism', 'pollinations-anime', 'pollinations-3d', 'pollinations-turbo'].includes(estimateParams.provider))
     });
 
-    // 5. Reserve budget if campaign is provided (Phase II, Pillar 2)
-    // This prevents race conditions where concurrent requests exceed budget
-    if (input.campaign_id) {
-      const budgetReservation = await reserveBudget(input.campaign_id, estimate.cost);
-      
-      if (!budgetReservation.success) {
-        return NextResponse.json(
-          {
-            success: false,
-            error: 'INSUFFICIENT_BUDGET',
-            message: budgetReservation.error || 'Insufficient campaign budget',
-            details: {
-              requested: estimate.cost,
-              budgetLimit: budgetReservation.budgetLimit,
-              budgetUsed: budgetReservation.budgetUsed,
-              budgetReserved: budgetReservation.budgetReserved,
-              available: budgetReservation.budgetLimit 
-                ? (budgetReservation.budgetLimit - (budgetReservation.budgetUsed || 0) - (budgetReservation.budgetReserved || 0))
-                : 0,
-            },
-          },
-          { status: 402 } // Payment Required
-        );
-      }
+    // 5. Prepare request data and task templates for atomic creation (Phase III, Pillar 1)
+    // Note: Pre-generate a request UUID so budget reservations can reference it prior to creation.
+    const { randomUUID } = await import('crypto');
+    const preRequestId = randomUUID();
 
-      console.log(`[BudgetCheck] Reserved $${estimate.cost} for campaign ${input.campaign_id}`);
-    }
-
-    // 6. Build request data and task templates for atomic creation (Phase III, Pillar 1)
     // Get task templates for this request type
     const taskTemplatesList = taskFactory.getTemplatesForRequestType(input.type);
-    const taskTemplates = buildTaskTemplates(input.type, taskTemplatesList);
+    const normalizedTemplates = taskTemplatesList.map((t) => ({ ...t, dependencies: t.dependencies || [] }));
+    const taskTemplates = buildTaskTemplates(input.type, normalizedTemplates);
 
     const requestData = {
+      id: preRequestId,
       brand_id: input.brand_id,
       campaign_id: input.campaign_id,
       title: input.title,
@@ -177,6 +171,37 @@ export async function POST(request: NextRequest) {
       estimated_time_seconds: estimate.timeSeconds,
     };
 
+    // 6. Reserve budget if campaign is provided (Phase II, Pillar 2)
+    // This prevents race conditions where concurrent requests exceed budget
+    // SKIP reservation for zero-cost operations (free providers like Pollinations)
+    if (input.campaign_id && estimate.cost > 0) {
+      const budgetReservation = await reserveBudget(input.campaign_id, preRequestId, estimate.cost);
+      
+      if (!budgetReservation.success) {
+        return NextResponse.json(
+          {
+            success: false,
+            error: 'INSUFFICIENT_BUDGET',
+            message: budgetReservation.error || 'Insufficient campaign budget',
+            details: {
+              requested: estimate.cost,
+              budgetLimit: budgetReservation.budgetLimit,
+              budgetUsed: budgetReservation.budgetUsed,
+              budgetReserved: budgetReservation.budgetReserved,
+              available: budgetReservation.budgetLimit 
+                ? (budgetReservation.budgetLimit - (budgetReservation.budgetUsed || 0) - (budgetReservation.budgetReserved || 0))
+                : 0,
+            },
+          },
+          { status: 402 } // Payment Required
+        );
+      }
+
+      console.log(`[BudgetCheck] Reserved $${estimate.cost} for campaign ${input.campaign_id} (reservation for request ${preRequestId})`);
+    } else if (input.campaign_id && estimate.cost === 0) {
+      console.log(`[BudgetCheck] Skipping budget reservation for zero-cost request (campaign ${input.campaign_id}, request ${preRequestId})`);
+    }
+
     // 7. Atomically create request + tasks + event (Phase III, Pillar 1)
     // This uses a PostgreSQL RPC function to wrap all operations in a transaction
     const createResult = await createRequestAtomic(
@@ -190,8 +215,8 @@ export async function POST(request: NextRequest) {
       console.error('Failed to create request atomically:', createResult.error);
       
       // Release reserved budget on failure (Phase II, Pillar 2)
-      // Budget is automatically released thanks to transaction rollback
-      if (input.campaign_id) {
+      // Only attempt budget release if we actually reserved budget (non-zero cost)
+      if (input.campaign_id && estimate.cost > 0) {
         await releaseBudget(input.campaign_id, estimate.cost).catch((err) => {
           console.error('Failed to release budget after request creation failure:', err);
         });
