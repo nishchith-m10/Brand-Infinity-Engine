@@ -146,11 +146,11 @@ export class MetricsCollector {
       const totalJobs = Number(counts.totalJobs ?? 0);
       const successCount = Number(counts.successCount ?? 0);
       const failureCount = Number(counts.failureCount ?? 0);
-      const avgDuration = durations.length ? Math.round(durations.map(Number).reduce((a, b) => a + b, 0) / durations.length) : 0;
+      const avgDuration = durations.length ? Math.round(durations.map(Number).reduce((a: number, b: number) => a + b, 0) / durations.length) : 0;
       const successRate = totalJobs ? successCount / totalJobs : 0;
 
       // percentiles
-      const numericDurations = durations.map(Number).sort((a, b) => a - b);
+      const numericDurations = durations.map(Number).sort((a: number, b: number) => a - b);
       const p50 = this.percentile(numericDurations, 0.5);
       const p95 = this.percentile(numericDurations, 0.95);
       const p99 = this.percentile(numericDurations, 0.99);
