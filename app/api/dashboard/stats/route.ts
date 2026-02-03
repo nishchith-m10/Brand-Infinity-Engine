@@ -3,8 +3,8 @@ import { NextResponse } from 'next/server';
 // Enable Edge Runtime for faster global response times
 export const runtime = 'edge';
 
-// Revalidate cached response every 60 seconds
-export const revalidate = 60;
+// Response caching is handled via cache headers in responses; removing `revalidate` export to avoid invalid segment configuration
+// export const revalidate = 60;
 
 // Mock stats data
 const mockStats = {
