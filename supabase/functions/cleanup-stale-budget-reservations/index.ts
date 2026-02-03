@@ -13,6 +13,7 @@
  * Schedule: Run every hour via Supabase Cron or external scheduler
  */
 
+// @ts-ignore - ESM import for Supabase Edge Function runtime
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.39.3';
 
 interface CleanupResult {
@@ -22,7 +23,9 @@ interface CleanupResult {
   errors: string[];
 }
 
-Deno.serve(async (req) => {
+const denoServe = (globalThis as any).Deno?.serve;
+if (denoServe) {
+  denoServe(async (req: Request) => {
   const corsHeaders = {
     'Access-Control-Allow-Origin': '*',
     'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
@@ -34,9 +37,9 @@ Deno.serve(async (req) => {
   }
 
   try {
-    // Initialize Supabase client with service role
-    const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
-    const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
+    // Initialize Supabase client with service role (support both Deno and Node envs)
+    const supabaseUrl = (typeof process !== 'undefined' && process.env.SUPABASE_URL) || (globalThis as any).Deno?.env?.get('SUPABASE_URL') || '';
+    const supabaseServiceKey = (typeof process !== 'undefined' && process.env.SUPABASE_SERVICE_ROLE_KEY) || (globalThis as any).Deno?.env?.get('SUPABASE_SERVICE_ROLE_KEY') || '';
     
     const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
@@ -170,3 +173,4 @@ Deno.serve(async (req) => {
     );
   }
 });
+}
