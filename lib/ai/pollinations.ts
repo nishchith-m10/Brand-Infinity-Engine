@@ -117,12 +117,13 @@ export async function generateVideoPollinations(
     duration = 5,
     fps = 24,
   } = params;
-
+  
+  // NOTE: The direct video endpoint (video.pollinations.ai) was deprecated/removed.
+  // We now point to the unified Pollinations web player which handles generation.
+  // This is a webpage URL, not a direct video file URL.
   const encodedPrompt = encodeURIComponent(prompt);
-  const videoUrl = `https://video.pollinations.ai/video/${encodedPrompt}?model=${model}&duration=${duration}&fps=${fps}`;
+  const videoUrl = `https://pollinations.ai/p/${encodedPrompt}?model=${model}&duration=${duration}&fps=${fps}&nologo=true`;
 
-  // Note: Pollinations video generation is async, URL may take time to resolve
-  // For production, you'd want to poll or use webhooks
   return {
     url: videoUrl,
     prompt,
