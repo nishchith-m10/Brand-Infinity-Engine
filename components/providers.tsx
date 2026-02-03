@@ -29,7 +29,7 @@ export function Providers({ children, initialTheme }: { children: React.ReactNod
             <SidebarProvider>
               <NextThemesProvider
                 attribute="class"
-                defaultTheme={initialTheme ?? 'system'}
+                defaultTheme={initialTheme ?? 'light'}
                 enableSystem={true}
                 disableTransitionOnChange={false}
               >
