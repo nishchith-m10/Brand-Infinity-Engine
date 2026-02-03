@@ -9,13 +9,15 @@
  * - Return standardized AgentExecutionResult (pending state)
  */
 
-import type { 
-  AgentExecutionParams, 
+import type {
+  AgentExecutionParams,
   AgentExecutionResult,
   RequestTask,
 } from '@/lib/orchestrator/types';
 import { circuitBreakers, CircuitBreakerError } from '@/lib/orchestrator/CircuitBreaker';
 import { createAdminClient } from '@/lib/supabase/admin';
+import { retryWithBackoff, isRetryableHttpError, getRetryConfigFromEnv } from './retry';
+import { recordSuccess, recordFailure } from '@/utils/metrics';
 
 /**
  * n8n Workflow Configuration
@@ -28,6 +30,8 @@ interface N8nConfig {
     image_generation: string; // Workflow ID for image generation
     voiceover_synthesis: string; // Workflow ID for voiceover
   };
+  timeout: number; // HTTP request timeout in milliseconds
+  retryAttempts: number; // Number of retry attempts for failed requests
 }
 
 /**
@@ -70,6 +74,8 @@ export class ProducerAdapter {
         image_generation: config?.workflows?.image_generation || process.env.N8N_WORKFLOW_IMAGE || '',
         voiceover_synthesis: config?.workflows?.voiceover_synthesis || process.env.N8N_WORKFLOW_VOICEOVER || '',
       },
+      timeout: config?.timeout ?? parseInt(process.env.N8N_REQUEST_TIMEOUT_MS || '30000', 10),
+      retryAttempts: config?.retryAttempts ?? parseInt(process.env.N8N_RETRY_ATTEMPTS || '3', 10),
     };
   }
 
@@ -84,13 +90,14 @@ export class ProducerAdapter {
       const workflowId = this.selectWorkflow(params);
       
       if (!workflowId) {
-        // If no workflow is configured, allow a safe mock dispatch in dev/test modes.
-        const mode = process.env.IMAGE_GEN_MODE || 'mock';
-        if (mode === 'real') {
+        // Check if n8n is enabled (default: true for production)
+        const n8nEnabled = process.env.N8N_ENABLED !== 'false';
+
+        if (n8nEnabled) {
           return {
             success: false,
             error: {
-              code: 'WORKFLOW_NOT_FOUND',
+              code: 'WORKFLOW_NOT_CONFIGURED',
               message: `No n8n workflow configured for task type: ${params.task.task_name}`,
             },
             metadata: {
@@ -101,68 +108,8 @@ export class ProducerAdapter {
           };
         }
 
-        // Safe mock: insert a generation_jobs row and provider_metadata so local dev can progress
-        try {
-          const supabase = createAdminClient();
-
-          const { data: req } = await supabase
-            .from('content_requests')
-            .select('campaign_id, prompt')
-            .eq('id', params.request.id)
-            .limit(1)
-            .single();
-
-          const campaignId = req?.campaign_id || null;
-          const prompt = req?.prompt || (params.request as any).prompt || null;
-          const externalJobId = `mock-${Date.now()}`;
-          const providerName = (params.request as any).preferred_provider || process.env.POLLINATIONS_IMAGE_MODEL || 'mock-provider';
-
-          await supabase.from('generation_jobs').insert({
-            campaign_id: campaignId,
-            job_type: params.task.task_name.toLowerCase().includes('video') ? 'video' : 'image',
-            status: 'pending',
-            model_name: providerName,
-            prompt,
-            metadata: { request_id: params.request.id, request_task_id: params.task.id },
-            created_at: new Date().toISOString(),
-          });
-
-          await supabase.from('provider_metadata').insert({
-            request_task_id: params.task.id,
-            provider_name: providerName,
-            external_job_id: externalJobId,
-            response_payload: { provider_name: providerName, external_job_id: externalJobId, cost_incurred: 0 },
-            provider_status: 'pending',
-            created_at: new Date().toISOString(),
-          });
-
-          return {
-            success: true,
-            output: {
-              type: 'n8n_dispatch',
-              workflow_id: 'mock',
-              execution_id: externalJobId,
-              status: 'dispatched',
-              message: 'Mock dispatch created generation job and provider metadata',
-            },
-            metadata: {
-              agent: 'producer',
-              execution_time_ms: Date.now() - startTime,
-              timestamp: new Date().toISOString(),
-              workflow_id: 'mock',
-              execution_id: externalJobId,
-            },
-          };
-        } catch (err) {
-          return {
-            success: false,
-            error: {
-              code: 'MOCK_DISPATCH_FAILED',
-              message: err instanceof Error ? err.message : String(err),
-            },
-            metadata: { agent: 'producer', execution_time_ms: Date.now() - startTime },
-          };
-        }
+        // Mock mode for local development (N8N_ENABLED=false)
+        return await this.executeMockDispatch(params, startTime);
       }
 
       // Build dispatch payload
@@ -170,6 +117,30 @@ export class ProducerAdapter {
 
       // Dispatch to n8n
       const dispatchResult = await this.dispatchToN8n(workflowId, payload);
+
+      // Persist provider metadata immediately after dispatch (idempotent upsert)
+      const supabase = createAdminClient();
+      await supabase
+        .from('provider_metadata')
+        .upsert({
+          request_task_id: params.task.id,
+          provider_name: 'n8n',
+          external_job_id: dispatchResult.executionId,
+          request_payload: payload,
+          provider_status: 'pending',
+          dispatched_at: new Date().toISOString(),
+          created_at: new Date().toISOString(),
+        }, {
+          onConflict: 'provider_name,external_job_id',
+          ignoreDuplicates: false, // Update if exists
+        });
+
+      // Record successful dispatch metrics
+      await recordSuccess('n8n-dispatch', Date.now() - startTime, {
+        workflow_id: dispatchResult.workflowId,
+        execution_id: dispatchResult.executionId,
+        task_type: params.task.task_name,
+      });
 
       // Return pending result (n8n will callback when complete)
       return {
@@ -190,11 +161,18 @@ export class ProducerAdapter {
         },
       };
     } catch (error) {
+      // Record failure metrics
+      const errorMessage = error instanceof Error ? error.message : 'n8n dispatch failed';
+      await recordFailure('n8n-dispatch', Date.now() - startTime, errorMessage, {
+        task_type: params.task.task_name,
+        error_type: error instanceof CircuitBreakerError ? 'CIRCUIT_BREAKER_OPEN' : 'DISPATCH_ERROR',
+      });
+
       return {
         success: false,
         error: {
           code: 'PRODUCER_DISPATCH_FAILED',
-          message: error instanceof Error ? error.message : 'n8n dispatch failed',
+          message: errorMessage,
         },
         metadata: {
           agent: 'producer',
@@ -212,12 +190,12 @@ export class ProducerAdapter {
     const taskName = params.task.task_name.toLowerCase();
     const requestType = params.request.request_type;
 
-    // Video production tasks
+    // Video production tasks (includes both with and without voiceover)
     if (taskName.includes('video') || taskName.includes('edit')) {
       return this.config.workflows.video_production;
     }
 
-    // Voiceover tasks
+    // Voiceover-only tasks (separate from video generation)
     if (taskName.includes('voiceover') || taskName.includes('narration')) {
       return this.config.workflows.voiceover_synthesis;
     }
@@ -230,9 +208,9 @@ export class ProducerAdapter {
     // Fallback based on request type
     if (requestType === 'image') {
       return this.config.workflows.image_generation;
-    } else if (requestType === 'video_with_vo') {
-      return this.config.workflows.voiceover_synthesis;
-    } else if (requestType === 'video_no_vo') {
+    } else if (requestType === 'video_with_vo' || requestType === 'video_no_vo') {
+      // Both video types use video_production workflow
+      // The workflow itself handles voiceover integration based on script/input
       return this.config.workflows.video_production;
     }
 
@@ -285,6 +263,23 @@ export class ProducerAdapter {
       }
     }
 
+    // Include request creative parameters for video/image generation
+    input.prompt = params.request.prompt;
+    input.duration_seconds = params.request.duration_seconds;
+    input.aspect_ratio = params.request.aspect_ratio;
+    input.style_preset = params.request.style_preset;
+    input.shot_type = params.request.shot_type;
+    input.voice_id = params.request.voice_id;
+    input.preferred_provider = params.request.preferred_provider;
+
+    // Include provider-specific metadata (e.g., pollinations_model)
+    if (params.request.metadata) {
+      const metadata = params.request.metadata as Record<string, unknown>;
+      if (metadata.pollinations_model) {
+        input.pollinations_model = metadata.pollinations_model;
+      }
+    }
+
     return input;
   }
 
@@ -321,36 +316,141 @@ export class ProducerAdapter {
     // Use circuit breaker to protect against n8n failures
     try {
       return await circuitBreakers.n8n.execute(async () => {
-        const url = `${this.config.baseUrl}/api/v1/workflows/${workflowId}/execute`;
+        // Wrap with retry logic
+        return await retryWithBackoff(
+          async () => {
+            const url = `${this.config.baseUrl}/api/v1/workflows/${workflowId}/execute`;
 
-        const response = await fetch(url, {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            'X-N8N-API-KEY': this.config.apiKey,
+            // Create abort controller for timeout
+            const controller = new AbortController();
+            const timeoutId = setTimeout(() => controller.abort(), this.config.timeout);
+
+            try {
+              const response = await fetch(url, {
+                method: 'POST',
+                headers: {
+                  'Content-Type': 'application/json',
+                  'X-N8N-API-KEY': this.config.apiKey,
+                },
+                body: JSON.stringify(payload),
+                signal: controller.signal,
+              });
+
+              clearTimeout(timeoutId);
+
+              if (!response.ok) {
+                const errorText = await response.text();
+                // Sanitize API keys from error messages
+                const sanitizedError = this.sanitizeErrorMessage(errorText);
+                throw new Error(`n8n dispatch failed: ${response.status} - ${sanitizedError}`);
+              }
+
+              const result = await response.json();
+
+              return {
+                executionId: result.data?.executionId || result.executionId || 'unknown',
+                workflowId,
+                status: result.data?.status || 'pending',
+                message: result.message,
+              };
+            } catch (error) {
+              clearTimeout(timeoutId);
+              if (error instanceof Error && error.name === 'AbortError') {
+                throw new Error(`n8n request timeout after ${this.config.timeout}ms`);
+              }
+              throw error;
+            }
           },
-          body: JSON.stringify(payload),
-        });
-
-        if (!response.ok) {
-          const errorText = await response.text();
-          throw new Error(`n8n dispatch failed: ${response.status} - ${errorText}`);
-        }
-
-        const result = await response.json();
-
-        return {
-          executionId: result.data?.executionId || result.executionId || 'unknown',
-          workflowId,
-          status: result.data?.status || 'pending',
-          message: result.message,
-        };
+          getRetryConfigFromEnv(),
+          isRetryableHttpError
+        );
       });
     } catch (error) {
       if (error instanceof CircuitBreakerError) {
         throw new Error(`n8n service unavailable (circuit breaker ${error.state})`);
       }
       throw error;
+    }
+  }
+
+  /**
+   * Sanitize error messages to remove sensitive data like API keys
+   */
+  private sanitizeErrorMessage(message: string): string {
+    return message.replace(
+      /api[_-]?key[=:]\s*['"]?([^'"\s]+)/gi,
+      'api_key=***REDACTED***'
+    );
+  }
+
+  /**
+   * Execute mock dispatch for local development
+   * Creates generation_jobs and provider_metadata entries to simulate n8n dispatch
+   */
+  private async executeMockDispatch(
+    params: AgentExecutionParams,
+    startTime: number
+  ): Promise<AgentExecutionResult> {
+    try {
+      const supabase = createAdminClient();
+
+      const { data: req } = await supabase
+        .from('content_requests')
+        .select('campaign_id, prompt')
+        .eq('id', params.request.id)
+        .limit(1)
+        .single();
+
+      const campaignId = req?.campaign_id || null;
+      const prompt = req?.prompt || (params.request as any).prompt || null;
+      const externalJobId = `mock-${Date.now()}`;
+      const providerName = (params.request as any).preferred_provider || process.env.POLLINATIONS_IMAGE_MODEL || 'mock-provider';
+
+      await supabase.from('generation_jobs').insert({
+        campaign_id: campaignId,
+        job_type: params.task.task_name.toLowerCase().includes('video') ? 'video' : 'image',
+        status: 'pending',
+        model_name: providerName,
+        prompt,
+        metadata: { request_id: params.request.id, request_task_id: params.task.id },
+        created_at: new Date().toISOString(),
+      });
+
+      await supabase.from('provider_metadata').insert({
+        request_task_id: params.task.id,
+        provider_name: providerName,
+        external_job_id: externalJobId,
+        response_payload: { provider_name: providerName, external_job_id: externalJobId, cost_incurred: 0 },
+        provider_status: 'pending',
+        created_at: new Date().toISOString(),
+      });
+
+      return {
+        success: true,
+        output: {
+          type: 'n8n_dispatch',
+          workflow_id: 'mock',
+          execution_id: externalJobId,
+          status: 'dispatched',
+          message: 'Mock dispatch created generation job and provider metadata',
+        },
+        metadata: {
+          agent: 'producer',
+          execution_time_ms: Date.now() - startTime,
+          timestamp: new Date().toISOString(),
+          workflow_id: 'mock',
+          execution_id: externalJobId,
+        },
+      };
+    } catch (err) {
+      return {
+        success: false,
+        error: {
+          code: 'MOCK_DISPATCH_FAILED',
+          message: err instanceof Error ? err.message : String(err),
+        },
+        metadata: { agent: 'producer', execution_time_ms: Date.now() - startTime },
+      };
     }
   }
 
@@ -367,24 +467,39 @@ export class ProducerAdapter {
       return await circuitBreakers.n8n.execute(async () => {
         const url = `${this.config.baseUrl}/api/v1/executions/${executionId}`;
 
-        const response = await fetch(url, {
-          method: 'GET',
-          headers: {
-            'X-N8N-API-KEY': this.config.apiKey,
-          },
-        });
+        // Create abort controller for timeout
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), this.config.timeout);
 
-        if (!response.ok) {
-          throw new Error(`Failed to check execution status: ${response.status}`);
+        try {
+          const response = await fetch(url, {
+            method: 'GET',
+            headers: {
+              'X-N8N-API-KEY': this.config.apiKey,
+            },
+            signal: controller.signal,
+          });
+
+          clearTimeout(timeoutId);
+
+          if (!response.ok) {
+            throw new Error(`Failed to check execution status: ${response.status}`);
+          }
+
+          const result = await response.json();
+
+          return {
+            status: result.data?.status || 'pending',
+            result: result.data?.result,
+            error: result.data?.error,
+          };
+        } catch (error) {
+          clearTimeout(timeoutId);
+          if (error instanceof Error && error.name === 'AbortError') {
+            throw new Error(`n8n status check timeout after ${this.config.timeout}ms`);
+          }
+          throw error;
         }
-
-        const result = await response.json();
-        
-        return {
-          status: result.data?.status || 'pending',
-          result: result.data?.result,
-          error: result.data?.error,
-        };
       });
     } catch (error) {
       if (error instanceof CircuitBreakerError) {
