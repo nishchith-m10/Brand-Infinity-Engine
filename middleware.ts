@@ -112,18 +112,41 @@ export async function middleware(request: NextRequest) {
 
     // FAIL CLOSED: if session check failed OR user is not authenticated, redirect to login
     if (isProtectedRoute && (!sessionCheckSucceeded || !user)) {
-      const r = request.nextUrl.clone();
       const passcodeCookie = request.cookies.get('dashboard_passcode_verified');
 
-      // If session check failed but user has passcode cookie, redirect to /verify-passcode
-      // so the client can attempt to (re)establish a server session instead of forcing login.
+      // If session check failed but user has passcode cookie, try to re-establish session.
+      // To avoid an endless redirect loop when re-establish fails repeatedly, track a short-lived retry counter.
       if (!sessionCheckSucceeded && passcodeCookie) {
-        console.warn('[Middleware] Session check failed but passcode cookie present; redirecting to /verify-passcode to re-establish server session');
-        r.pathname = '/verify-passcode';
+        try {
+          const retryVal = Number(request.cookies.get('passcode_retries')?.value ?? '0');
+          const r = request.nextUrl.clone();
+
+          if (retryVal >= 1) {
+            console.warn('[Middleware] Session re-establish attempts exceeded; redirecting to /login');
+            r.pathname = '/login';
+            const res = NextResponse.redirect(r);
+            // Clear retry cookie
+            res.cookies.set('passcode_retries', '', { maxAge: 0, path: '/' });
+            return res;
+          } else {
+            console.warn('[Middleware] Session check failed but passcode cookie present; redirecting to /verify-passcode to re-establish server session');
+            r.pathname = '/verify-passcode';
+            const res = NextResponse.redirect(r);
+            // Set retry cookie valid for 60 seconds
+            res.cookies.set('passcode_retries', '1', { maxAge: 60, path: '/' });
+            return res;
+          }
+        } catch (e) {
+          // Fallback: just redirect to verify-passcode
+          const r = request.nextUrl.clone();
+          r.pathname = '/verify-passcode';
+          return NextResponse.redirect(r);
+        }
       } else {
+        const r = request.nextUrl.clone();
         r.pathname = '/login';
+        return NextResponse.redirect(r);
       }
-      return NextResponse.redirect(r);
     }
 
     // If user is authenticated but passcode not verified, redirect to verify-passcode
