@@ -320,7 +320,7 @@ export class EventLogger {
    * @param errorMessage - Optional error message if failed
    * @param cost - Optional cost incurred
    */
-  async logProviderCallback(
+  async logProviderCompleted(
     requestId: string,
     taskId: string,
     providerName: string,
