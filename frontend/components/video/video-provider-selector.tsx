@@ -100,49 +100,33 @@ export function VideoProviderSelector({
         </label>
         <Select
           value={selectedProvider}
-          onValueChange={(v) => handleChange(v as VideoProvider)}
+          onChange={(e) => handleChange((e.target as HTMLSelectElement).value as VideoProvider)}
           disabled={disabled}
-        >
-          <SelectTrigger className="w-full">
-            <SelectValue placeholder="Select video provider" />
-          </SelectTrigger>
-          <SelectContent>
-            {VIDEO_PROVIDERS.map((provider) => (
-              <SelectItem
-                key={provider.id}
-                value={provider.id}
-                disabled={!provider.available}
-              >
-                <div className="flex items-center justify-between w-full gap-3">
-                  <div className="flex flex-col">
-                    <span className="font-medium">{provider.name}</span>
-                    <span className="text-xs text-muted-foreground">
-                      {provider.description}
-                    </span>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <Badge
-                      variant="outline"
-                      className={`text-xs ${getQualityColor(provider.quality)}`}
-                    >
-                      {provider.quality}
-                    </Badge>
-                    <Tooltip>
-                      <TooltipTrigger>
-                        <span className="text-xs text-muted-foreground">
-                          {provider.cost}
-                        </span>
-                      </TooltipTrigger>
-                      <TooltipContent>
-                        <p>Estimated cost per 30-second video</p>
-                      </TooltipContent>
-                    </Tooltip>
-                  </div>
-                </div>
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
+          options={VIDEO_PROVIDERS.map((p) => ({ value: p.id, label: `${p.name} — ${p.description}`, disabled: !p.available }))}
+          placeholder="Select video provider"
+          className="w-full"
+        />
+        <div className="mt-2 flex flex-col gap-1">
+          {VIDEO_PROVIDERS.map((provider) => (
+            provider.id === selectedProvider && (
+              <div key={provider.id} className="flex items-center justify-between">
+                <Badge variant="outline" className={`text-xs ${getQualityColor(provider.quality)}`}>
+                  {provider.quality}
+                </Badge>
+                <Tooltip>
+                  <TooltipProvider>
+                    <TooltipTrigger>
+                      <span className="text-xs text-muted-foreground">{provider.cost}</span>
+                    </TooltipTrigger>
+                    <TooltipContent>
+                      <p>Estimated cost per 30-second video</p>
+                    </TooltipContent>
+                  </TooltipProvider>
+                </Tooltip>
+              </div>
+            )
+          ))}
+        </div>
         <p className="text-xs text-muted-foreground">
           {budgetTier === 'economy' && 'Recommended: Pollo AI for best value'}
           {budgetTier === 'standard' && 'Recommended: Pollo AI (balanced quality/cost)'}
