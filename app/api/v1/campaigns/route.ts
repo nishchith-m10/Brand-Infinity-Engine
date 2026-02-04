@@ -82,7 +82,7 @@ export async function POST(request: NextRequest) {
     // Determine budget limit based on tier
     // Use simple logic or validated logic
     const budgetLimits: Record<string, number> = {
-      low: 50,
+      low: 0,
       medium: 150,
       high: 500,
       premium: 2000,
