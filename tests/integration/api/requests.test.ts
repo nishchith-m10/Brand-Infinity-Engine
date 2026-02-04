@@ -186,6 +186,87 @@ describe('Content Request API Integration Tests', () => {
       expect(result.status).toBe(401);
       APITestHelper.assertErrorResponse(result.data, 'UNAUTHENTICATED');
     });
+
+    it('should create request with free provider without budget reservation', async () => {
+      const requestData = {
+        brand_id: TEST_CONFIG.TEST_BRAND_ID,
+        campaign_id: TEST_CONFIG.TEST_CAMPAIGN_ID,
+        title: 'Free Provider Test',
+        type: 'image',
+        requirements: {
+          prompt: 'Create a test image using Pollinations',
+          aspect_ratio: '1:1',
+          style_preset: 'Realistic',
+        },
+        settings: {
+          provider: 'pollinations', // Free provider
+          tier: 'standard',
+          auto_script: false,
+        }
+      };
+
+      const request = APITestHelper.createAuthenticatedRequest(
+        'POST',
+        '/api/v1/requests',
+        requestData
+      );
+
+      const response = await CreateRequest(request);
+      const result = await APITestHelper.parseResponse(response);
+
+      // Should succeed with 201 status
+      expect(result.status).toBe(201);
+      APITestHelper.assertSuccessResponse(result.data, ['id', 'status']);
+      
+      // Cost should be zero
+      expect(result.data.data.estimated_cost).toBe(0);
+      
+      // Verify request was created without budget reservation
+      const client = await testDb.getAdminClient();
+      const { data: createdRequest } = await client
+        .from('content_requests')
+        .select('*')
+        .eq('id', result.data.data.id)
+        .single();
+
+      expect(createdRequest).toBeTruthy();
+      expect(createdRequest.estimated_cost).toBe(0);
+    });
+
+    it('should create request with zero budget campaign when using free provider', async () => {
+      // Create a campaign with zero budget
+      const client = await testDb.getAdminClient();
+      const zeroBudgetCampaign = TestFixtures.createCampaign({ budget_limit: 0 });
+      await client.from('campaigns').insert(zeroBudgetCampaign);
+
+      const requestData = {
+        brand_id: TEST_CONFIG.TEST_BRAND_ID,
+        campaign_id: zeroBudgetCampaign.id,
+        title: 'Zero Budget Free Provider Test',
+        type: 'image',
+        requirements: {
+          prompt: 'Test with zero budget campaign',
+          aspect_ratio: '16:9',
+        },
+        settings: {
+          provider: 'pollinations',
+          tier: 'standard',
+        }
+      };
+
+      const request = APITestHelper.createAuthenticatedRequest(
+        'POST',
+        '/api/v1/requests',
+        requestData
+      );
+
+      const response = await CreateRequest(request);
+      const result = await APITestHelper.parseResponse(response);
+
+      // Should succeed even with zero budget campaign since provider is free
+      expect(result.status).toBe(201);
+      expect(result.data.data.estimated_cost).toBe(0);
+    });
   });
 
   describe('GET /api/v1/requests', () => {
