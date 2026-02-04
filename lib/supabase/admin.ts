@@ -17,11 +17,12 @@ export function createAdminClient() {
     throw new Error('[Security] Admin client must only be used server-side. Use createClient() from @/lib/supabase/server instead.');
   }
 
-  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+  // Read SUPABASE URL from production or NEXT_PUBLIC_* fallback
+  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || process.env.SUPABASE_URL;
   const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
 
   if (!supabaseUrl) {
-    throw new Error('Missing NEXT_PUBLIC_SUPABASE_URL environment variable');
+    throw new Error('Missing SUPABASE_URL or NEXT_PUBLIC_SUPABASE_URL environment variable');
   }
 
   if (!supabaseServiceKey) {
