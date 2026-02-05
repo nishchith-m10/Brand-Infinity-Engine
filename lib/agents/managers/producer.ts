@@ -184,6 +184,8 @@ Return as JSON with milestones and dates.`;
     workflowType: 'content_generation' | 'video_production';
     data: Record<string, unknown>;
     sessionId: string;
+    requestId?: string;
+    taskId?: string;
   }): Promise<{ execution_id: string }> {
     const n8n = getN8NClient();
 
@@ -195,12 +197,16 @@ Return as JSON with milestones and dates.`;
       return await n8n.triggerContentGeneration({
         ...params.data,
         session_id: params.sessionId,
-      } as { content_type: string; brief: string; specifications: Record<string, unknown>; brand_id: string; session_id: string; });
+        request_id: params.requestId,
+        task_id: params.taskId,
+      } as { content_type: string; brief: string; specifications: Record<string, unknown>; brand_id: string; session_id: string; request_id?: string; task_id?: string; });
     } else {
       return await n8n.triggerVideoProduction({
         ...params.data,
         session_id: params.sessionId,
-      } as { script: string; visual_specs: Record<string, unknown>; brand_assets: string[]; session_id: string; });
+        request_id: params.requestId,
+        task_id: params.taskId,
+      } as { script: string; visual_specs: Record<string, unknown>; brand_assets: string[]; session_id: string; request_id?: string; task_id?: string; });
     }
   }
 }
