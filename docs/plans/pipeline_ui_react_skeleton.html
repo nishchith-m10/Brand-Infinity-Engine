@@ -1,0 +1,1032 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Pipeline UI — React Skeleton</title>
+  <script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+  <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+  <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    :root {
+      --brand-primary: #6366f1; /* Indigo */
+      --brand-cta: #6366f1;
+      --brand-warning: #f59e0b;
+      --brand-success: #10b981;
+      --bg-1: #ffffff;
+      --bg-2: #f3f4f6;
+      --text-main: #111827;
+      --text-muted: #6b7280;
+      --border-color: #e5e7eb;
+    }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Inter', sans-serif;
+      background: var(--bg-2);
+      color: var(--text-main);
+      line-height: 1.5;
+      height: 100vh;
+      overflow: hidden;
+    }
+    .container {
+      display: flex;
+      height: 100vh;
+      width: 100%;
+      max-width: 100%;
+      margin: 0;
+      padding: 0;
+      align-items: stretch;
+    }
+    .form-panel {
+      width: 340px;
+      background: white;
+      border-right: 1px solid var(--border-color);
+      padding: 24px;
+      display: flex;
+      flex-direction: column;
+      overflow-y: auto;
+      flex-shrink: 0;
+      /* Hide scrollbar for Chrome, Safari and Opera */
+      &::-webkit-scrollbar {
+        display: none;
+      }
+      /* Hide scrollbar for IE, Edge and Firefox */
+      -ms-overflow-style: none;  /* IE and Edge */
+      scrollbar-width: none;  /* Firefox */
+    }
+    .form-header {
+      margin-bottom: 16px;
+    }
+    .form-header h2 {
+      font-size: 18px;
+      font-weight: 700;
+      color: var(--text-main);
+      margin-bottom: 2px;
+    }
+    .form-header p {
+      font-size: 13px;
+      color: var(--text-muted);
+    }
+    .field-group {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 10px;
+    }
+    .field {
+      margin-bottom: 12px;
+    }
+    .field label {
+      display: block;
+      font-size: 10px;
+      font-weight: 700;
+      text-transform: uppercase;
+      color: var(--text-muted);
+      margin-bottom: 4px;
+      letter-spacing: 0.5px;
+    }
+    .field input, .field select, .field textarea {
+      width: 100%;
+      border: 1px solid var(--border-color);
+      border-radius: 6px;
+      font-size: 13px;
+      font-family: inherit;
+      color: var(--text-main);
+      transition: border 0.2s, box-shadow 0.2s;
+      background: white;
+    }
+    .field input, .field select {
+      height: 34px;
+      padding: 0 10px;
+    }
+    .field textarea {
+      padding: 8px 10px;
+    }
+    .field input:focus, .field select:focus, .field textarea:focus {
+      outline: none;
+      border-color: var(--brand-cta);
+      box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.1);
+    }
+    .checkbox-field {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      margin-bottom: 16px;
+    }
+    .checkbox-field input {
+      width: auto;
+      accent-color: var(--brand-cta);
+    }
+    .checkbox-field label {
+      margin: 0;
+      font-size: 13px;
+      color: var(--text-main);
+      text-transform: none;
+      font-weight: 500;
+    }
+    .actions {
+      display: flex;
+      gap: 10px;
+      margin-top: auto;
+      padding-top: 20px;
+    }
+    .btn {
+      flex: 1;
+      height: 36px;
+      padding: 0 12px;
+      border: none;
+      border-radius: 6px;
+      font-size: 13px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.2s;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 6px;
+      white-space: nowrap;
+    }
+    .btn-primary {
+      background: var(--brand-cta);
+      color: white;
+    }
+    .btn-primary:hover {
+      background: #4f46e5;
+    }
+    .btn-secondary {
+      background: #f3f4f6;
+      color: var(--text-main);
+    }
+    .btn-secondary:hover {
+      background: #e5e7eb;
+    }
+    .estimate-box {
+      margin-top: 12px;
+      padding: 10px;
+      background: #fffbeb;
+      border: 1px solid #fcd34d;
+      border-radius: 8px;
+      font-size: 13px;
+      color: #92400e;
+    }
+
+    /* Context Selector */
+    .context-selector {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      margin-bottom: 12px;
+      align-items: center;
+    }
+    .context-btn {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      padding: 6px 10px;
+      border-radius: 8px;
+      border: 1px solid var(--border-color);
+      background: white;
+      font-size: 12px;
+      font-weight: 500;
+      color: var(--text-muted);
+      cursor: pointer;
+      transition: all 0.2s;
+      position: relative;
+    }
+    .context-btn:hover {
+      background: #f9fafb;
+      color: var(--text-main);
+    }
+    .context-btn.active {
+      background: #eef2ff;
+      border-color: #c7d2fe;
+      color: #4f46e5;
+    }
+    .context-btn svg {
+      width: 14px;
+      height: 14px;
+    }
+    .context-status {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      padding: 4px 8px;
+      background: #ecfdf5;
+      color: #059669;
+      border-radius: 12px;
+      font-size: 11px;
+      font-weight: 600;
+    }
+    .context-status-dot {
+      width: 6px;
+      height: 6px;
+      background: #10b981;
+      border-radius: 50%;
+    }
+    .context-dropdown {
+      position: absolute;
+      top: 100%;
+      left: 0;
+      margin-top: 4px;
+      background: white;
+      border: 1px solid var(--border-color);
+      border-radius: 8px;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+      width: 200px;
+      z-index: 50;
+      padding: 4px;
+      display: none;
+    }
+    .context-dropdown.open {
+      display: block;
+    }
+    .context-item {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 8px;
+      border-radius: 6px;
+      cursor: pointer;
+      font-size: 12px;
+      color: var(--text-main);
+    }
+    .context-item:hover {
+      background: #f3f4f6;
+    }
+    
+    /* Pipeline Area */
+    .pipeline-area {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      background: var(--bg-2);
+      overflow: hidden;
+      padding: 24px;
+    }
+    .pipeline-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 24px;
+    }
+    .pipeline-header h2 {
+      font-size: 20px;
+      font-weight: 700;
+      color: var(--text-main);
+    }
+    .header-actions {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+    .avatar-stack {
+      display: flex;
+      margin-right: 8px;
+    }
+    .avatar-stack .avatar {
+      width: 32px;
+      height: 32px;
+      border-radius: 50%;
+      border: 2px solid white;
+      margin-left: -8px;
+      background-size: cover;
+      background-position: center;
+    }
+    .avatar-stack .avatar:first-child { margin-left: 0; }
+    .btn-filter {
+      background: white;
+      border: 1px solid var(--border-color);
+      padding: 8px 16px;
+      border-radius: 6px;
+      font-size: 13px;
+      font-weight: 500;
+      color: var(--text-muted);
+      cursor: pointer;
+    }
+
+    /* Board */
+    .board {
+      display: flex;
+      gap: 24px;
+      flex: 1;
+      overflow-x: auto;
+      padding-bottom: 16px;
+    }
+    .column {
+      flex: 1;
+      min-width: 300px;
+      display: flex;
+      flex-direction: column;
+      background: white;
+      border: 1px solid var(--border-color);
+      border-radius: 16px;
+      padding: 20px;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+    }
+    .column-header {
+      background: transparent;
+      padding: 0;
+      border-radius: 0;
+      margin-bottom: 20px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      border: none;
+      box-shadow: none;
+    }
+    .column-header-title {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      font-size: 12px;
+      font-weight: 700;
+      text-transform: uppercase;
+      color: var(--text-muted);
+      letter-spacing: 0.5px;
+    }
+    .count-badge {
+      background: #f3f4f6;
+      color: var(--text-muted);
+      font-size: 11px;
+      font-weight: 600;
+      padding: 2px 8px;
+      border-radius: 12px;
+      min-width: 24px;
+      text-align: center;
+    }
+    .count-badge.active {
+      background: #e0e7ff;
+      color: var(--brand-cta);
+    }
+    .column-line {
+      width: 48px;
+      height: 4px;
+      border-radius: 2px;
+    }
+    .column-line.intake { background: #6366f1; }
+    .column-line.draft { background: #3b82f6; }
+    .column-line.production { background: #f97316; }
+    .column-line.qa { background: #a855f7; }
+    .column-line.published { background: #10b981; }
+
+    .column-content {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+      min-height: 0;
+      overflow-y: auto;
+    }
+    .empty-placeholder {
+      height: 140px;
+      border: 2px dashed #e5e7eb;
+      border-radius: 12px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: #9ca3af;
+      font-size: 13px;
+      background: #f9fafb;
+      flex: none;
+    }
+
+    /* Cards */
+    .card {
+      background: white;
+      border: 1px solid var(--border-color);
+      border-radius: 12px;
+      padding: 16px;
+      margin-bottom: 12px;
+      cursor: pointer;
+      transition: all 0.2s ease;
+      box-shadow: 0 1px 2px rgba(0,0,0,0.05);
+    }
+    .card:hover {
+      box-shadow: 0 4px 12px rgba(0,0,0,0.05);
+      transform: translateY(-2px);
+      border-color: #d1d5db;
+    }
+    .card-tag {
+      display: inline-block;
+      background: #eef2ff;
+      color: #4f46e5;
+      font-size: 10px;
+      font-weight: 600;
+      padding: 4px 8px;
+      border-radius: 4px;
+      margin-bottom: 12px;
+    }
+    .card-title {
+      font-size: 14px;
+      font-weight: 600;
+      color: var(--text-main);
+      margin-bottom: 16px;
+      line-height: 1.4;
+    }
+    .card-footer {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding-top: 12px;
+      border-top: 1px solid #f3f4f6;
+    }
+    .card-time {
+      font-size: 12px;
+      color: var(--text-muted);
+      display: flex;
+      align-items: center;
+      gap: 4px;
+    }
+    .card-avatar {
+      width: 24px;
+      height: 24px;
+      border-radius: 50%;
+      background: linear-gradient(135deg, #f59e0b, #f97316);
+    }
+
+    /* Recent Activity Bar */
+    .activity-bar {
+      background: white;
+      border-radius: 12px;
+      padding: 12px 20px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+      margin-top: auto;
+      border: 1px solid var(--border-color);
+    }
+    .activity-left {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+    .activity-icon {
+      width: 32px;
+      height: 32px;
+      background: #eef2ff;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: #6366f1;
+    }
+    .activity-info h4 {
+      font-size: 13px;
+      font-weight: 600;
+      color: var(--text-main);
+    }
+    .activity-info p {
+      font-size: 11px;
+      color: var(--text-muted);
+    }
+    .activity-right {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      font-size: 13px;
+      color: var(--text-main);
+    }
+    .activity-link {
+      color: var(--brand-cta);
+      text-decoration: none;
+      font-weight: 500;
+      font-size: 12px;
+    }
+
+    /* Modal */
+    .modal {
+      position: fixed;
+      inset: 0;
+      background: rgba(0,0,0,0.5);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      z-index: 1000;
+      backdrop-filter: blur(2px);
+    }
+    .modal-content {
+      background: white;
+      border-radius: 16px;
+      padding: 32px;
+      width: 90%;
+      max-width: 800px;
+      max-height: 85vh;
+      overflow: auto;
+      box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
+    }
+    /* ... keep existing modal styles or refine ... */
+    .modal-header { display: flex; justify-content: space-between; margin-bottom: 24px; }
+    .close-btn { font-size: 24px; cursor: pointer; background: none; border: none; color: #9ca3af; }
+    
+    /* Agent Timeline Styles (kept similar but refined) */
+    .agent-item { padding: 16px; background: #f9fafb; border-radius: 8px; margin-bottom: 12px; border: 1px solid #e5e7eb; }
+    .agent-item.active { border-color: #93c5fd; background: #eff6ff; }
+    .agent-item.complete { border-color: #86efac; background: #f0fdf4; }
+  </style>
+</head>
+<body>
+  <div id="root"></div>
+
+  <script type="text/babel">
+    const { useState, useEffect } = React;
+
+    // Mock data & utilities
+    const PROVIDERS = {
+      'video-with-vo': ['Pollo', 'Sora 2', 'Runway', 'Veo 3', 'Pika'],
+      'video-no-vo': ['Pollo', 'Sora 2', 'Runway', 'Veo 3', 'Pika'],
+      'image': ['NanoBanna Pro', 'Stable Diffusion']
+    };
+
+    const VOICE_OPTIONS = ['ElevenLabs - Calm', 'ElevenLabs - Energetic', 'ElevenLabs - Professional'];
+    const ASPECT_RATIOS = ['16:9 (Landscape)', '9:16 (Portrait)', '1:1 (Square)', '4:5 (Social)'];
+    const STYLES = ['Realistic', 'Animated', 'Cinematic', '3D', 'Sketch'];
+    const SHOT_TYPES = ['Close-up', 'Wide', 'Medium', 'POV', 'Aerial'];
+
+    const AGENTS = [
+      { name: 'Executive/Orchestrator', key: 'executive' },
+      { name: 'Task Planner', key: 'task_planner' },
+      { name: 'Strategist', key: 'strategist' },
+      { name: 'Copywriter', key: 'copywriter' },
+      { name: 'Producer', key: 'producer' }
+    ];
+
+    const COLUMNS = ['intake', 'draft', 'production', 'qa', 'published'];
+
+    function ContextSelector() {
+      const [campaignOpen, setCampaignOpen] = useState(false);
+      const [kbOpen, setKbOpen] = useState(false);
+      const [identityOpen, setIdentityOpen] = useState(false);
+      
+      const [selectedCampaign, setSelectedCampaign] = useState('Early Bloom');
+      const [selectedKBs, setSelectedKBs] = useState(['Brand Guidelines']);
+      const [identity, setIdentity] = useState('Brand Default');
+
+      const FolderIcon = () => <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M3 7v10a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2h-6l-2-2H5a2 2 0 0 0-2 2z"></path></svg>;
+      const DatabaseIcon = () => <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><ellipse cx="12" cy="5" rx="9" ry="3"></ellipse><path d="M21 12c0 1.66-4 3-9 3s-9-1.34-9-3"></path><path d="M3 5v14c0 1.66 4 3 9 3s 9-1.34 9-3V5"></path></svg>;
+      const UserIcon = () => <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path><circle cx="12" cy="7" r="4"></circle></svg>;
+      const ChevronDown = () => <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="6 9 12 15 18 9"></polyline></svg>;
+
+      return (
+        <div className="context-selector">
+          <div style={{position: 'relative'}}>
+            <button className="context-btn active" onClick={() => setCampaignOpen(!campaignOpen)}>
+              <FolderIcon />
+              <span>{selectedCampaign}</span>
+              <ChevronDown />
+            </button>
+            {campaignOpen && (
+              <div className="context-dropdown open">
+                <div className="context-item" onClick={() => {setSelectedCampaign('Early Bloom'); setCampaignOpen(false);}}>Early Bloom</div>
+                <div className="context-item" onClick={() => {setSelectedCampaign('Summer Sale'); setCampaignOpen(false);}}>Summer Sale</div>
+              </div>
+            )}
+          </div>
+
+          <div style={{position: 'relative'}}>
+            <button className="context-btn" onClick={() => setKbOpen(!kbOpen)}>
+              <DatabaseIcon />
+              <span>{selectedKBs.length}/1 KBs</span>
+              <ChevronDown />
+            </button>
+             {kbOpen && (
+              <div className="context-dropdown open">
+                <div className="context-item" onClick={() => setKbOpen(false)}>Brand Guidelines (Selected)</div>
+              </div>
+            )}
+          </div>
+
+          <div style={{position: 'relative'}}>
+            <button className="context-btn" onClick={() => setIdentityOpen(!identityOpen)}>
+              <UserIcon />
+              <span>{identity}</span>
+              <ChevronDown />
+            </button>
+             {identityOpen && (
+              <div className="context-dropdown open">
+                <div className="context-item" onClick={() => {setIdentity('Brand Default'); setIdentityOpen(false);}}>Brand Default</div>
+                <div className="context-item" onClick={() => {setIdentity('Strict'); setIdentityOpen(false);}}>Strict</div>
+              </div>
+            )}
+          </div>
+
+          <div className="context-status">
+            <div className="context-status-dot"></div>
+            <span>Context Ready</span>
+          </div>
+        </div>
+      );
+    }
+
+    function RequestForm({ onSubmit }) {
+      const [title, setTitle] = useState('Launch product reel');
+      const [campaign, setCampaign] = useState('campaign_1');
+      const [type, setType] = useState('video-with-vo');
+      const [duration, setDuration] = useState(30);
+      const [provider, setProvider] = useState('');
+      const [autoScript, setAutoScript] = useState(true);
+      const [scriptText, setScriptText] = useState('');
+      const [prompt, setPrompt] = useState('30s product demo, upbeat, Gen Z tone, show logo at the end...');
+      const [budget, setBudget] = useState('');
+      const [estimate, setEstimate] = useState(null);
+      const [voice, setVoice] = useState('ElevenLabs - Calm');
+      const [aspectRatio, setAspectRatio] = useState('16:9 (Landscape)');
+      const [style, setStyle] = useState('Realistic');
+      const [shotType, setShotType] = useState('Medium');
+
+      const handleEstimate = () => {
+        if (!provider) {
+          setEstimate({ cost: '0.00', time: 0, error: 'Please select a provider' });
+          return;
+        }
+        const isVideo = type.startsWith('video');
+        const baseCost = isVideo ? duration * 0.05 : 0.50;
+        const scriptCost = autoScript && !scriptText ? 0.02 : 0;
+        const voCost = type === 'video-with-vo' ? 0.10 : 0;
+        const total = (baseCost + scriptCost + voCost).toFixed(2);
+        const time = Math.max(1, Math.ceil(duration / 30));
+        setEstimate({ cost: total, time });
+      };
+
+      const handleSubmit = () => {
+        if (!provider) {
+          alert('Please select a provider');
+          return;
+        }
+        const req = {
+          title: title || 'Untitled Request',
+          campaign,
+          type,
+          duration: type === 'image' ? 0 : duration,
+          provider,
+          autoScript,
+          scriptText,
+          prompt,
+          budget,
+          voice: type === 'video-with-vo' ? voice : null,
+          aspectRatio,
+          style,
+          shotType,
+          timestamp: new Date().toISOString()
+        };
+        onSubmit(req);
+        // Reset logic if needed, keeping some defaults for demo
+        setEstimate(null);
+      };
+
+      return (
+        <div className="form-panel">
+          <div className="form-header">
+            <h2>Create Request</h2>
+            <p>New creative asset details.</p>
+          </div>
+
+          <div className="field">
+            <label>Title</label>
+            <input value={title} onChange={(e) => setTitle(e.target.value)} placeholder="Launch product reel" />
+          </div>
+
+          <div className="field-group">
+            <div className="field">
+              <label>Campaign</label>
+              <select value={campaign} onChange={(e) => setCampaign(e.target.value)}>
+                <option value="campaign_1">Campaign 1</option>
+                <option value="campaign_2">Campaign 2</option>
+              </select>
+            </div>
+            <div className="field">
+              <label>Content Type</label>
+              <select value={type} onChange={(e) => { setType(e.target.value); setProvider(''); }}>
+                <option value="video-with-vo">Video with Voiceover</option>
+                <option value="video-no-vo">Video without Voiceover</option>
+                <option value="image">Image</option>
+              </select>
+            </div>
+          </div>
+
+          <div className="field">
+            <label>Provider</label>
+            <select value={provider} onChange={(e) => setProvider(e.target.value)}>
+              <option value="">Select provider...</option>
+              {PROVIDERS[type]?.map(p => <option key={p} value={p}>{p}</option>)}
+            </select>
+          </div>
+
+          <div className="field-group">
+            {type !== 'image' && (
+              <div className="field">
+                <label>Duration (s)</label>
+                <input type="number" value={duration} onChange={(e) => setDuration(Number(e.target.value))} />
+              </div>
+            )}
+            <div className="field">
+              <label>Aspect Ratio</label>
+              <select value={aspectRatio} onChange={(e) => setAspectRatio(e.target.value)}>
+                {ASPECT_RATIOS.map(ar => <option key={ar} value={ar}>{ar}</option>)}
+              </select>
+            </div>
+          </div>
+
+          <div className="field-group">
+            <div className="field">
+              <label>Style</label>
+              <select value={style} onChange={(e) => setStyle(e.target.value)}>
+                {STYLES.map(s => <option key={s} value={s}>{s}</option>)}
+              </select>
+            </div>
+            <div className="field">
+              <label>Shot Type</label>
+              <select value={shotType} onChange={(e) => setShotType(e.target.value)}>
+                {SHOT_TYPES.map(st => <option key={st} value={st}>{st}</option>)}
+              </select>
+            </div>
+          </div>
+
+          {type === 'video-with-vo' && (
+            <div className="field">
+              <label>Voice</label>
+              <select value={voice} onChange={(e) => setVoice(e.target.value)}>
+                {VOICE_OPTIONS.map(v => <option key={v} value={v}>{v}</option>)}
+              </select>
+            </div>
+          )}
+
+          <div className="field">
+            <div className="checkbox-field">
+              <input type="checkbox" checked={autoScript} onChange={(e) => setAutoScript(e.target.checked)} />
+              <label>Auto-generate script (Copywriter agent)</label>
+            </div>
+            {!autoScript && (
+              <textarea
+                rows="3"
+                value={scriptText}
+                onChange={(e) => setScriptText(e.target.value)}
+                placeholder="Paste your custom script here..."
+                style={{ marginBottom: '14px' }}
+              />
+            )}
+          </div>
+
+          <ContextSelector />
+
+          <div className="field">
+            <label>Prompt (Creative Brief)</label>
+            <textarea rows="4" value={prompt} onChange={(e) => setPrompt(e.target.value)} />
+          </div>
+
+          <div className="field">
+            <label>Budget Cap (USD)</label>
+            <input type="text" value={budget} onChange={(e) => setBudget(e.target.value)} placeholder="e.g., 5.00" />
+          </div>
+
+          <div className="actions">
+            <button className="btn btn-secondary" onClick={handleEstimate}>Estimate</button>
+            <button className="btn btn-primary" onClick={handleSubmit}>
+              <span>+</span> Create & Queue
+            </button>
+          </div>
+
+          {estimate && (
+            <div className="estimate-box" style={estimate.error ? { background: '#fee2e2', borderColor: '#ef4444', color: '#7f1d1d' } : {}}>
+              {estimate.error ? (
+                <strong>{estimate.error}</strong>
+              ) : (
+                <span><strong>Estimate:</strong> ${estimate.cost} · ~{estimate.time} min</span>
+              )}
+            </div>
+          )}
+        </div>
+      );
+    }
+
+    function PipelineBoard({ requests, onCardClick }) {
+      const getRequestsByColumn = (col) => requests.filter(r => r.status === col);
+      const recentActivity = requests.slice(-5).reverse();
+      const lastActivity = recentActivity[0];
+
+      return (
+        <div className="pipeline-area">
+          <div className="pipeline-header">
+            <h2>Pipeline Board</h2>
+          </div>
+          
+          <div className="board">
+            {COLUMNS.map(col => {
+              const colRequests = getRequestsByColumn(col);
+              return (
+                <div key={col} className={`column ${col}`}>
+                  <div className="column-header">
+                    <div className="column-header-title">
+                      <span>{col.toUpperCase()}</span>
+                      <span className="count-badge">{colRequests.length}</span>
+                    </div>
+                    <div className={`column-line ${col}`}></div>
+                  </div>
+                  
+                  <div className="column-content">
+                    {colRequests.length === 0 ? (
+                      <div className="empty-placeholder">No requests</div>
+                    ) : (
+                      colRequests.map(req => (
+                        <div key={req.id} className="card" onClick={() => onCardClick(req)}>
+                          <span className="card-tag">{req.type === 'video-with-vo' ? 'Video' : 'Image'}</span>
+                          <div className="card-title">{req.title}</div>
+                          <div className="card-footer">
+                            <div className="card-time">
+                              <span>🕒</span> 2d
+                            </div>
+                            <div className="card-avatar"></div>
+                          </div>
+                        </div>
+                      ))
+                    )}
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+
+          <div className="activity-bar">
+            <div className="activity-left">
+              <div className="activity-icon">
+                <span>↺</span>
+              </div>
+              <div className="activity-info">
+                <h4>Recent Activity</h4>
+                <p>Updated 2 minutes ago</p>
+              </div>
+            </div>
+            <div className="activity-right">
+              {lastActivity ? (
+                <>
+                  <div className="card-avatar" style={{width: 20, height: 20}}></div>
+                  <span>Alex moved <strong>{lastActivity.title}</strong> to {lastActivity.status}</span>
+                </>
+              ) : (
+                <span>No recent activity</span>
+              )}
+              <a href="#" className="activity-link">View all history</a>
+            </div>
+          </div>
+        </div>
+      );
+    }
+
+    function RequestDetailModal({ request, onClose }) {
+      const [expandedAgent, setExpandedAgent] = useState(null);
+      if (!request) return null;
+
+      return (
+        <div className="modal" onClick={onClose}>
+          <div className="modal-content" onClick={(e) => e.stopPropagation()}>
+            <div className="modal-header">
+              <h3>Request #{request.id} — {request.title}</h3>
+              <button className="close-btn" onClick={onClose}>×</button>
+            </div>
+
+            <div style={{ marginBottom: 20, fontSize: 13, color: '#64748b' }}>
+              <strong>Type:</strong> {request.type.replace(/-/g, ' ')} · <strong>Provider:</strong> {request.provider} · <strong>Aspect:</strong> {request.aspectRatio} · <strong>Style:</strong> {request.style}
+            </div>
+
+            <div className="agent-timeline">
+              <h4 style={{ marginBottom: 12 }}>Agent Timeline</h4>
+              {AGENTS.map((agent) => {
+                const agentData = request.agentStates?.[agent.key] || { status: 'pending', action: 'Waiting...', logs: [] };
+                const isExpanded = expandedAgent === agent.key;
+                return (
+                  <div key={agent.key} className={`agent-item ${agentData.status}`}>
+                    <div className="agent-header">
+                      <span className="agent-name">{agent.name}</span>
+                      <span className={`agent-status ${agentData.status}`}>{agentData.status}</span>
+                    </div>
+                    <div className="agent-action">{agentData.action}</div>
+                    {agentData.logs.length > 0 && (
+                      <div>
+                        <span className="advanced-toggle" onClick={() => setExpandedAgent(isExpanded ? null : agent.key)}>
+                          {isExpanded ? 'Hide' : 'Show'} logs
+                        </span>
+                        {isExpanded && (
+                          <div className="agent-logs">
+                            {agentData.logs.map((log, i) => <div key={i}>{log}</div>)}
+                          </div>
+                        )}
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+
+            <div>
+              <h4 style={{ marginBottom: 10 }}>System Events</h4>
+              <div className="event-log">
+                {request.events.map((evt, i) => <div key={i}>{evt}</div>)}
+              </div>
+            </div>
+          </div>
+        </div>
+      );
+    }
+
+    function App() {
+      const [requests, setRequests] = useState([]);
+      const [selectedRequest, setSelectedRequest] = useState(null);
+      const [idCounter, setIdCounter] = useState(1);
+
+      // Add a sample request for visualization
+      useEffect(() => {
+        const sampleReq = {
+          id: 999,
+          title: 'Q3 Marketing Reel',
+          campaign: 'campaign_1',
+          type: 'video-with-vo',
+          duration: 30,
+          provider: 'Sora 2',
+          status: 'intake',
+          aspectRatio: '16:9',
+          style: 'Realistic',
+          events: [],
+          agentStates: {}
+        };
+        setRequests([sampleReq]);
+      }, []);
+
+      const handleCreateRequest = (req) => {
+        const id = idCounter;
+        setIdCounter(id + 1);
+
+        const newReq = {
+          ...req,
+          id,
+          status: 'intake',
+          tasks: [],
+          events: [`${new Date().toISOString()} | request_created`],
+          agentStates: {
+            executive: { status: 'active', action: 'Analyzing request...', logs: [`Received request #${id}`, 'Dispatching to Task Planner'] },
+            task_planner: { status: 'pending', action: 'Waiting...', logs: [] },
+            strategist: { status: 'pending', action: 'Waiting...', logs: [] },
+            copywriter: { status: 'pending', action: 'Waiting...', logs: [] },
+            producer: { status: 'pending', action: 'Waiting...', logs: [] }
+          }
+        };
+
+        setRequests(prev => [...prev, newReq]);
+
+        // Simulate agent flow with Agent Timeline updates
+        setTimeout(() => updateAgentState(id, 'executive', 'complete', 'Orchestration complete'), 600);
+        setTimeout(() => updateAgentState(id, 'task_planner', 'active', 'Creating scene plan...', ['Analyzing prompt', 'Generating shots', 'Estimating timelines']), 700);
+        setTimeout(() => { updateAgentState(id, 'task_planner', 'complete', 'Plan created: 5 scenes'); updateRequest(id, 'draft', null, 'task_planner:plan_created'); }, 1200);
+        setTimeout(() => updateAgentState(id, 'strategist', 'active', 'Optimizing creative strategy...', ['Analyzing brand tone', 'Selecting visual style', 'Optimizing for ' + req.provider]), 1300);
+        setTimeout(() => updateAgentState(id, 'strategist', 'complete', 'Strategy optimized'), 1800);
+        setTimeout(() => updateAgentState(id, 'copywriter', 'active', req.autoScript ? 'Generating script...' : 'Processing custom script...', req.autoScript ? ['Analyzing brief', 'Drafting dialogue', 'Adding hooks'] : ['Validating format', 'Timing sync']), 1900);
+        setTimeout(() => updateAgentState(id, 'copywriter', 'complete', 'Script ready'), 2200);
+        setTimeout(() => updateAgentState(id, 'producer', 'active', 'Dispatching to ' + req.provider + '...', ['Formatting payload', 'Sending to provider API', 'Job ID: job_' + Math.random().toString(36).substr(2, 9)]), 2300);
+        setTimeout(() => { updateRequest(id, 'production', null, 'producer:job_dispatched'); }, 2400);
+        setTimeout(() => { updateAgentState(id, 'producer', 'complete', 'Provider job completed'); updateRequest(id, 'qa', null, 'provider:completed'); }, 5400);
+        setTimeout(() => updateRequest(id, 'published', null, 'verifier:approved'), 7600);
+      };
+
+      const updateRequest = (id, status, task, event) => {
+        setRequests(prev => prev.map(r => {
+          if (r.id !== id) return r;
+          const updated = { ...r, status };
+          if (task) {
+            const existingTaskIndex = updated.tasks.findIndex(t => t.type === task.type);
+            if (existingTaskIndex >= 0) {
+              updated.tasks[existingTaskIndex] = { ...updated.tasks[existingTaskIndex], ...task };
+            } else {
+              updated.tasks.push(task);
+            }
+          }
+          if (event) updated.events.push(`${new Date().toISOString()} | ${event}`);
+          return updated;
+        }));
+      };
+
+      const updateAgentState = (id, agentKey, status, action, logs = null) => {
+        setRequests(prev => prev.map(r => {
+          if (r.id !== id) return r;
+          const updated = { ...r };
+          updated.agentStates = { ...updated.agentStates };
+          updated.agentStates[agentKey] = {
+            ...updated.agentStates[agentKey],
+            status,
+            action,
+            logs: logs || updated.agentStates[agentKey].logs
+          };
+          return updated;
+        }));
+      };
+
+      return (
+        <div className="container">
+          <RequestForm onSubmit={handleCreateRequest} />
+          <PipelineBoard requests={requests} onCardClick={setSelectedRequest} />
+          {selectedRequest && <RequestDetailModal request={selectedRequest} onClose={() => setSelectedRequest(null)} />}
+        </div>
+      );
+    }
+
+    ReactDOM.render(<App />, document.getElementById('root'));
+  </script>
+</body>
+</html>
