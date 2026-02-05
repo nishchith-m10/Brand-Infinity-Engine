@@ -6,7 +6,7 @@
  */
 
 // Disabled - module does not exist yet
-/*
+
 import RedisMock from 'ioredis-mock';
 import { RateLimiter, RATE_LIMIT_PRESETS } from '../utils/rate_limiter';
 
@@ -332,4 +332,4 @@ describe('RateLimiter', () => {
     });
   });
 });
-*/
+
