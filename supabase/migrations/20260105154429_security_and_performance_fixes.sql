@@ -27,6 +27,7 @@ DROP POLICY IF EXISTS "Users can update own profile" ON profiles;
 DROP POLICY IF EXISTS "Users can insert own profile" ON profiles;
 
 -- Only authenticated users can view profiles (no anonymous access)
+DROP POLICY IF EXISTS "Profiles viewable by authenticated users" ON profiles;
 CREATE POLICY "Profiles viewable by authenticated users"
 ON profiles FOR SELECT
 TO authenticated
@@ -57,26 +58,31 @@ DROP POLICY IF EXISTS "Allow authenticated users to update campaigns" ON campaig
 DROP POLICY IF EXISTS "Allow authenticated users to delete campaigns" ON campaigns;
 
 -- Service role has full access (for n8n workflows)
+DROP POLICY IF EXISTS "Service role full access campaigns" ON campaigns;
 CREATE POLICY "Service role full access campaigns" ON campaigns
     FOR ALL TO service_role USING (true) WITH CHECK (true);
 
 -- Users can only view their own campaigns
+DROP POLICY IF EXISTS "Users view own campaigns" ON campaigns;
 CREATE POLICY "Users view own campaigns" ON campaigns
     FOR SELECT TO authenticated
     USING (user_id = auth.uid() AND (deleted_at IS NULL OR deleted_at > NOW()));
 
 -- Users can only insert campaigns with their user_id
+DROP POLICY IF EXISTS "Users insert own campaigns" ON campaigns;
 CREATE POLICY "Users insert own campaigns" ON campaigns
     FOR INSERT TO authenticated
     WITH CHECK (user_id = auth.uid());
 
 -- Users can only update their own campaigns
+DROP POLICY IF EXISTS "Users update own campaigns" ON campaigns;
 CREATE POLICY "Users update own campaigns" ON campaigns
     FOR UPDATE TO authenticated
     USING (user_id = auth.uid())
     WITH CHECK (user_id = auth.uid());
 
 -- Users can only soft-delete their own campaigns
+DROP POLICY IF EXISTS "Users delete own campaigns" ON campaigns;
 CREATE POLICY "Users delete own campaigns" ON campaigns
     FOR DELETE TO authenticated
     USING (user_id = auth.uid());
@@ -91,10 +97,12 @@ DROP POLICY IF EXISTS "Users can delete their KBs" ON knowledge_bases;
 DROP POLICY IF EXISTS "Service role full access to KBs" ON knowledge_bases;
 
 -- Service role has full access (for API routes)
+DROP POLICY IF EXISTS "Service role full access to KBs" ON knowledge_bases;
 CREATE POLICY "Service role full access to KBs" ON knowledge_bases 
     FOR ALL TO service_role USING (true) WITH CHECK (true);
 
 -- Users can view KBs they created or core (shared) KBs for their campaigns
+DROP POLICY IF EXISTS "Users view accessible KBs" ON knowledge_bases;
 CREATE POLICY "Users view accessible KBs" ON knowledge_bases
     FOR SELECT TO authenticated
     USING (
@@ -106,17 +114,20 @@ CREATE POLICY "Users view accessible KBs" ON knowledge_bases
     );
 
 -- Users can insert KBs (ownership assigned at creation)
+DROP POLICY IF EXISTS "Users insert KBs" ON knowledge_bases;
 CREATE POLICY "Users insert KBs" ON knowledge_bases
     FOR INSERT TO authenticated
     WITH CHECK (created_by = auth.uid());
 
 -- Users can update KBs they created
+DROP POLICY IF EXISTS "Users update own KBs" ON knowledge_bases;
 CREATE POLICY "Users update own KBs" ON knowledge_bases
     FOR UPDATE TO authenticated
     USING (created_by = auth.uid())
     WITH CHECK (created_by = auth.uid());
 
 -- Users can delete non-core KBs they created
+DROP POLICY IF EXISTS "Users delete own KBs" ON knowledge_bases;
 CREATE POLICY "Users delete own KBs" ON knowledge_bases
     FOR DELETE TO authenticated
     USING (created_by = auth.uid() AND is_core = FALSE);
@@ -130,42 +141,61 @@ DROP POLICY IF EXISTS "Allow authenticated users to update videos" ON videos;
 DROP POLICY IF EXISTS "Allow authenticated users to delete videos" ON videos;
 
 -- Service role has full access
+DROP POLICY IF EXISTS "Service role full access videos" ON videos;
 CREATE POLICY "Service role full access videos" ON videos
     FOR ALL TO service_role USING (true) WITH CHECK (true);
 
 -- Users can view videos for their campaigns
-CREATE POLICY "Users view own campaign videos" ON videos
-    FOR SELECT TO authenticated
-    USING (
-        EXISTS (
-            SELECT 1 FROM campaigns c 
-            WHERE c.id = videos.campaign_id 
-            AND c.user_id = auth.uid()
-            AND (c.deleted_at IS NULL OR c.deleted_at > NOW())
-        )
-    );
+DO $$
+BEGIN
+    IF EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'videos' AND column_name = 'campaign_id') THEN
+        DROP POLICY IF EXISTS "Users view own campaign videos" ON videos;
+        CREATE POLICY "Users view own campaign videos" ON videos
+            FOR SELECT TO authenticated
+            USING (
+                EXISTS (
+                    SELECT 1 FROM campaigns c 
+                    WHERE c.id = videos.campaign_id 
+                    AND c.user_id = auth.uid()
+                    AND (c.deleted_at IS NULL OR c.deleted_at > NOW())
+                )
+            );
+    END IF;
+END $$;
 
 -- Users can insert videos for their campaigns
-CREATE POLICY "Users insert videos for own campaigns" ON videos
-    FOR INSERT TO authenticated
-    WITH CHECK (
-        EXISTS (
-            SELECT 1 FROM campaigns c 
-            WHERE c.id = videos.campaign_id 
-            AND c.user_id = auth.uid()
-        )
-    );
+DO $$
+BEGIN
+    IF EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'videos' AND column_name = 'campaign_id') THEN
+        DROP POLICY IF EXISTS "Users insert videos for own campaigns" ON videos;
+        CREATE POLICY "Users insert videos for own campaigns" ON videos
+            FOR INSERT TO authenticated
+            WITH CHECK (
+                EXISTS (
+                    SELECT 1 FROM campaigns c 
+                    WHERE c.id = videos.campaign_id 
+                    AND c.user_id = auth.uid()
+                )
+            );
+    END IF;
+END $$;
 
 -- Users can update videos for their campaigns
-CREATE POLICY "Users update own campaign videos" ON videos
-    FOR UPDATE TO authenticated
-    USING (
-        EXISTS (
-            SELECT 1 FROM campaigns c 
-            WHERE c.id = videos.campaign_id 
-            AND c.user_id = auth.uid()
-        )
-    );
+DO $$
+BEGIN
+    IF EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'videos' AND column_name = 'campaign_id') THEN
+        DROP POLICY IF EXISTS "Users update own campaign videos" ON videos;
+        CREATE POLICY "Users update own campaign videos" ON videos
+            FOR UPDATE TO authenticated
+            USING (
+                EXISTS (
+                    SELECT 1 FROM campaigns c 
+                    WHERE c.id = videos.campaign_id 
+                    AND c.user_id = auth.uid()
+                )
+            );
+    END IF;
+END $$;
 
 -- =============================================================================
 -- SECTION 2: ADD MISSING INDEXES ON FOREIGN KEYS
@@ -179,8 +209,13 @@ CREATE INDEX IF NOT EXISTS idx_campaigns_deleted_at ON campaigns(deleted_at)
     WHERE deleted_at IS NOT NULL;
 
 -- Videos table indexes
-CREATE INDEX IF NOT EXISTS idx_videos_campaign_id ON videos(campaign_id);
-CREATE INDEX IF NOT EXISTS idx_videos_campaign_status ON videos(campaign_id, status);
+DO $$
+BEGIN
+    IF EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'videos' AND column_name = 'campaign_id') THEN
+        CREATE INDEX IF NOT EXISTS idx_videos_campaign_id ON videos(campaign_id);
+        CREATE INDEX IF NOT EXISTS idx_videos_campaign_status ON videos(campaign_id, status);
+    END IF;
+END $$;
 
 -- Knowledge bases table indexes
 CREATE INDEX IF NOT EXISTS idx_knowledge_bases_brand_id ON knowledge_bases(brand_id);
@@ -467,14 +502,29 @@ END $$;
 -- SECTION 6: ADD COMMENTS FOR DOCUMENTATION
 -- =============================================================================
 
-COMMENT ON POLICY "Users view own campaigns" ON campaigns 
-IS 'V2 RLS: Users can only view their own campaigns, excludes soft-deleted records';
+DO $$
+BEGIN
+    IF EXISTS (SELECT 1 FROM pg_policies WHERE policyname = 'Users view own campaigns' AND tablename = 'campaigns') THEN
+        COMMENT ON POLICY "Users view own campaigns" ON campaigns 
+        IS 'V2 RLS: Users can only view their own campaigns, excludes soft-deleted records';
+    END IF;
+END $$;
 
-COMMENT ON POLICY "Users view accessible KBs" ON knowledge_bases 
-IS 'V2 RLS: Users can view KBs they created, core KBs, or KBs for their campaigns';
+DO $$
+BEGIN
+    IF EXISTS (SELECT 1 FROM pg_policies WHERE policyname = 'Users view accessible KBs' AND tablename = 'knowledge_bases') THEN
+        COMMENT ON POLICY "Users view accessible KBs" ON knowledge_bases 
+        IS 'V2 RLS: Users can view KBs they created, core KBs, or KBs for their campaigns';
+    END IF;
+END $$;
 
-COMMENT ON POLICY "Users view own campaign videos" ON videos 
-IS 'V2 RLS: Users can view videos for campaigns they own, excludes soft-deleted';
+DO $$
+BEGIN
+    IF EXISTS (SELECT 1 FROM pg_policies WHERE policyname = 'Users view own campaign videos' AND tablename = 'videos') THEN
+        COMMENT ON POLICY "Users view own campaign videos" ON videos 
+        IS 'V2 RLS: Users can view videos for campaigns they own, excludes soft-deleted';
+    END IF;
+END $$;
 
 COMMENT ON COLUMN campaigns.deleted_at 
 IS 'Timestamp when campaign was soft-deleted (NULL = active, future date = scheduled deletion)';
