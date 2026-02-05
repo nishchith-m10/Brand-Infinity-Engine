@@ -7,7 +7,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
 import { z } from 'zod';
 import { calculateEstimate } from '@/lib/pipeline/estimator';
-import { createInitialTasks } from '@/lib/pipeline/task-factory';
+import { taskFactory } from '@/lib/orchestrator/TaskFactory';
 import { requestOrchestrator } from '@/lib/orchestrator/RequestOrchestrator';
 import {
   CreateRequestResponse,
@@ -44,6 +44,7 @@ const CreateRequestSchema = z.object({
       auto_script: z.boolean().optional().default(true),
       script_text: z.string().max(10000).optional(),
       selected_kb_ids: z.array(z.string().uuid()).optional().default([]),
+      selected_asset_ids: z.array(z.string().uuid()).optional().default([]),
     })
     .optional(),
 });
@@ -131,6 +132,9 @@ export async function POST(request: NextRequest) {
         // Knowledge bases
         selected_kb_ids: input.settings?.selected_kb_ids || [],
 
+        // Brand assets for reference
+        selected_asset_ids: input.settings?.selected_asset_ids || [],
+
         // Estimates
         estimated_cost: estimate.cost,
         estimated_time_seconds: estimate.timeSeconds,
@@ -149,8 +153,9 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // 6. Create initial tasks for this request
-    const tasks = await createInitialTasks(supabase, contentRequest.id, input.type);
+    // 6. Create initial tasks for this request using new TaskFactory
+    // This includes Executive, TaskPlanner, Strategist, Producer, and QA tasks
+    const tasks = await taskFactory.createTasksForRequest(contentRequest);
 
     // 7. Log the creation event
     await supabase.from('request_events').insert({
