@@ -5,7 +5,7 @@
 
 import { PolloAdapter, getPolloAdapter, PolloVideoRequest, POLLO_MODELS, type PolloModel } from './adapters/pollo-adapter';
 
-export type VideoProvider = 'pollo' | 'runway' | 'pika' | 'kling' | 'sora';
+export type VideoProvider = 'pollo' | 'runway' | 'pika' | 'kling' | 'sora' | 'pollinations';
 
 export interface VideoGenerationRequest {
   prompt: string;
@@ -42,6 +42,8 @@ export class VideoService {
     switch (provider) {
       case 'pollo':
         return this.generateWithPollo(request);
+      case 'pollinations':
+        return this.generateWithPollinations(request);
       case 'runway':
         return this.generateWithRunway(request);
       case 'pika':
@@ -62,8 +64,28 @@ export class VideoService {
    * Generate video via Pollo AI
    */
   private async generateWithPollo(request: VideoGenerationRequest): Promise<VideoGenerationJob> {
+    // Fetch effective key (prefers user key, will throw if REQUIRE_USER_PROVIDER_KEYS=true and no user key exists)
+    try {
+      // Lazy-load adapter with effective key
+      const { getEffectiveProviderKey } = await import('@/lib/providers/get-user-key');
+      const effectiveKey = await getEffectiveProviderKey('pollo', process.env.POLLO_API_KEY);
+      this.polloAdapter = getPolloAdapter(effectiveKey || undefined);
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : String(err);
+      
+      // Auto-fallback to free providers (pollinations) if enabled
+      if (msg.includes('requires a user-supplied key') && process.env.USE_FREE_PROVIDERS === 'true') {
+        console.log('[VideoService] No user key found, auto-falling back to Pollinations (free tier)');
+        return this.generateWithPollinations(request);
+      }
+      
+      throw new Error(msg.includes('requires a user-supplied key')
+        ? 'Pollo provider requires a user-supplied key. Please add your Pollo API key in Settings.'
+        : 'Pollo API key not configured. Add your Pollo key in Settings or set POLLO_API_KEY in environment.');
+    }
+
     if (!this.polloAdapter.isConfigured()) {
-      throw new Error('Pollo API key not configured. Set POLLO_API_KEY env var.');
+      throw new Error('Pollo API key not configured. Add your Pollo key in Settings.');
     }
 
     const polloRequest: PolloVideoRequest = {
@@ -123,10 +145,32 @@ export class VideoService {
   }
 
   /**
+   * Generate video via Pollinations (FREE, no API key)
+   */
+  private async generateWithPollinations(request: VideoGenerationRequest): Promise<VideoGenerationJob> {
+    const { generateVideoPollinations } = await import('@/lib/ai/pollinations');
+    
+    const result = await generateVideoPollinations({
+      prompt: request.prompt,
+      duration: request.duration || 5,
+    });
+
+    return {
+      jobId: `pollinations-${Date.now()}`,
+      provider: 'pollinations',
+      status: 'completed',
+      videoUrl: result.url,
+      estimatedCost: 0, // Free
+      createdAt: new Date().toISOString(),
+    };
+  }
+
+  /**
    * Map provider name to Pollo model ID
    */
   private mapProviderToPolloModel(provider: VideoProvider): string {
     const mapping: Record<VideoProvider, string> = {
+      pollinations: 'mochi',
       pollo: 'pollo-v2-0',
       runway: 'pollo-v2-0', // Use Pollo's native model as proxy
       pika: 'pika',
@@ -141,6 +185,11 @@ export class VideoService {
    */
   getAvailableProviders(): { provider: VideoProvider; available: boolean; reason?: string }[] {
     return [
+      {
+        provider: 'pollinations',
+        available: true,
+        reason: undefined, // Always available (free, no API key)
+      },
       {
         provider: 'pollo',
         available: this.polloAdapter.isConfigured(),
@@ -175,6 +224,10 @@ export class VideoService {
    * Estimate cost for video generation
    */
   estimateCost(provider: VideoProvider, durationSeconds: number): number {
+    if (provider === 'pollinations') {
+      return 0; // Free
+    }
+    
     if (provider === 'pollo' || this.polloAdapter.isConfigured()) {
       return this.polloAdapter.estimateCost('kling-v1-6', durationSeconds);
     }
