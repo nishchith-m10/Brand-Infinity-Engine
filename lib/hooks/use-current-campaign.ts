@@ -11,6 +11,7 @@ export interface Campaign {
   campaign_name: string;
   brand_id?: string;
   status: 'draft' | 'active' | 'paused' | 'completed';
+  deleted_at?: string;
   settings?: Record<string, unknown>;
   created_at: string;
   updated_at?: string;
