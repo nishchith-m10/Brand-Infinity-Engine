@@ -24,7 +24,7 @@ import { ToastContainer } from '@/components/ui/toast-container';
 export default function SettingsPage() {
   const [activeSection, setActiveSection] = useState('api-keys');
   const [showKeys, setShowKeys] = useState<Record<string, boolean>>({});
-  const { apiKeys, setSimpleKey, saveKeys, isSaving } = useApiKeys();
+  const { apiKeys, setSimpleKey, setUseFreeProviders, setPollinationsPreferences, saveKeys, isSaving } = useApiKeys();
   const { toasts, showToast, dismissToast } = useToast();
 
   // Settings state (separate from API keys)
@@ -55,9 +55,14 @@ export default function SettingsPage() {
     { key: 'kimi', name: 'Kimi (Moonshot)', description: 'Kimi K2 Thinking - 2M context window', category: 'AI' },
     { key: 'openrouter', name: 'Open Router', description: 'Access to 100+ models from all providers in one API', category: 'AI' },
     { key: 'elevenlabs', name: 'ElevenLabs', description: 'Voice synthesis for video narration', category: 'Media' },
+    { key: 'runway', name: 'Runway', description: 'Runway Gen-3 video generation', category: 'Media' },
+    { key: 'pika', name: 'Pika', description: 'Pika Labs video generation', category: 'Media' },
+    { key: 'pollo', name: 'Pollo AI', description: 'Pollo AI video generation (Kling backend)', category: 'Media' },
     { key: 'tiktok', name: 'TikTok', description: 'For publishing to TikTok', category: 'Social' },
     { key: 'instagram', name: 'Instagram/Meta', description: 'For publishing to Instagram & Facebook', category: 'Social' },
     { key: 'youtube', name: 'YouTube', description: 'For publishing to YouTube', category: 'Social' },
+    { key: 'twitter', name: 'Twitter/X', description: 'For publishing to Twitter/X', category: 'Social' },
+    { key: 'linkedin', name: 'LinkedIn', description: 'For publishing to LinkedIn', category: 'Social' },
   ] as const;
 
   type SimpleKeyType = typeof singleKeyConfigs[number]['key'];
@@ -433,7 +438,131 @@ export default function SettingsPage() {
                   </CardDescription>
                 </CardHeader>
                 <CardContent className="space-y-4">
+                  {/* Free Providers Toggle */}
                   <div className="flex items-center justify-between rounded-lg border border-slate-200 p-4">
+                    <div>
+                      <p className="font-medium text-gray-900">Use Free Providers</p>
+                      <p className="text-sm text-gray-500">
+                        Enable Pollinations.ai for free image/video generation (no API key needed)
+                      </p>
+                    </div>
+                    <button
+                      onClick={() => setUseFreeProviders(!apiKeys.useFreeProviders)}
+                      className={`relative h-6 w-11 rounded-full transition-colors ${
+                        apiKeys.useFreeProviders ? 'bg-lamaPurple' : 'bg-gray-200'
+                      }`}
+                    >
+                      <span
+                        className={`absolute left-1 top-1 h-4 w-4 rounded-full bg-white transition-transform ${
+                          apiKeys.useFreeProviders ? 'translate-x-5' : ''
+                        }`}
+                      />
+                    </button>
+                  </div>
+                  {/* Pollinations Model Selection (only show when enabled) */}
+                  {apiKeys.useFreeProviders && (
+                    <div className="space-y-4 rounded-lg border border-slate-200 bg-slate-50 p-4">
+                      <div>
+                        <p className="text-sm font-medium text-gray-900 mb-2">Pollinations.ai Settings</p>
+                        <p className="text-xs text-gray-500 mb-4">Customize free AI generation models</p>
+                      </div>
+                      
+                      {/* Image Model Selection */}
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-2">
+                          Image Model
+                        </label>
+                        <select
+                          value={apiKeys.pollinationsPreferences?.imageModel || 'flux'}
+                          onChange={(e) =>
+                            setPollinationsPreferences({
+                              imageModel: e.target.value as any,
+                            })
+                          }
+                          className="w-full rounded-md border border-gray-300 bg-white px-3 py-2 text-sm focus:border-lamaPurple focus:outline-none focus:ring-1 focus:ring-lamaPurple"
+                        >
+                          <option value="flux">Flux (Default - Balanced)</option>
+                          <option value="flux-realism">Flux Realism (Photorealistic)</option>
+                          <option value="flux-anime">Flux Anime (Anime Style)</option>
+                          <option value="flux-3d">Flux 3D (3D Renders)</option>
+                          <option value="turbo">Turbo (Fastest)</option>
+                        </select>
+                      </div>
+
+                      {/* Video Model Selection */}
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-2">
+                          Video Model
+                        </label>
+                        <select
+                          value={apiKeys.pollinationsPreferences?.videoModel || 'mochi'}
+                          onChange={(e) =>
+                            setPollinationsPreferences({
+                              videoModel: e.target.value as any,
+                            })
+                          }
+                          className="w-full rounded-md border border-gray-300 bg-white px-3 py-2 text-sm focus:border-lamaPurple focus:outline-none focus:ring-1 focus:ring-lamaPurple"
+                          disabled
+                        >
+                          <option value="mochi">Mochi (Only Available)</option>
+                        </select>
+                        <p className="text-xs text-gray-500 mt-1">More video models coming soon</p>
+                      </div>
+
+                      {/* Image Enhancement Options */}
+                      <div className="space-y-3">
+                        <div className="flex items-center justify-between">
+                          <div>
+                            <p className="text-sm font-medium text-gray-700">Auto-Enhance Images</p>
+                            <p className="text-xs text-gray-500">Automatically improve image quality</p>
+                          </div>
+                          <button
+                            onClick={() =>
+                              setPollinationsPreferences({
+                                imageEnhance: !apiKeys.pollinationsPreferences?.imageEnhance,
+                              })
+                            }
+                            className={`relative h-5 w-9 rounded-full transition-colors ${
+                              apiKeys.pollinationsPreferences?.imageEnhance
+                                ? 'bg-lamaPurple'
+                                : 'bg-gray-200'
+                            }`}
+                          >
+                            <span
+                              className={`absolute left-0.5 top-0.5 h-4 w-4 rounded-full bg-white transition-transform ${
+                                apiKeys.pollinationsPreferences?.imageEnhance ? 'translate-x-4' : ''
+                              }`}
+                            />
+                          </button>
+                        </div>
+
+                        <div className="flex items-center justify-between">
+                          <div>
+                            <p className="text-sm font-medium text-gray-700">Remove Watermark</p>
+                            <p className="text-xs text-gray-500">Hide Pollinations.ai logo</p>
+                          </div>
+                          <button
+                            onClick={() =>
+                              setPollinationsPreferences({
+                                imageNoLogo: !apiKeys.pollinationsPreferences?.imageNoLogo,
+                              })
+                            }
+                            className={`relative h-5 w-9 rounded-full transition-colors ${
+                              apiKeys.pollinationsPreferences?.imageNoLogo
+                                ? 'bg-lamaPurple'
+                                : 'bg-gray-200'
+                            }`}
+                          >
+                            <span
+                              className={`absolute left-0.5 top-0.5 h-4 w-4 rounded-full bg-white transition-transform ${
+                                apiKeys.pollinationsPreferences?.imageNoLogo ? 'translate-x-4' : ''
+                              }`}
+                            />
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+                  )}                  <div className="flex items-center justify-between rounded-lg border border-slate-200 p-4">
                     <div>
                       <p className="font-medium text-gray-900">Auto-approve Content</p>
                       <p className="text-sm text-gray-500">
@@ -570,7 +699,7 @@ export default function SettingsPage() {
 
           {/* Save Button */}
           <div className="mt-8 flex justify-end">
-            <Button onClick={handleSave} disabled={isSaving}>
+            <Button onClick={handleSave} disabled={isSaving} className="bg-lamaPurple hover:bg-lamaPurple/90 text-white">
               {isSaving ? (
                 <Loader2 className="h-4 w-4 mr-2 animate-spin" />
               ) : (
