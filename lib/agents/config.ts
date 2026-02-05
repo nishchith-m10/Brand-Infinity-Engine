@@ -43,7 +43,7 @@ export const PROVIDER_CONFIGS: Record<LLMProvider, ProviderConfig> = {
     id: "openai",
     name: "OpenAI GPT-5.2",
     models: {
-      premium: "gpt-5.2-instant",
+      premium: "gpt-4o",
       budget: "gpt-4o-mini",
     },
     pricing: {
@@ -95,8 +95,8 @@ export const PROVIDER_CONFIGS: Record<LLMProvider, ProviderConfig> = {
       budget: "deepseek-v3.2",
     },
     pricing: {
-      input_per_1m: 0.55,
-      output_per_1m: 2.19,
+      input_per_1m: 0.1,
+      output_per_1m: 0.2,
     },
     capabilities: {
       function_calling: true,
