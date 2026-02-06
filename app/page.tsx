@@ -13,76 +13,13 @@ import {
   Clock,
   Zap,
   Plus,
+  Sparkles,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { healthApi } from '@/lib/api-client';
 import { formatDate, formatNumber, getPlatformIcon } from '@/lib/utils';
-
-// Mock data for dashboard
-const mockStats = {
-  activeCampaigns: 3,
-  videosGenerated: 12,
-  scheduledPosts: 8,
-  engagementRate: 8.9,
-};
-
-const mockRecentActivity = [
-  {
-    id: '1',
-    type: 'video_generated',
-    title: 'Video Generated',
-    description: 'Summer Product Launch - 3 scenes, $15 cost',
-    time: '2 minutes ago',
-    status: 'success',
-  },
-  {
-    id: '2',
-    type: 'post_scheduled',
-    title: 'Post Scheduled',
-    description: 'TikTok - Dec 21, 2025 at 10:00 AM',
-    time: '5 minutes ago',
-    status: 'pending',
-  },
-  {
-    id: '3',
-    type: 'brief_approved',
-    title: 'Brief Approved',
-    description: 'Fall Collection - 92% brand alignment',
-    time: '1 hour ago',
-    status: 'success',
-  },
-  {
-    id: '4',
-    type: 'variant_created',
-    title: 'Variants Created',
-    description: '4 variants for Instagram, TikTok, YouTube',
-    time: '2 hours ago',
-    status: 'success',
-  },
-];
-
-const mockUpcomingPosts = [
-  {
-    id: '1',
-    platform: 'tiktok',
-    campaignName: 'Summer Launch',
-    scheduledTime: new Date(Date.now() + 86400000).toISOString(),
-  },
-  {
-    id: '2',
-    platform: 'instagram_reels',
-    campaignName: 'Product Demo',
-    scheduledTime: new Date(Date.now() + 172800000).toISOString(),
-  },
-  {
-    id: '3',
-    platform: 'youtube_shorts',
-    campaignName: 'Behind the Scenes',
-    scheduledTime: new Date(Date.now() + 259200000).toISOString(),
-  },
-];
 
 const PLATFORM_NAMES: Record<string, string> = {
   tiktok: 'TikTok',
@@ -120,33 +57,33 @@ export default function Dashboard() {
   const stats = [
     { 
       name: 'Active Campaigns', 
-      value: mockStats.activeCampaigns, 
+      value: 0, 
       icon: Activity, 
-      change: '+2 this week',
+      change: 'No campaigns yet',
       href: '/campaigns',
       color: 'bg-blue-100 text-blue-600',
     },
     { 
       name: 'Videos Generated', 
-      value: mockStats.videosGenerated, 
+      value: 0, 
       icon: Video, 
-      change: '+5 this week',
+      change: 'No videos yet',
       href: '/videos',
       color: 'bg-green-100 text-green-600',
     },
     { 
       name: 'Scheduled Posts', 
-      value: mockStats.scheduledPosts, 
+      value: 0, 
       icon: Calendar, 
-      change: '+3 upcoming',
+      change: 'No posts scheduled',
       href: '/publishing',
       color: 'bg-purple-100 text-purple-600',
     },
     { 
       name: 'Engagement Rate', 
-      value: `${mockStats.engagementRate}%`, 
+      value: '0%', 
       icon: TrendingUp, 
-      change: '+1.2% vs last week',
+      change: 'No data yet',
       href: '/analytics',
       color: 'bg-yellow-100 text-yellow-600',
     },
@@ -275,16 +212,10 @@ export default function Dashboard() {
                 <motion.button 
                   whileHover={{ scale: 1.02 }}
                   whileTap={{ scale: 0.98 }}
-                  className="flex w-full items-center gap-3 rounded-lg border border-gray-200 p-4 text-left transition-colors hover:bg-gray-50"
+                  className="flex items-center gap-2 px-4 py-2 rounded-full bg-lamaPurpleLight text-slate-900 hover:bg-lamaPurple hover:text-white transition-colors font-medium text-sm"
                 >
-                  <div className="rounded-lg bg-purple-100 p-2">
-                    <Calendar className="h-5 w-5 text-purple-600" />
-                  </div>
-                  <div className="flex-1">
-                    <p className="font-medium text-gray-900">Schedule Post</p>
-                    <p className="text-sm text-gray-500">Plan your content</p>
-                  </div>
-                  <ArrowRight className="h-5 w-5 text-gray-400" />
+                  <Sparkles className="h-4 w-4 text-slate-900" />
+                  <span className="text-slate-900">Schedule Post</span>
                 </motion.button>
               </Link>
             </CardContent>
@@ -302,30 +233,12 @@ export default function Dashboard() {
             </CardHeader>
             <CardContent>
               <div className="space-y-4">
-                {mockRecentActivity.map((activity) => (
-                  <div
-                    key={activity.id}
-                    className="flex items-center gap-4 rounded-lg border border-gray-200 p-4"
-                  >
-                    <div className="rounded-full bg-gray-100 p-2">
-                      {getActivityIcon(activity.type)}
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      <p className="font-medium text-gray-900">{activity.title}</p>
-                      <p className="text-sm text-gray-500 truncate">
-                        {activity.description}
-                      </p>
-                    </div>
-                    <div className="text-right">
-                      <Badge
-                        variant={activity.status === 'success' ? 'success' : 'secondary'}
-                      >
-                        {activity.status}
-                      </Badge>
-                      <p className="mt-1 text-xs text-gray-500">{activity.time}</p>
-                    </div>
-                  </div>
-                ))}
+                {/* Empty state - no recent activity */}
+                <div className="flex flex-col items-center justify-center py-8 text-center">
+                  <Activity className="h-12 w-12 text-gray-300 mb-3" />
+                  <p className="text-sm font-medium text-gray-600">No recent activity</p>
+                  <p className="text-xs text-gray-500 mt-1">Activity will appear here as you use the platform</p>
+                </div>
               </div>
             </CardContent>
           </Card>
@@ -343,25 +256,12 @@ export default function Dashboard() {
           </CardHeader>
           <CardContent>
             <div className="grid gap-4 sm:grid-cols-3">
-              {mockUpcomingPosts.map((post) => (
-                <div
-                  key={post.id}
-                  className="flex items-center gap-4 rounded-lg border border-gray-200 p-4"
-                >
-                  <div className="flex h-12 w-12 items-center justify-center rounded-lg bg-gray-100 text-2xl">
-                    {getPlatformIcon(post.platform)}
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <p className="font-medium text-gray-900">
-                      {PLATFORM_NAMES[post.platform] || post.platform}
-                    </p>
-                    <p className="text-sm text-gray-500 truncate">{post.campaignName}</p>
-                    <p className="text-xs text-gray-400">
-                      {formatDate(post.scheduledTime)}
-                    </p>
-                  </div>
-                </div>
-              ))}
+              {/* Empty state - no upcoming posts */}
+              <div className="col-span-3 flex flex-col items-center justify-center py-8 text-center">
+                <Calendar className="h-12 w-12 text-gray-300 mb-3" />
+                <p className="text-sm font-medium text-gray-600">No upcoming posts</p>
+                <p className="text-xs text-gray-500 mt-1">Schedule posts in the Publishing section</p>
+              </div>
             </div>
           </CardContent>
         </Card>
