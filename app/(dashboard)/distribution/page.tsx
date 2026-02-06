@@ -42,20 +42,8 @@ const PLATFORMS = [
   { id: 'twitter_feed', name: 'X (Twitter)', aspectRatio: '16:9', maxDuration: 140, description: 'Short video for timeline' },
 ];
 
-// Mock data
-const mockVideos = [
-  { video_id: 'video_001', name: 'Summer Product Launch', duration_seconds: 30, created_at: new Date().toISOString() },
-];
-
-const mockVariants: Variant[] = [
-  { variant_id: 'var_001', video_id: 'video_001', platform: 'tiktok', aspect_ratio: '9:16', duration_seconds: 30, caption: 'The future is here #tech #innovation #lifestyle', hashtags: ['tech', 'innovation', 'lifestyle', 'gadgets'], status: 'ready', created_at: new Date().toISOString() },
-  { variant_id: 'var_002', video_id: 'video_001', platform: 'instagram_reels', aspect_ratio: '9:16', duration_seconds: 30, caption: 'Game changer alert! Link in bio', hashtags: ['instagood', 'tech', 'reels', 'trending'], status: 'ready', created_at: new Date().toISOString() },
-  { variant_id: 'var_003', video_id: 'video_001', platform: 'youtube_shorts', aspect_ratio: '9:16', duration_seconds: 30, caption: 'You NEED to see this! #shorts', hashtags: ['shorts', 'tech', 'gadgets'], status: 'ready', created_at: new Date().toISOString() },
-  { variant_id: 'var_004', video_id: 'video_001', platform: 'instagram_feed', aspect_ratio: '1:1', duration_seconds: 30, caption: 'Innovation meets design. Tap to explore.', hashtags: ['design', 'innovation', 'style'], status: 'pending', created_at: new Date().toISOString() },
-];
-
 export default function DistributionPage() {
-  const [selectedVideo] = useState<string | null>(mockVideos[0]?.video_id);
+  const [selectedVideo] = useState<string | null>(null);
   const [selectedPlatforms, setSelectedPlatforms] = useState<string[]>([]);
   const { toasts, showToast: toast, dismissToast } = useToast();
   const [showGenerateModal, setShowGenerateModal] = useState(false);
@@ -126,7 +114,7 @@ export default function DistributionPage() {
   const getStatusStyle = (status: string) => {
     switch (status) {
       case 'ready': case 'completed': return 'bg-emerald-100 text-emerald-600';
-      case 'processing': return 'bg-lamaSkyLight text-lamaSky';
+      case 'processing': return 'bg-lamaPurpleLight text-lamaPurple';
       case 'pending': return 'bg-lamaYellowLight text-amber-600';
       case 'error': return 'bg-red-100 text-red-600';
       default: return 'bg-slate-200 text-slate-600';
@@ -279,12 +267,12 @@ export default function DistributionPage() {
             <Video className="h-6 w-6 text-white/60" />
           </div>
           <div className="flex-1">
-            <h3 className="font-semibold text-slate-800">{mockVideos.find((v) => v.video_id === selectedVideo)?.name}</h3>
+            <h3 className="font-semibold text-slate-800">{selectedVideo ? 'Video' : 'No video selected'}</h3>
             <p className="text-sm text-slate-500">
-              {mockVideos.find((v) => v.video_id === selectedVideo)?.duration_seconds}s • Created {formatDate(mockVideos.find((v) => v.video_id === selectedVideo)?.created_at || '')}
+              {selectedVideo ? 'Select a video from your library' : 'No video available'}
             </p>
             <div className="mt-2 flex items-center gap-3">
-              <span className="inline-flex px-2 py-1 rounded-full text-[10px] font-bold uppercase bg-emerald-100 text-emerald-600">Ready</span>
+              <span className="inline-flex px-2 py-1 rounded-full text-[10px] font-bold uppercase bg-slate-100 text-slate-600">No data</span>
               <span className="text-xs text-slate-400">{variants.length} variants created</span>
             </div>
           </div>
@@ -294,8 +282,8 @@ export default function DistributionPage() {
       {/* VARIANTS GRID */}
       {variants.length === 0 ? (
         <div className="text-center py-16">
-          <div className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-2xl bg-lamaSkyLight">
-            <Share2 className="h-7 w-7 text-lamaSky" />
+          <div className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-2xl bg-lamaPurpleLight">
+            <Share2 className="h-7 w-7 text-lamaPurple" />
           </div>
           <h3 className="text-lg font-semibold text-slate-800 mb-2">No variants yet</h3>
           <p className="text-sm text-slate-500 mb-4">Generate platform-specific variants to distribute your content</p>
