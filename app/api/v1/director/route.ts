@@ -5,13 +5,14 @@ import { n8nClient } from '@/lib/n8n/client';
 import OpenAI from 'openai';
 import { z } from 'zod';
 import { logger } from '@/lib/monitoring/logger';
+import { getEffectiveProviderKey } from '@/lib/providers/get-user-key';
 
-let _openai: OpenAI | null = null;
-function getOpenAI(): OpenAI {
-  if (!_openai) {
-    _openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
+async function getOpenAI(): Promise<OpenAI> {
+  const apiKey = await getEffectiveProviderKey('openai', process.env.OPENAI_API_KEY);
+  if (!apiKey) {
+    throw new Error('OpenAI API key not configured');
   }
-  return _openai;
+  return new OpenAI({ apiKey });
 }
 
 const ParsePromptSchema = z.object({
@@ -118,22 +119,41 @@ Only return valid JSON, no markdown.`;
       : prompt;
 
     // Use GPT to parse the prompt (with vision if images available)
-    const parseResponse = await getOpenAI().chat.completions.create({
-      model,
-      messages: [
-        {
-          role: 'system',
-          content: systemPrompt,
-        },
-        {
-          role: 'user',
-          content: userContent,
-        },
-      ],
-      response_format: { type: 'json_object' },
-      temperature: 0.3,
-      max_tokens: hasImages ? 2000 : 1000,
-    });
+    let parseResponse;
+    try {
+      const openai = await getOpenAI();
+      parseResponse = await openai.chat.completions.create({
+        model,
+        messages: [
+          {
+            role: 'system',
+            content: systemPrompt,
+          },
+          {
+            role: 'user',
+            content: userContent,
+          },
+        ],
+        response_format: { type: 'json_object' },
+        temperature: 0.3,
+        max_tokens: hasImages ? 2000 : 1000,
+      });
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : String(err);
+      if (msg.includes('requires a user-supplied key') || msg.includes('not configured')) {
+        return NextResponse.json(
+          {
+            success: false,
+            error: {
+              code: 'MISSING_PROVIDER_KEY',
+              message: 'A user provider API key is required for OpenAI. Please add your OpenAI key in Settings (Settings → API Keys).',
+            },
+          },
+          { status: 403 }
+        );
+      }
+      throw err;
+    }
 
     const parsedContent = parseResponse.choices[0]?.message?.content;
     let parsedIntent;
