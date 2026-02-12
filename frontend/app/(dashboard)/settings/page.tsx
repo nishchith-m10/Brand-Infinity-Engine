@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import {
   Settings as SettingsIcon,
   Key,
@@ -20,56 +20,26 @@ import { useApiKeys } from '@/contexts/api-keys-context';
 import { MultiKeyProviderCard } from '@/components/settings/multi-key-provider-card';
 import { useToast } from '@/lib/hooks/use-toast';
 import { ToastContainer } from '@/components/ui/toast-container';
-import { useOpenRouterModels } from '@/lib/hooks/use-openrouter-models';
 
 export default function SettingsPage() {
   const [activeSection, setActiveSection] = useState('api-keys');
   const [showKeys, setShowKeys] = useState<Record<string, boolean>>({});
   const { apiKeys, setSimpleKey, saveKeys, isSaving } = useApiKeys();
   const { toasts, showToast, dismissToast } = useToast();
-  
-  // Fetch OpenRouter models dynamically when key is configured
-  const { models: openRouterModels, isLoading: loadingOpenRouterModels } = useOpenRouterModels(apiKeys.openrouter);
-
-  interface Settings {
-    defaultModel: string;
-    defaultVideoModel: string;
-    defaultQuality: string;
-    defaultBudget: string;
-    autoApprove: boolean;
-    emailNotifications: boolean;
-    webhookUrl: string;
-    brandName: string;
-    brandVoice: string;
-    brandColors: string;
-    targetAudience: string;
-  }
 
   // Settings state (separate from API keys)
-  const [settings, setSettings] = useState<Settings>(() => {
-    // Default settings
-    const defaults = {
-      defaultModel: 'claude-opus-4.5',
-      defaultVideoModel: 'veo3',
-      defaultQuality: 'high',
-      defaultBudget: 'medium',
-      autoApprove: false,
-      emailNotifications: true,
-      webhookUrl: '',
-      brandName: 'My Brand',
-      brandVoice: 'Professional, friendly, innovative',
-      brandColors: '#3B82F6',
-      targetAudience: 'Gen Z and Millennials',
-    };
-
-    if (typeof window === 'undefined') return defaults;
-
-    try {
-      const saved = localStorage.getItem('dashboard_settings');
-      return saved ? { ...defaults, ...JSON.parse(saved) } : defaults;
-    } catch {
-      return defaults;
-    }
+  const [settings, setSettings] = useState({
+    defaultModel: 'claude-opus-4.5',
+    defaultVideoModel: 'veo3',
+    defaultQuality: 'high',
+    defaultBudget: 'medium',
+    autoApprove: false,
+    emailNotifications: true,
+    webhookUrl: '',
+    brandName: 'My Brand',
+    brandVoice: 'Professional, friendly, innovative',
+    brandColors: '#3B82F6',
+    targetAudience: 'Gen Z and Millennials',
   });
 
   // Multi-key providers (OpenAI, Gemini) - handled by MultiKeyProviderCard
@@ -99,7 +69,18 @@ export default function SettingsPage() {
     return 'error';
   };
 
-
+  // Load saved settings from localStorage on mount (API keys loaded by context)
+  useEffect(() => {
+    const savedSettings = localStorage.getItem('dashboard_settings');
+    
+    if (savedSettings) {
+      try {
+        setSettings(JSON.parse(savedSettings));
+      } catch (e) {
+        console.error('Failed to load settings:', e);
+      }
+    }
+  }, []);
 
   const toggleShowKey = (key: string) => {
     setShowKeys((prev) => ({ ...prev, [key]: !prev[key] }));
@@ -113,7 +94,7 @@ export default function SettingsPage() {
       localStorage.setItem('dashboard_settings', JSON.stringify(settings));
       
       showToast({ type: 'success', message: 'Settings saved successfully' });
-    } catch {
+    } catch (error) {
       showToast({ type: 'error', message: 'Failed to save settings. Please try again.' });
     }
   };
@@ -386,7 +367,6 @@ export default function SettingsPage() {
                   <Select
                     label="Default AI Model"
                     options={[
-                      // Hardcoded models for standard providers
                       { value: 'claude-opus-4.5', label: 'Claude Opus 4.5 (Premium - Best)' },
                       { value: 'claude-sonnet-4.5', label: 'Claude Sonnet 4.5 (Balanced)' },
                       { value: 'gpt-5.2-pro', label: 'GPT-5.2 Pro (Enterprise)' },
@@ -394,19 +374,10 @@ export default function SettingsPage() {
                       { value: 'gpt-5.2-instant', label: 'GPT-5.2 Instant (Fast)' },
                       { value: 'deepseek-chat-v3.2', label: 'DeepSeek V3.2 (Affordable)' },
                       { value: 'gemini-3-flash', label: 'Gemini 3 Flash (Fast)' },
-                      { value: 'kimi-k2-thinking', label: 'Kimi K2 Thinking (2M Context)' },
-                      { value: 'kimi-k2-chat', label: 'Kimi K2 Chat' },
-                      // OpenRouter models (dynamically fetched)
-                      ...openRouterModels.map(model => ({
-                        value: model.id,
-                        label: `${model.name} (OpenRouter)`,
-                      })),
-                      // Loading indicator
-                      ...(loadingOpenRouterModels ? [{ value: '', label: 'Loading OpenRouter models...', disabled: true }] : []),
                     ]}
                     value={settings.defaultModel}
                     onChange={(e) =>
-                      setSettings((prev: Settings) => ({ ...prev, defaultModel: e.target.value }))
+                      setSettings((prev) => ({ ...prev, defaultModel: e.target.value }))
                     }
                   />
 
@@ -420,7 +391,7 @@ export default function SettingsPage() {
                     ]}
                     value={settings.defaultVideoModel}
                     onChange={(e) =>
-                      setSettings((prev: Settings) => ({ ...prev, defaultVideoModel: e.target.value }))
+                      setSettings((prev) => ({ ...prev, defaultVideoModel: e.target.value }))
                     }
                   />
 
@@ -434,7 +405,7 @@ export default function SettingsPage() {
                     ]}
                     value={settings.defaultQuality}
                     onChange={(e) =>
-                      setSettings((prev: Settings) => ({ ...prev, defaultQuality: e.target.value }))
+                      setSettings((prev) => ({ ...prev, defaultQuality: e.target.value }))
                     }
                   />
 
@@ -448,7 +419,7 @@ export default function SettingsPage() {
                     ]}
                     value={settings.defaultBudget}
                     onChange={(e) =>
-                      setSettings((prev: Settings) => ({ ...prev, defaultBudget: e.target.value }))
+                      setSettings((prev) => ({ ...prev, defaultBudget: e.target.value }))
                     }
                   />
                 </CardContent>
@@ -471,7 +442,7 @@ export default function SettingsPage() {
                     </div>
                     <button
                       onClick={() =>
-                        setSettings((prev: Settings) => ({ ...prev, autoApprove: !prev.autoApprove }))
+                        setSettings((prev) => ({ ...prev, autoApprove: !prev.autoApprove }))
                       }
                       className={`relative h-6 w-11 rounded-full transition-colors ${
                         settings.autoApprove ? 'bg-lamaPurple' : 'bg-gray-200'
@@ -509,10 +480,10 @@ export default function SettingsPage() {
                     </div>
                     <button
                       onClick={() =>
-                        setSettings((prev: Settings) => ({
-                        ...prev,
-                        emailNotifications: !prev.emailNotifications,
-                      }))
+                        setSettings((prev) => ({
+                          ...prev,
+                          emailNotifications: !prev.emailNotifications,
+                        }))
                       }
                       className={`relative h-6 w-11 rounded-full transition-colors ${
                         settings.emailNotifications ? 'bg-lamaPurple' : 'bg-gray-200'
@@ -530,7 +501,7 @@ export default function SettingsPage() {
                     label="Webhook URL"
                     value={settings.webhookUrl}
                     onChange={(e) =>
-                      setSettings((prev: Settings) => ({ ...prev, webhookUrl: e.target.value }))
+                      setSettings((prev) => ({ ...prev, webhookUrl: e.target.value }))
                     }
                     placeholder="https://your-server.com/webhook"
                     helperText="Receive real-time notifications via webhook"

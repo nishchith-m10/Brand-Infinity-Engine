@@ -73,8 +73,8 @@ export default function DashboardPage() {
         animate={{ opacity: 1, y: 0 }}
         className="flex items-center justify-between"
       >
-        <h1 className="text-2xl font-bold text-slate-800">Dashboard</h1>
-        <div className="text-sm text-slate-500">
+        <h1 className="text-2xl font-bold text-slate-800 dark:text-slate-100">Dashboard</h1>
+        <div className="text-sm text-slate-500 dark:text-slate-400">
           {isLoading ? "Loading..." : "Welcome back, Strategist"}
         </div>
       </motion.div>
@@ -101,7 +101,7 @@ export default function DashboardPage() {
 
       {/* TABS SECTION */}
       <Tabs defaultValue="overview" className="space-y-4">
-        <TabsList className="bg-white p-1 rounded-xl border border-slate-100 shadow-sm">
+        <TabsList className="bg-white dark:bg-slate-800 p-1 rounded-xl border border-slate-100 dark:border-slate-700 shadow-sm">
           <TabsTrigger value="overview">Overview</TabsTrigger>
           <TabsTrigger value="strategist">Strategist</TabsTrigger>
           <TabsTrigger value="copywriter">Copywriter</TabsTrigger>
@@ -127,7 +127,7 @@ export default function DashboardPage() {
                         <XAxis dataKey="date" stroke="#94a3b8" fontSize={12} tickLine={false} axisLine={false} />
                         <YAxis stroke="#94a3b8" fontSize={12} tickLine={false} axisLine={false} />
                         <Tooltip 
-                          contentStyle={{ background: 'rgba(255, 255, 255, 0.8)', borderRadius: '12px', border: 'none', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)' }}
+                          contentStyle={{ background: 'var(--tooltip-bg, rgba(255, 255, 255, 0.95))', borderRadius: '12px', border: '1px solid var(--tooltip-border, #e2e8f0)', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)', color: 'var(--tooltip-text, #1e293b)' }}
                         />
                         <Line type="monotone" dataKey="views" stroke="#C3EBFA" strokeWidth={3} dot={{ r: 4, fill: "#C3EBFA" }} activeDot={{ r: 6 }} />
                         <Line type="monotone" dataKey="engagement" stroke="#FAE27C" strokeWidth={3} dot={{ r: 4, fill: "#FAE27C" }} />
