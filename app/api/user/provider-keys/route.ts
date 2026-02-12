@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
-import { encryptProviderKey } from '@/lib/encryption/provider-keys';
+// Use edge-compatible encryption (works in both Node.js and Edge Runtime)
+import { encryptProviderKey } from '@/lib/encryption/provider-keys-edge';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -11,11 +12,14 @@ export const dynamic = 'force-dynamic';
  */
 export async function POST(req: NextRequest) {
   try {
+    console.log('[API] POST /api/user/provider-keys - Request received');
     const supabase = await createClient();
     
     // Check authentication
     const { data: { user }, error: authError } = await supabase.auth.getUser();
+    console.log('[API] Auth check:', { userId: user?.id, hasError: !!authError });
     if (authError || !user) {
+      console.error('[API] Auth failed:', authError);
       return NextResponse.json(
         { success: false, error: 'Unauthorized' },
         { status: 401 }
@@ -24,8 +28,10 @@ export async function POST(req: NextRequest) {
 
     const body = await req.json();
     const { provider, key, metadata = {} } = body;
+    console.log('[API] Request body:', { provider, keyLength: key?.length, hasMetadata: !!metadata });
 
     if (!provider || !key) {
+      console.error('[API] Missing required fields:', { hasProvider: !!provider, hasKey: !!key });
       return NextResponse.json(
         { success: false, error: 'provider and key are required' },
         { status: 400 }
@@ -33,8 +39,11 @@ export async function POST(req: NextRequest) {
     }
 
     // Validate provider
-    const validProviders = ['openai', 'anthropic', 'deepseek', 'elevenlabs', 'midjourney', 'other'];
-    if (!validProviders.includes(provider)) {
+    const validProviders = ['openai', 'anthropic', 'deepseek', 'elevenlabs', 'midjourney', 'openrouter', 'gemini', 'kimi', 'pollo', 'runway', 'pika', 'tiktok', 'instagram', 'youtube', 'other'];
+    const providerBase = provider.replace(/_\d+$/, ''); // Strip _1, _2 suffix for multi-key providers
+    console.log('[API] Provider validation:', { provider, providerBase, isValid: validProviders.includes(providerBase) });
+    if (!validProviders.includes(providerBase)) {
+      console.error('[API] Invalid provider:', providerBase);
       return NextResponse.json(
         { success: false, error: `Invalid provider. Must be one of: ${validProviders.join(', ')}` },
         { status: 400 }
@@ -42,9 +51,12 @@ export async function POST(req: NextRequest) {
     }
 
     // Encrypt the key server-side
+    console.log('[API] Encrypting key...');
     const encryptedKey = await encryptProviderKey(key);
+    console.log('[API] Key encrypted, length:', encryptedKey.length);
 
     // Upsert (insert or update if exists)
+    console.log('[API] Upserting to database...', { userId: user.id, provider });
     const { data, error } = await supabase
       .from('user_provider_keys')
       .upsert(
@@ -61,12 +73,14 @@ export async function POST(req: NextRequest) {
       .single();
 
     if (error) {
-      console.error('Error storing provider key:', error);
+      console.error('[API] Supabase upsert error:', JSON.stringify(error, null, 2));
       return NextResponse.json(
-        { success: false, error: 'Failed to store provider key' },
+        { success: false, error: 'Failed to store provider key', details: error.message },
         { status: 500 }
       );
     }
+
+    console.log('[API] Success! Key stored:', { id: data?.id, provider: data?.provider });
 
     // Return without exposing the encrypted key
     return NextResponse.json({
