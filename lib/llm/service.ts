@@ -262,16 +262,23 @@ export class LLMService {
    * Select best model for agent and tier
    */
   selectModel(agentRole: string, tier: 'premium' | 'budget'): string {
-    // Use the primary provider's model for the given tier
-    const primaryProvider = 'openai'; // Default provider since this.provider is undefined
+    // Use OpenRouter models
+    const primaryProvider = 'openrouter';
+    
+    // For budget tier, prefer the known OpenRouter free Xiaomi model
+    if (tier === 'budget') {
+      // Use the exact model id available on OpenRouter
+      return 'xiaomi/mimo-v2-flash:free';
+    }
+    
     const providerConfig = PROVIDER_CONFIGS[primaryProvider];
     
     if (!providerConfig || !providerConfig.models) {
-      // Fallback to OpenAI models
-      return tier === 'premium' ? 'gpt-4o' : 'gpt-4o-mini';
+      return 'xiaomi/mimo-flash';
     }
 
-    return tier === 'premium' ? providerConfig.models.premium : providerConfig.models.budget;
+    // For premium, use better models
+    return tier === 'premium' ? 'openai/gpt-4o' : 'xiaomi/mimo-flash';
   }
 
   /**
