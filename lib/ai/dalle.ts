@@ -1,14 +1,12 @@
 import OpenAI from 'openai';
+import { getEffectiveProviderKey } from '@/lib/providers/get-user-key';
 
-let _openai: OpenAI | null = null;
-
-function getOpenAI(): OpenAI {
-  if (!_openai) {
-    _openai = new OpenAI({
-      apiKey: process.env.OPENAI_API_KEY,
-    });
+async function getOpenAI(): Promise<OpenAI> {
+  const apiKey = await getEffectiveProviderKey('openai', process.env.OPENAI_API_KEY);
+  if (!apiKey) {
+    throw new Error('OpenAI API key not configured');
   }
-  return _openai;
+  return new OpenAI({ apiKey });
 }
 
 export interface ImageGenerationParams {
@@ -84,7 +82,8 @@ export async function generateImageDallE(
   }
 
   // Real provider path
-  const response = await getOpenAI().images.generate({
+  const openai = await getOpenAI();
+  const response = await openai.images.generate({
     model: 'dall-e-3',
     prompt: params.prompt,
     n: 1,
