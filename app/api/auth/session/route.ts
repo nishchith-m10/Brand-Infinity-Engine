@@ -24,20 +24,23 @@ export async function GET(req: NextRequest) {
       }
     );
 
+    // Use getUser to validate user server-side (contacts Supabase Auth server)
     const {
       data: { user },
-      error,
+      error: userError,
     } = await supabase.auth.getUser();
 
-    if (error) {
-      console.error('[Auth:session] error getting user', error);
-      return NextResponse.json({ authenticated: false, error: error.message }, { status: 200 });
+    if (userError) {
+      console.error('[Auth:session] error getting user', userError);
+      return NextResponse.json({ authenticated: false, error: userError.message }, { status: 200 });
     }
 
     const passcodeVerified = !!req.cookies.get('dashboard_passcode_verified');
 
+    // Return minimal, validated user info - do NOT return raw access tokens from server
     return NextResponse.json({
       authenticated: !!user,
+      user_id: user?.id ?? null,
       user_email: user?.email ?? null,
       passcodeVerified,
     });
