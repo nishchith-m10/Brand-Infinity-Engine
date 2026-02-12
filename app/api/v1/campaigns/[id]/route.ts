@@ -206,13 +206,28 @@ export async function PUT(
     }
 
     // Build update object (only allow certain fields)
-    const allowedFields = ['campaign_name', 'status', 'budget_limit_usd', 'metadata'];
+    // Note: status is NOT updateable via PUT - use DELETE to archive or PATCH to restore
+    const allowedFields = ['campaign_name', 'budget_limit_usd', 'metadata'];
     const updateData: Record<string, unknown> = {};
     
     for (const field of allowedFields) {
       if (body[field] !== undefined) {
         updateData[field] = body[field];
       }
+    }
+
+    // Reject if trying to update status through PUT
+    if (body.status !== undefined) {
+      return NextResponse.json(
+        { 
+          success: false, 
+          error: { 
+            code: 'STATUS_UPDATE_NOT_ALLOWED',
+            message: 'Status cannot be updated via PUT. Use DELETE to archive or PATCH with action:restore to restore.',
+          } 
+        },
+        { status: 400 }
+      );
     }
 
     if (Object.keys(updateData).length === 0) {
