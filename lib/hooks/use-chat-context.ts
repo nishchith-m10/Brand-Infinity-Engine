@@ -34,6 +34,22 @@ export interface BrandIdentity {
 }
 
 /**
+ * Brand Asset interface (from Brand Vault)
+ */
+export interface BrandAsset {
+  id: string;
+  brand_id: string;
+  knowledge_base_id?: string;
+  asset_type: 'logo' | 'product' | 'guideline' | 'color' | 'font' | 'other';
+  file_url: string;
+  file_name: string;
+  content_text?: string;
+  metadata?: Record<string, unknown>;
+  is_active: boolean;
+  created_at: string;
+}
+
+/**
  * Identity mode options
  */
 export type IdentityMode = 'isolated' | 'shared' | 'inherited';
@@ -45,6 +61,7 @@ export interface ContextPayload {
   campaign_id: string;
   campaign_name: string;
   kb_ids: string[];
+  asset_ids: string[];
   identity_mode: IdentityMode;
   identity: BrandIdentity | null;
 }
@@ -56,14 +73,17 @@ interface ChatContextState {
   // Selected hierarchy
   selectedCampaign: Campaign | null;
   selectedKBs: KnowledgeBase[];
+  selectedAssets: BrandAsset[];
   selectedIdentityMode: IdentityMode;
   
   // Available options (fetched based on campaign)
   availableKBs: KnowledgeBase[];
+  availableAssets: BrandAsset[];
   availableIdentity: BrandIdentity | null;
   
   // Status
   isLoadingKBs: boolean;
+  isLoadingAssets: boolean;
   isLoadingIdentity: boolean;
   
   // Computed
@@ -72,12 +92,17 @@ interface ChatContextState {
   // Actions
   setCampaign: (campaign: Campaign) => void;
   setAvailableKBs: (kbs: KnowledgeBase[]) => void;
+  setAvailableAssets: (assets: BrandAsset[]) => void;
   setAvailableIdentity: (identity: BrandIdentity | null) => void;
   toggleKB: (kb: KnowledgeBase) => void;
+  toggleAsset: (asset: BrandAsset) => void;
   selectAllKBs: () => void;
+  selectAllAssets: () => void;
   clearKBs: () => void;
+  clearAssets: () => void;
   setIdentityMode: (mode: IdentityMode) => void;
   setLoadingKBs: (loading: boolean) => void;
+  setLoadingAssets: (loading: boolean) => void;
   setLoadingIdentity: (loading: boolean) => void;
   clearContext: () => void;
   
@@ -97,10 +122,13 @@ export const useChatContextStore = create<ChatContextState>()(
       // Initial state
       selectedCampaign: null,
       selectedKBs: [],
+      selectedAssets: [],
       selectedIdentityMode: 'shared',
       availableKBs: [],
+      availableAssets: [],
       availableIdentity: null,
       isLoadingKBs: false,
+      isLoadingAssets: false,
       isLoadingIdentity: false,
       contextReady: false,
       
@@ -109,8 +137,11 @@ export const useChatContextStore = create<ChatContextState>()(
         set({
           selectedCampaign: campaign,
           selectedKBs: [], // Reset KBs when campaign changes
+          selectedAssets: [], // Reset assets when campaign changes
           availableKBs: [],
+          availableAssets: [],
           availableIdentity: null,
+          selectedIdentityMode: 'isolated', // Default to Campaign Identity when selecting a campaign
           contextReady: false,
         });
       },
@@ -157,6 +188,41 @@ export const useChatContextStore = create<ChatContextState>()(
         set({ selectedKBs: [] });
       },
       
+      // Set available assets after fetch
+      setAvailableAssets: (assets: BrandAsset[]) => {
+        set({
+          availableAssets: assets,
+          // Don't auto-select assets - let user choose
+          selectedAssets: [],
+        });
+      },
+      
+      // Toggle a single asset
+      toggleAsset: (asset: BrandAsset) => {
+        const state = get();
+        const isSelected = state.selectedAssets.some(a => a.id === asset.id);
+        
+        if (isSelected) {
+          set({
+            selectedAssets: state.selectedAssets.filter(a => a.id !== asset.id),
+          });
+        } else {
+          set({
+            selectedAssets: [...state.selectedAssets, asset],
+          });
+        }
+      },
+      
+      // Select all available assets
+      selectAllAssets: () => {
+        set({ selectedAssets: get().availableAssets });
+      },
+      
+      // Clear all asset selections
+      clearAssets: () => {
+        set({ selectedAssets: [] });
+      },
+      
       // Set identity mode
       setIdentityMode: (mode: IdentityMode) => {
         set({ selectedIdentityMode: mode });
@@ -165,6 +231,10 @@ export const useChatContextStore = create<ChatContextState>()(
       // Loading states
       setLoadingKBs: (loading: boolean) => {
         set({ isLoadingKBs: loading });
+      },
+      
+      setLoadingAssets: (loading: boolean) => {
+        set({ isLoadingAssets: loading });
       },
       
       setLoadingIdentity: (loading: boolean) => {
@@ -176,8 +246,10 @@ export const useChatContextStore = create<ChatContextState>()(
         set({
           selectedCampaign: null,
           selectedKBs: [],
+          selectedAssets: [],
           selectedIdentityMode: 'shared',
           availableKBs: [],
+          availableAssets: [],
           availableIdentity: null,
           contextReady: false,
         });
@@ -192,6 +264,7 @@ export const useChatContextStore = create<ChatContextState>()(
           campaign_id: state.selectedCampaign.id,
           campaign_name: state.selectedCampaign.campaign_name,
           kb_ids: state.selectedKBs.map(kb => kb.id),
+          asset_ids: state.selectedAssets.map(a => a.id),
           identity_mode: state.selectedIdentityMode,
           identity: state.availableIdentity,
         };
@@ -219,24 +292,33 @@ export function useChatContext() {
     campaign: store.selectedCampaign,
     campaignId: store.selectedCampaign?.id || null,
     selectedKBs: store.selectedKBs,
+    selectedAssets: store.selectedAssets,
     availableKBs: store.availableKBs,
+    availableAssets: store.availableAssets,
     identityMode: store.selectedIdentityMode,
     identity: store.availableIdentity,
+    availableIdentity: store.availableIdentity,
     
     // Status
     isLoadingKBs: store.isLoadingKBs,
+    isLoadingAssets: store.isLoadingAssets,
     isLoadingIdentity: store.isLoadingIdentity,
     contextReady: store.contextReady,
     
     // Actions
     setCampaign: store.setCampaign,
     setAvailableKBs: store.setAvailableKBs,
+    setAvailableAssets: store.setAvailableAssets,
     setAvailableIdentity: store.setAvailableIdentity,
     toggleKB: store.toggleKB,
+    toggleAsset: store.toggleAsset,
     selectAllKBs: store.selectAllKBs,
+    selectAllAssets: store.selectAllAssets,
     clearKBs: store.clearKBs,
+    clearAssets: store.clearAssets,
     setIdentityMode: store.setIdentityMode,
     setLoadingKBs: store.setLoadingKBs,
+    setLoadingAssets: store.setLoadingAssets,
     setLoadingIdentity: store.setLoadingIdentity,
     clearContext: store.clearContext,
     getContextPayload: store.getContextPayload,
