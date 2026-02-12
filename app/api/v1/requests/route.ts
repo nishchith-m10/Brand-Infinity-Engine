@@ -9,6 +9,9 @@ import { z } from 'zod';
 import { calculateEstimate } from '@/lib/pipeline/estimator';
 import { taskFactory } from '@/lib/orchestrator/TaskFactory';
 import { requestOrchestrator } from '@/lib/orchestrator/RequestOrchestrator';
+import { reserveBudget, releaseBudget } from '@/lib/budget/reservation';
+import { createRequestAtomic, buildTaskTemplates } from '@/lib/database/transactions';
+import { rateLimiters, checkRateLimit } from '@/lib/utils/rate-limit-helpers';
 import {
   CreateRequestResponse,
   RequestStatus,
@@ -62,6 +65,12 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ success: false, error: 'Unauthorized' }, { status: 401 });
     }
 
+    // 1.5. Check rate limit (10 requests/minute for pipeline generation)
+    const rateLimitResponse = await checkRateLimit(rateLimiters.pipelineGeneration, user.id);
+    if (rateLimitResponse) {
+      return rateLimitResponse;
+    }
+
     // 2. Parse and validate input
     const body = await request.json();
     const validation = CreateRequestSchema.safeParse(body);
@@ -103,73 +112,111 @@ export async function POST(request: NextRequest) {
       autoScript: input.settings?.auto_script ?? true,
     });
 
-    // 5. Create the request record
-    const { data: contentRequest, error: insertError } = await supabase
-      .from('content_requests')
-      .insert({
-        brand_id: input.brand_id,
-        campaign_id: input.campaign_id || null,
-        title: input.title,
-        request_type: input.type,
-        status: 'intake' as RequestStatus,
+    // 5. Reserve budget if campaign is provided (Phase II, Pillar 2)
+    // This prevents race conditions where concurrent requests exceed budget
+    if (input.campaign_id) {
+      const budgetReservation = await reserveBudget(input.campaign_id, estimate.cost);
+      
+      if (!budgetReservation.success) {
+        return NextResponse.json(
+          {
+            success: false,
+            error: 'INSUFFICIENT_BUDGET',
+            message: budgetReservation.error || 'Insufficient campaign budget',
+            details: {
+              requested: estimate.cost,
+              budgetLimit: budgetReservation.budgetLimit,
+              budgetUsed: budgetReservation.budgetUsed,
+              budgetReserved: budgetReservation.budgetReserved,
+              available: budgetReservation.budgetLimit 
+                ? (budgetReservation.budgetLimit - (budgetReservation.budgetUsed || 0) - (budgetReservation.budgetReserved || 0))
+                : 0,
+            },
+          },
+          { status: 402 } // Payment Required
+        );
+      }
 
-        // Creative requirements
-        prompt: input.requirements.prompt,
-        duration_seconds: input.requirements.duration || null,
-        aspect_ratio: input.requirements.aspect_ratio,
-        style_preset: input.requirements.style_preset,
-        shot_type: input.requirements.shot_type,
-        voice_id: input.requirements.voice_id || null,
+      console.log(`[BudgetCheck] Reserved $${estimate.cost} for campaign ${input.campaign_id}`);
+    }
 
-        // Provider settings
-        preferred_provider: input.settings?.provider || null,
-        provider_tier: input.settings?.tier || 'standard',
+    // 6. Build request data and task templates for atomic creation (Phase III, Pillar 1)
+    // Get task templates for this request type
+    const taskTemplatesList = taskFactory.getTemplatesForRequestType(input.type);
+    const taskTemplates = buildTaskTemplates(input.type, taskTemplatesList);
 
-        // Script settings
-        auto_script: input.settings?.auto_script ?? true,
-        script_text: input.settings?.script_text || null,
+    const requestData = {
+      brand_id: input.brand_id,
+      campaign_id: input.campaign_id,
+      title: input.title,
+      request_type: input.type,
+      status: 'intake',
 
-        // Knowledge bases
-        selected_kb_ids: input.settings?.selected_kb_ids || [],
+      // Creative requirements
+      prompt: input.requirements.prompt,
+      duration_seconds: input.requirements.duration,
+      aspect_ratio: input.requirements.aspect_ratio,
+      style_preset: input.requirements.style_preset,
+      shot_type: input.requirements.shot_type,
+      voice_id: input.requirements.voice_id,
 
-        // Brand assets for reference
-        selected_asset_ids: input.settings?.selected_asset_ids || [],
+      // Provider settings
+      preferred_provider: input.settings?.provider,
+      provider_tier: input.settings?.tier || 'standard',
 
-        // Estimates
-        estimated_cost: estimate.cost,
-        estimated_time_seconds: estimate.timeSeconds,
+      // Script settings
+      auto_script: input.settings?.auto_script ?? true,
+      script_text: input.settings?.script_text,
 
-        // Audit
-        created_by: user.id,
-      })
-      .select()
-      .single();
+      // Knowledge bases and assets
+      selected_kb_ids: input.settings?.selected_kb_ids || [],
+      selected_asset_ids: input.settings?.selected_asset_ids || [],
 
-    if (insertError) {
-      console.error('Failed to create request:', insertError);
+      // Estimates
+      estimated_cost: estimate.cost,
+      estimated_time_seconds: estimate.timeSeconds,
+    };
+
+    // 7. Atomically create request + tasks + event (Phase III, Pillar 1)
+    // This uses a PostgreSQL RPC function to wrap all operations in a transaction
+    const createResult = await createRequestAtomic(
+      supabase,
+      requestData,
+      taskTemplates,
+      user.id
+    );
+
+    if (!createResult.success) {
+      console.error('Failed to create request atomically:', createResult.error);
+      
+      // Release reserved budget on failure (Phase II, Pillar 2)
+      // Budget is automatically released thanks to transaction rollback
+      if (input.campaign_id) {
+        await releaseBudget(input.campaign_id, estimate.cost).catch((err) => {
+          console.error('Failed to release budget after request creation failure:', err);
+        });
+      }
+      
       return NextResponse.json(
-        { success: false, error: 'Failed to create request' },
+        { 
+          success: false, 
+          error: createResult.error || 'Failed to create request',
+          code: createResult.code,
+          details: createResult.details,
+        },
         { status: 500 }
       );
     }
 
-    // 6. Create initial tasks for this request using new TaskFactory
-    // This includes Executive, TaskPlanner, Strategist, Producer, and QA tasks
-    const tasks = await taskFactory.createTasksForRequest(contentRequest);
-
-    // 7. Log the creation event
-    await supabase.from('request_events').insert({
-      request_id: contentRequest.id,
-      event_type: 'created',
-      description: `Request created: ${input.title}`,
-      metadata: {
-        type: input.type,
-        provider: input.settings?.provider,
-        tier: input.settings?.tier,
-        task_count: tasks.length,
-      },
-      actor: `user:${user.id}`,
-    });
+    const contentRequest = createResult.data;
+    if (!contentRequest) {
+      // This shouldn't happen if success=true, but TypeScript safety
+      console.error('Atomic creation succeeded but no data returned');
+      return NextResponse.json(
+        { success: false, error: 'Internal error: no data returned' },
+        { status: 500 }
+      );
+    }
 
     // 8. Trigger orchestrator in background (non-blocking)
     // Don't await - let orchestrator process asynchronously
