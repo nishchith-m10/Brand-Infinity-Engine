@@ -47,7 +47,9 @@ export type EventType =
   | 'provider_dispatched'
   | 'provider_completed'
   | 'provider_failed'
+  | 'provider_callback'
   | 'user_action'
+  | 'system_action'
   | 'system_error'
   | 'retry_initiated';
 
