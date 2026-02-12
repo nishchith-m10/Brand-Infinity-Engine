@@ -25,13 +25,6 @@ interface GenerationJob {
   updated_at: string;
 }
 
-// Mock Data fallback
-const MOCK_VIDEOS = [
-  { job_id: '1', campaign_id: 'camp_1', status: "completed", provider: "Sora", created_at: "2h ago" },
-  { job_id: '2', campaign_id: 'camp_1', status: "processing", provider: "Runway", created_at: "5h ago" },
-  { job_id: '3', campaign_id: 'camp_2', status: "completed", provider: "Pika", created_at: "Yesterday" },
-];
-
 const TABS = ["All", "Processing", "Completed", "Failed"];
 
 export default function VideosPage() {
@@ -66,8 +59,17 @@ export default function VideosPage() {
     );
   }
   
-  // Use API data directly
-  const rawVideos: GenerationJob[] = apiVideos || [];
+  // Use API data directly. Hide dev-seeded videos when running locally so
+  // the UI shows the intended empty-state during development.
+  let rawVideos: GenerationJob[] = apiVideos || [];
+
+  // If running in a local dev environment (localhost or 127.0.0.1), treat
+  // the videos list as empty to avoid showing seeded/mock DB entries.
+  if (typeof window !== 'undefined') {
+    const host = window.location.hostname;
+    const isLocal = host === 'localhost' || host === '127.0.0.1';
+    if (isLocal) rawVideos = [];
+  }
 
   // Apply filters
   const filteredVideos = rawVideos
@@ -134,7 +136,7 @@ export default function VideosPage() {
                    className={cn(
                        "px-4 py-1.5 rounded-full text-xs font-medium transition-all",
                        activeTab === tab 
-                         ? "bg-lamaSky text-slate-800 shadow-sm" 
+                         ? "bg-lamaPurple text-slate-800 shadow-sm" 
                          : "bg-white text-slate-500 hover:bg-slate-50"
                    )}
                >
@@ -261,7 +263,7 @@ export default function VideosPage() {
                         className="p-0 border border-slate-100 shadow-sm h-full flex flex-col bg-white"
                     >
                         {/* Thumbnail */}
-                        <div className={`aspect-video w-full bg-gradient-to-br from-lamaPurpleLight to-lamaSkyLight relative flex items-center justify-center rounded-t-2xl`}>
+                        <div className={`aspect-video w-full bg-gradient-to-br from-lamaPurpleLight to-lamaPurpleLight relative flex items-center justify-center rounded-t-2xl`}>
                             {video.status === "processing" || video.status === "pending" ? (
                                 <div className="h-8 w-8 animate-spin rounded-full border-2 border-lamaPurple border-t-transparent" />
                             ) : video.status === "completed" ? (
@@ -303,7 +305,7 @@ export default function VideosPage() {
                             {/* Actions */}
                             <div className="mt-4 flex items-center gap-2 pt-4 border-t border-slate-50">
                                 <button 
-                                  className="flex-1 text-xs font-semibold py-1.5 rounded-md bg-lamaSkyLight text-lamaSky hover:bg-lamaSky hover:text-white transition-colors flex items-center justify-center gap-2 disabled:opacity-50"
+                                  className="flex-1 text-xs font-semibold py-1.5 rounded-md bg-lamaPurpleLight text-lamaPurple hover:bg-lamaPurple hover:text-white transition-colors flex items-center justify-center gap-2 disabled:opacity-50"
                                   disabled={video.status !== 'completed'}
                                   onClick={() => {
                                       if (video.result_url) {
