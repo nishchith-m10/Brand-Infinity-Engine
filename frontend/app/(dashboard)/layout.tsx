@@ -13,9 +13,9 @@ export default function DashboardLayout({
       <Sidebar />
       
       {/* RIGHT CONTENT */}
-      <div className="flex-1 bg-slate-50 overflow-auto flex flex-col">
+      <div className="flex-1 bg-slate-50 dark:bg-background overflow-hidden flex flex-col">
         <Navbar />
-        <main className="flex-1 p-4 gap-4 flex flex-col">
+        <main className="flex-1 p-4 gap-4 flex flex-col overflow-hidden">
            {children}
         </main>
       </div>
