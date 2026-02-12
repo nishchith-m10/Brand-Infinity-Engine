@@ -198,7 +198,7 @@ export async function POST(
         .limit(10);
       
       if (kbData && kbData.length > 0) {
-        brandKnowledge = kbData.map(kb => kb.content).join('\n\n');
+        brandKnowledge = kbData.map((kb: { content: string }) => kb.content).join('\n\n');
       }
     }
     
