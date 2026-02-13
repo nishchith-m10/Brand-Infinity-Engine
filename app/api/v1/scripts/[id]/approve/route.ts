@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createAdminClient } from '@/lib/supabase/admin';
+import { ApproveResourceSchema, validateRequest } from '@/lib/validations/api-schemas';
 
 // =============================================================================
 // POST /api/v1/scripts/[id]/approve - Approve a script
@@ -12,12 +13,32 @@ export async function POST(
     const supabase = createAdminClient();
     const { id: scriptId } = await params;
 
+    // Validate request body
+    const body = await request.json();
+    const validation = validateRequest(ApproveResourceSchema, body);
+    if (!validation.success) {
+      return NextResponse.json(
+        {
+          success: false,
+          error: {
+            code: 'VALIDATION_ERROR',
+            message: 'Invalid request data',
+            details: validation.error.format(),
+          },
+        },
+        { status: 400 }
+      );
+    }
+
+    const { notes } = validation.data;
+
     // Update the script's approval status
     const { data: script, error } = await supabase
       .from('scripts')
       .update({ 
         approval_status: 'approved',
         approved_at: new Date().toISOString(),
+        ...(notes && { approval_notes: notes }),
       })
       .eq('script_id', scriptId)
       .select()
