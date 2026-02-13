@@ -5,31 +5,42 @@
 
 import { BaseLLMAdapter } from './base';
 import type { LLMRequest, LLMResponse } from '../types';
+import { getEffectiveProviderKey } from '@/lib/providers/get-user-key';
 
 export class OpenRouterAdapter extends BaseLLMAdapter {
-  private defaultApiKey: string;
   private baseURL: string;
 
   constructor() {
     super();
-    this.defaultApiKey = process.env.OPENROUTER_API_KEY || '';
     this.baseURL = 'https://openrouter.ai/api/v1';
   }
 
+  /**
+   * Fetch API key with optional userId for background jobs
+   */
+  private async fetchApiKey(userId?: string): Promise<string> {
+    const apiKey = await getEffectiveProviderKey(
+      'openrouter' as any,
+      process.env.OPENROUTER_API_KEY,
+      userId
+    );
+    if (!apiKey) {
+      throw new Error('OpenRouter API key not configured. Please add your OpenRouter key in Settings.');
+    }
+    return apiKey;
+  }
+
   async generateCompletion(request: LLMRequest): Promise<LLMResponse> {
-    const apiKey = request.apiKey || this.defaultApiKey;
+    // Use request API key if provided, otherwise fetch user's key from DB (with userId support)
+    const apiKey = request.apiKey || await this.fetchApiKey(request.userId);
     
     console.log("[OpenRouter] generateCompletion called:", {
       hasRequestApiKey: !!request.apiKey,
-      hasDefaultApiKey: !!this.defaultApiKey,
+      userId: request.userId,
       usingKey: apiKey ? apiKey.substring(0, 10) + '...' : 'NONE',
       model: request.model,
       provider: request.provider,
     });
-    
-    if (!apiKey) {
-      throw new Error('OpenRouter API key not configured');
-    }
 
     try {
       const response = await fetch(`${this.baseURL}/chat/completions`, {
@@ -58,7 +69,78 @@ export class OpenRouterAdapter extends BaseLLMAdapter {
           statusText: response.statusText,
           error: errorBody,
         });
+
         const errorMessage = errorBody.error?.message || errorBody.message || `OpenRouter API failed with status ${response.status}`;
+
+        // If the error indicates an invalid model id, attempt to fetch available models and retry with a fallback
+        if (response.status === 400 && /not a valid model id/i.test(errorMessage)) {
+          console.warn('[OpenRouter] Model ID invalid, attempting fallback models');
+
+          // Fetch OpenRouter models and pick a suitable fallback
+          try {
+            const modelsResp = await fetch(`${this.baseURL}/models`, {
+              headers: { 'Authorization': `Bearer ${apiKey}` },
+            });
+
+            if (modelsResp.ok) {
+              const modelsJson = await modelsResp.json();
+              const availableIds: string[] = (modelsJson.data || []).map((m: any) => m.id);
+
+              // Prefer exact Xiaomi free id first, then variants, then Gemini/OpenAI via OpenRouter
+              const preferOrder = ['xiaomi/mimo-v2-flash:free', 'mimo-v2-flash', 'mimo-v2', 'mimo', 'mimoflash', 'gemini-flash', 'gemini', 'google/gemini-flash-1.5-8b', 'openai/gpt-3.5-turbo'];
+
+              const fallback = availableIds.find((id: string) => preferOrder.some((p) => id.toLowerCase().includes(p))) || availableIds[0];
+
+              if (fallback) {
+                console.log('[OpenRouter] Retrying with fallback model:', fallback);
+
+                // Retry once with fallback
+                const retryResp = await fetch(`${this.baseURL}/chat/completions`, {
+                  method: 'POST',
+                  headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${apiKey}`,
+                    'HTTP-Referer': process.env.NEXT_PUBLIC_SITE_URL || 'https://brand-infinity.com',
+                    'X-Title': 'Brand Infinity Engine',
+                  },
+                  body: JSON.stringify({
+                    model: fallback,
+                    messages: this.formatMessages(request.messages),
+                    temperature: request.temperature ?? 0.7,
+                    max_tokens: request.maxTokens,
+                    response_format: request.responseFormat === 'json' 
+                      ? { type: 'json_object' } 
+                      : undefined,
+                  }),
+                });
+
+                if (retryResp.ok) {
+                  const data = await retryResp.json();
+                  return {
+                    content: data.choices[0].message.content,
+                    usage: {
+                      inputTokens: data.usage?.prompt_tokens || 0,
+                      outputTokens: data.usage?.completion_tokens || 0,
+                      totalTokens: (data.usage?.prompt_tokens || 0) + (data.usage?.completion_tokens || 0),
+                      totalCost: 0,
+                    },
+                    finish_reason: data.choices[0].finish_reason,
+                    model: data.model,
+                    provider: 'openrouter',
+                  };
+                } else {
+                  const rb = await retryResp.json().catch(() => ({}));
+                  console.error('[OpenRouter] Retry with fallback model failed:', retryResp.status, rb);
+                }
+              }
+            } else {
+              console.warn('[OpenRouter] Failed to fetch models for fallback');
+            }
+          } catch (err) {
+            console.warn('[OpenRouter] Error while attempting fallback:', err);
+          }
+        }
+
         throw new Error(`OpenRouter API failed: ${errorMessage}`);
       }
 
