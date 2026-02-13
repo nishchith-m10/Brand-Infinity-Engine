@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createAdminClient } from '@/lib/supabase/admin';
+import { ApproveResourceSchema, validateRequest } from '@/lib/validations/api-schemas';
 
 // =============================================================================
 // POST /api/v1/briefs/[id]/approve - Approve a creative brief
