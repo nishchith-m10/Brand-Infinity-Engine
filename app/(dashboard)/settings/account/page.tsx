@@ -116,9 +116,9 @@ export default function AccountPage() {
             </div>
           </div>
 
-          <div className="rounded-lg bg-lamaSkyLight p-4">
+          <div className="rounded-lg bg-lamaPurpleLight p-4">
             <div className="flex items-start">
-              <User className="mt-0.5 h-5 w-5 text-lamaSky" />
+              <User className="mt-0.5 h-5 w-5 text-lamaPurple" />
               <div className="ml-3">
                 <h4 className="text-sm font-medium text-slate-800">Profile managed by {provider === 'google' ? 'Google' : 'Supabase'}</h4>
                 <p className="mt-1 text-sm text-slate-600">
@@ -242,7 +242,7 @@ export default function AccountPage() {
                 </div>
               )}
 
-              <Button type="submit" disabled={loading}>
+              <Button type="submit" disabled={loading} className="bg-lamaPurple hover:bg-lamaPurple/90 text-white">
                 {loading ? (
                   <>
                     <Loader2 className="mr-2 h-4 w-4 animate-spin" />
