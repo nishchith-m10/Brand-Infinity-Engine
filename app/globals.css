@@ -23,7 +23,7 @@
   --card-foreground: 15 23 42;
   
   /* Llama Sector — light mode */
-  --primary: 14 165 233; /* lamaSky (sky blue) */
+  --primary: 139 92 246; /* lamaPurple (purple) */
   --primary-foreground: 255 255 255;
   
   --secondary: 241 245 249;
@@ -124,7 +124,7 @@ body {
 .dark .bg-zinc-100 { background-color: rgb(38 38 38) !important; }
 
 /* Icon container backgrounds - keep subtle in dark mode */
-.dark .bg-lamaSkyLight { background-color: rgba(14, 165, 233, 0.15) !important; }
+.dark .bg-lamaPurpleLight { background-color: rgba(139, 92, 246, 0.15) !important; }
 .dark .bg-lamaPurpleLight { background-color: rgba(139, 92, 246, 0.15) !important; }
 .dark .bg-lamaYellowLight { background-color: rgba(234, 179, 8, 0.15) !important; }
 
@@ -173,6 +173,84 @@ body {
   color: rgb(115 115 115) !important;
 }
 
+/* ========================================
+   LIGHT THEME OVERRIDES (scoped)
+   Fixes cases where UAs or prefers-color-scheme media queries
+   still apply dark styles even when the app forces `html.light`.
+   These are intentionally specific and scoped to avoid global !important usage.
+   ======================================== */
+html.light .app-search-input {
+  background-color: rgb(248 250 252) !important; /* slate-50 */
+  color: rgb(15 23 42) !important; /* slate-900 */
+  border-color: rgb(226 232 240) !important; /* slate-200 */
+}
+html.light .app-search-input::placeholder {
+  color: rgb(100 116 139) !important; /* slate-400 */
+}
+html.light .campaign-selector-menu {
+  background-color: rgb(248 250 252) !important; /* slate-50 */
+  color: rgb(16, 27, 52) !important; /* slate-900 */
+  border-color: rgb(226 232 240) !important; /* slate-200 */
+}
+html.light .campaign-selector-menu .text-sm,
+html.light .campaign-selector-menu .text-xs {
+  color: rgb(15, 22, 42) !important; /* slate-600 for secondary text */
+}
+
+/* Create New button hover in light mode */
+html.light .campaign-selector-menu .create-new-btn:hover {
+  background-color: rgba(139, 92, 246, 0.06) !important; /* light lamaPurple tint */
+  color: rgb(55 48 163) !important; /* slightly darker indigo for contrast */
+}
+@media (prefers-color-scheme: dark) {
+  html.light .campaign-selector-menu .create-new-btn:hover {
+    background-color: rgba(139, 92, 246, 0.06) !important;
+    color: rgb(55 48 163) !important;
+  }
+}
+html.light .search-results-dropdown .font-medium { color: rgb(15 23 42) !important; }
+html.light .search-results-dropdown .text-xs { color: rgb(71 85 105) !important; }
+html.light .search-results-dropdown .hover\:bg-slate-100:hover { background-color: rgb(241 245 249) !important; }
+
+@media (prefers-color-scheme: dark) {
+  html.light .search-results-dropdown {
+    background-color: rgb(248 250 252) !important;
+    color: rgb(15 23 42) !important;
+    border-color: rgb(226 232 240) !important;
+    width: 12rem !important;
+  }
+  html.light .search-results-dropdown .font-medium { color: rgb(15 23 42) !important; }
+  html.light .search-results-dropdown .text-xs { color: rgb(71 85 105) !important; }
+}
+  html.light .campaign-selector-menu .text-sm,
+  html.light .campaign-selector-menu .text-xs {
+    color: rgb(71 85 105) !important; /* slate-600 for secondary text */
+  }
+
+  /* Strong override for the trigger text and icons to beat any global !important rules */
+  html.light .campaign-selector-trigger,
+  html.light .campaign-selector-trigger * {
+    color: #334155 !important;
+  }
+  /* Ensure all SVG parts are outline-only in light mode */
+  html.light .campaign-selector-trigger svg,
+  html.light .campaign-selector-trigger svg path,
+  html.light .campaign-selector-trigger svg rect,
+  html.light .campaign-selector-trigger svg g,
+  html.light .campaign-selector-trigger svg * {
+    color: #334155 !important;
+    fill: none !important;
+    stroke: #334155 !important;
+    stroke-width: 1.25px !important;
+    background-color: transparent !important;
+    box-shadow: none !important;
+  }
+  /* Also ensure the svg itself doesn't get a background from inline styles */
+  html.light .campaign-selector-trigger svg {
+    fill: none !important;
+    background-color: transparent !important;
+  }
+
 /* Hover states */
 .dark .hover\:bg-white:hover { background-color: rgb(38 38 38) !important; }
 .dark .hover\:bg-slate-50:hover { background-color: rgb(38 38 38) !important; }
@@ -189,7 +267,7 @@ body {
    Any element with a border gets dark mode appropriate color
    ======================================== */
 .dark [class*="border"]:not([class*="border-transparent"]):not([class*="border-lamaPurple"]):not([class*="border-lamaSky"]):not([class*="border-lamaYellow"]):not([class*="border-red"]):not([class*="border-green"]):not([class*="border-blue"]):not([class*="border-indigo"]):not([class*="border-emerald"]):not([class*="border-amber"]):not([class*="border-rose"]) {
-  border-color: rgb(38 38 38) !important;
+  border-color: rgb(128, 128, 128) !important;
 }
 
 /* ========================================
@@ -231,7 +309,7 @@ body {
 
 /* Any remaining dividers */
 .dark .divide-slate-100 > * + *, .dark .divide-slate-200 > * + *, .dark .divide-gray-100 > * + *, .dark .divide-gray-200 > * + * {
-  border-color: rgb(38 38 38) !important;
+  border-color: rgb(128, 128, 128) !important;
 }
 
 /* Shadow adjustments for dark mode */
