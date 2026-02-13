@@ -363,6 +363,7 @@ export function KBManager({ brandId, campaignId, onKBSelect, showToast: parentSh
 interface KBCreateModalProps {
   brandId: string;
   campaignId?: string | null;
+  editingKB?: KnowledgeBase | null;
   showToast: (toast: { type: 'success' | 'error' | 'info' | 'warning'; message: string }) => void;
   onClose: () => void;
   onSuccess: () => void;
