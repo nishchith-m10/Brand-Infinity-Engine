@@ -81,6 +81,7 @@ export interface LLMRequest {
   responseFormat?: "text" | "json";
   tools?: LLMTool[];
   stream?: boolean;
+  apiKey?: string; // Optional API key override
 }
 
 export interface LLMMessage {

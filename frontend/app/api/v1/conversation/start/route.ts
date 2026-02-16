@@ -46,6 +46,7 @@ interface StartConversationRequest {
   context?: ContextPayload; // New context payload
   provider?: string;
   model_id?: string;
+  openrouter_api_key?: string;
 }
 
 interface StartConversationResponse {
@@ -225,7 +226,8 @@ export async function POST(
       ? 'budget' as const
       : 'premium' as const;
     
-    const agent = createExecutiveAgent(preset, user.id);
+    // Use user-provided API key if available
+    const agent = createExecutiveAgent(preset, user.id, body.openrouter_api_key);
     
     // Combine all context for the agent
     const fullContext = [
@@ -234,11 +236,27 @@ export async function POST(
       brandKnowledge ? `\n--- Brand Knowledge ---\n${brandKnowledge}` : '',
     ].filter(Boolean).join('\n');
     
-    const action = await agent.processMessage({
-      session,
-      userMessage: body.initial_message,
-      brandKnowledge: fullContext,
-    });
+    // Step 8: Process message with Agent
+    let action;
+    try {
+      action = await agent.processMessage({
+        session,
+        userMessage: body.initial_message,
+        brandKnowledge: fullContext,
+      });
+    } catch (agentError: any) {
+      console.error("[start] Executive Agent error:", agentError);
+      return NextResponse.json(
+        {
+          success: false,
+          error: {
+            code: "AGENT_ERROR",
+            message: agentError.message || "The AI agent failed to process your request",
+          },
+        },
+        { status: 500 }
+      );
+    }
 
     let assistantContent = '';
     let responseType: 'message' | 'questions' = 'message';
