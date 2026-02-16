@@ -42,19 +42,24 @@ export class LLMService {
     const startTime = Date.now();
     
     try {
-      // Get provider from model
-      const provider = this.getProviderFromModel(request.model || '');
-      if (!provider) {
-        throw new Error(`Unsupported model: ${request.model}`);
+      // 1. Get provider: prioritized request.provider, otherwise guess from model name
+      let provider = request.provider;
+      
+      if (!provider && request.model) {
+        provider = this.getProviderFromModel(request.model) || undefined;
       }
 
-      // Get adapter
+      if (!provider) {
+        throw new Error(`Could not determine provider for model: ${request.model}. Please specify provider.`);
+      }
+
+      // 2. Get adapter
       const adapter = this.adapters.get(provider);
       if (!adapter) {
-        throw new Error(`Provider ${provider} not initialized`);
+        throw new Error(`Provider ${provider} not initialized or not supported`);
       }
 
-      // Generate completion
+      // 3. Generate completion
       const response = await adapter.generateCompletion(request);
       
       // Calculate cost
@@ -82,16 +87,26 @@ export class LLMService {
    * Get provider from model string
    */
   private getProviderFromModel(model: string): LLMProvider | null {
+    if (!model) return null;
+    
+    // Check specific known prefixes
     if (model.startsWith('gpt-') || model.startsWith('o1') || model.startsWith('chatgpt')) return 'openai';
     if (model.startsWith('claude-')) return 'anthropic';
     if (model.startsWith('deepseek-')) return 'deepseek';
     if (model.startsWith('gemini-')) return 'gemini';
+    
+    // OpenRouter models usually have a slash (e.g., 'anthropic/claude-3', 'mistralai/mistral-large')
+    if (model.includes('/')) return 'openrouter';
+    
+    // Other specific prefixes
     if (model.startsWith('llama-')) return 'openrouter';
     if (model.startsWith('qwen')) return 'kimi';
     if (model.startsWith('grok-')) return 'openrouter';
     if (model.startsWith('mistral') || model.startsWith('pixtral')) return 'openrouter';
     if (model.startsWith('moonshot-')) return 'kimi';
     if (model.startsWith('fara-')) return 'openrouter';
+    
+    // Default to openai if no slash and no match (or return null to trigger error)
     return null;
   }
 

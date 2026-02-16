@@ -20,8 +20,8 @@ export class ExecutiveAgent {
   private userId: string;
   private apiKey?: string;
 
-  constructor(tier: 'premium' | 'budget' = 'premium', userId?: string, apiKey?: string) {
-    this.agentModel = this.llmService.selectModel('executive', tier);
+  constructor(tier: 'premium' | 'budget' = 'premium', userId?: string, apiKey?: string, modelId?: string) {
+    this.agentModel = modelId || this.llmService.selectModel('executive', tier);
     this.userId = userId || 'system'; // Fallback to 'system' for testing
     this.apiKey = apiKey;
   }
@@ -240,8 +240,9 @@ Be encouraging and specific about what they'll receive.`;
 export function createExecutiveAgent(
   tier: 'premium' | 'budget' = 'premium', 
   userId?: string,
-  apiKey?: string
+  apiKey?: string,
+  modelId?: string
 ): ExecutiveAgent {
-  return new ExecutiveAgent(tier, userId, apiKey);
+  return new ExecutiveAgent(tier, userId, apiKey, modelId);
 }
 
