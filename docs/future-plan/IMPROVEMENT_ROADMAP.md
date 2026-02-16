@@ -1,8 +1,8 @@
 # Brand Infinity Engine — Improvement Roadmap
 
 > **Created:** December 28, 2025  
-> **Current Score:** 6.4 / 10 (vs. industry leaders at 8.5–9.0)  
-> **Target Score:** 8.0+ within 3–6 months
+> **Current Score:** 6.7 / 10 (vs. industry leaders at 8.5–9.0, excluding Enterprise scale)  
+> **Target Score:** 8.5+ within 3–6 months
 
 This document tracks all identified improvement areas for the Brand Infinity Engine, organized by priority and category. Use this as the master reference for future development sprints.
 
@@ -12,15 +12,14 @@ This document tracks all identified improvement areas for the Brand Infinity Eng
 
 | Category                   | Current | Target | Priority                |
 | -------------------------- | ------- | ------ | ----------------------- |
-| RAG / Brand Memory         | 6.2     | 8.0    | 🔴 High                 |
-| Multi-Agent Architecture   | 7.1     | 8.5    | 🟡 Medium               |
-| LLM Provider Flexibility   | 8.3     | 8.5    | 🟢 Low (already strong) |
-| Workflow Orchestration     | 6.5     | 7.5    | 🟡 Medium               |
-| UI/UX Polish               | 5.8     | 8.0    | 🔴 High                 |
-| Content Generation Quality | 6.5     | 8.0    | 🟡 Medium               |
-| Video/Image Generation     | 5.0     | 7.5    | 🔴 High                 |
-| Production Reliability     | 6.0     | 8.5    | 🔴 High                 |
-| Enterprise Features        | 3.5     | 7.5    | 🔴 Critical             |
+| RAG / Brand Memory         | 6.2     | 8.5    | 🔴 High                 |
+| Multi-Agent Architecture   | 7.1     | 8.8    | 🟡 Medium               |
+| LLM Provider Flexibility   | 8.3     | 9.0    | 🟢 Low (already strong) |
+| Workflow Orchestration     | 6.5     | 8.0    | 🟡 Medium               |
+| UI/UX Polish               | 5.8     | 8.5    | 🔴 High                 |
+| Content Generation Quality | 6.5     | 8.5    | 🟡 Medium               |
+| Video/Image Generation     | 5.0     | 8.0    | 🔴 High                 |
+| Production Reliability     | 6.0     | 9.0    | 🔴 High                 |
 | Scalability Architecture   | 6.8     | 8.5    | 🟡 Medium               |
 
 ---
@@ -28,15 +27,6 @@ This document tracks all identified improvement areas for the Brand Infinity Eng
 ## 📋 Master To-Do List
 
 ### 🔴 PRIORITY 1: Critical Gaps (Next 4–6 weeks)
-
-#### Enterprise Features (Current: 3.5)
-
-- [ ] **SSO Integration** — Implement Auth0 or Clerk for single sign-on
-- [ ] **RBAC (Role-Based Access Control)** — Admin, Editor, Viewer roles with permission guards
-- [ ] **Audit Logs** — Track all user actions (who changed what, when) with a dedicated `audit_logs` table
-- [ ] **Team/Workspace Support** — Multi-tenant architecture for agencies/teams
-- [ ] **GDPR Compliance Controls** — Data export, deletion requests, consent management
-- [ ] **SOC2 Readiness Checklist** — Document security practices for enterprise sales
 
 #### Production Reliability (Current: 6.0)
 
@@ -135,7 +125,6 @@ This document tracks all identified improvement areas for the Brand Infinity Eng
 - [ ] **Content Calendar** — Visual publishing schedule with platform integrations
 - [ ] **Analytics Dashboard** — Track content performance across platforms
 - [ ] **API for Developers** — Public REST/GraphQL API with documentation
-- [ ] **White-Label Support** — Let agencies rebrand the platform
 
 ---
 
@@ -145,13 +134,13 @@ Scores are based on comparison against:
 
 - **Jasper AI** (8.7/10) — Market leader in AI content, strong brand voice
 - **Copy.ai** (7.9/10) — GTM-focused, good workflow automation
-- **Writer.com** (8.5/10) — Enterprise governance, compliance-focused
+- **Writer.com** (8.5/10) — Excellent AI-governance and document handling
 - **Synthesia** (8.0/10) — Video generation leader
 
 | Score Range | Meaning                                    |
 | ----------- | ------------------------------------------ |
 | 9.0–10.0    | Industry-leading, best-in-class            |
-| 8.0–8.9     | Enterprise-ready, competitive with leaders |
+| 8.0–8.9     | Feature-complete, competitive with leaders |
 | 7.0–7.9     | Production-ready, mid-market competitive   |
 | 6.0–6.9     | MVP+, early-stage startup quality          |
 | 5.0–5.9     | Functional but rough, requires polish      |
@@ -166,36 +155,36 @@ Scores are based on comparison against:
 - [ ] Complete rate limiting implementation
 - [ ] Finish Sentry integration
 - [ ] Add health check endpoint
-- [ ] Basic RBAC (admin vs user)
+- [ ] Basic internal role checks
 
-### Sprint 2 (Weeks 3–4): Enterprise Basics
-
-- [ ] SSO integration (Auth0/Clerk)
-- [ ] Audit logging
-- [ ] Team/workspace support
-
-### Sprint 3 (Weeks 5–6): RAG Improvements
+### Sprint 2 (Weeks 3–4): RAG Improvements
 
 - [ ] Hybrid search implementation
 - [ ] Chunking improvements
 - [ ] Contextual citations
 
-### Sprint 4 (Weeks 7–8): UI/UX Sprint
+### Sprint 3 (Weeks 5–6): UI/UX Sprint
 
 - [ ] Chat streaming effects
 - [ ] Brand vault redesign
 - [ ] Mobile responsiveness
 
-### Sprint 5 (Weeks 9–10): Content Quality
+### Sprint 4 (Weeks 7–8): Content Quality
 
 - [ ] Prompt template library
 - [ ] Quality scoring
 - [ ] Approval workflows
 
-### Sprint 6 (Weeks 11–12): Video & Scaling
+### Sprint 5 (Weeks 9–10): Video & Generation
 
 - [ ] Deep video generation integration
+- [ ] Image template editor concepts
+- [ ] Asset library integrations
+
+### Sprint 6 (Weeks 11–12): Scaling & Performance
+
 - [ ] Queue system for async jobs
+- [ ] CDN integration for assets
 - [ ] Cost tracking per user
 
 ---
