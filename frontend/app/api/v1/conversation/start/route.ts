@@ -226,6 +226,16 @@ export async function POST(
       ? 'budget' as const
       : 'premium' as const;
     
+    // Debug logging
+    console.log("[start] Agent config:", {
+      preset,
+      userId: user.id,
+      hasApiKey: !!body.openrouter_api_key,
+      apiKeyPrefix: body.openrouter_api_key?.substring(0, 10) + '...',
+      modelId: body.model_id,
+      provider: body.provider,
+    });
+    
     // Use user-provided API key and specific model if available
     const agent = createExecutiveAgent(preset, user.id, body.openrouter_api_key, body.model_id);
     
