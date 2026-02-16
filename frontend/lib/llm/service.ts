@@ -16,6 +16,7 @@ import { OpenAIAdapter } from './adapters/openai';
 import { AnthropicAdapter } from './adapters/anthropic';
 import { DeepSeekAdapter } from './adapters/deepseek';
 import { GeminiAdapter } from './adapters/gemini';
+import { OpenRouterAdapter } from './adapters/openrouter';
 
 /**
  * LLM Service - Routes requests to appropriate provider
@@ -31,6 +32,7 @@ export class LLMService {
     this.adapters.set('anthropic', new AnthropicAdapter());
     this.adapters.set('deepseek', new DeepSeekAdapter());
     this.adapters.set('gemini', new GeminiAdapter());
+    this.adapters.set('openrouter', new OpenRouterAdapter());
   }
 
   /**

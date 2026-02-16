@@ -39,6 +39,7 @@ interface ContinueRequest {
   context?: ContextPayload;
   provider?: string;
   model_id?: string;
+  openrouter_api_key?: string;
 }
 
 interface ContinueResponse {
@@ -146,7 +147,8 @@ export async function POST(
       ? 'budget' as const
       : 'premium' as const;
     
-    const agent = createExecutiveAgent(preset, user.id);
+    // Use user-provided API key if available
+    const agent = createExecutiveAgent(preset, user.id, body.openrouter_api_key);
     
     // Build context from context payload
     let fullContext = '';

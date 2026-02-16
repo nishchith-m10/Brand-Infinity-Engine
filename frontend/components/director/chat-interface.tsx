@@ -11,6 +11,7 @@ import { QuestionForm } from './question-form';
 import { ProviderSelector } from './provider-selector';
 import { ChatContextSelector } from './ChatContextSelector';
 import { useChatContext } from '@/lib/hooks/use-chat-context';
+import { useApiKeys } from '@/contexts/api-keys-context';
 import { Loader2, Send } from 'lucide-react';
 import type { ConversationMessage, ClarifyingQuestion } from '@/lib/agents/types';
 
@@ -29,6 +30,7 @@ export function ChatInterface({ brandId, sessionId, onSessionCreate }: ChatInter
   const [showCustomInput] = useState(false);
   const [adaptiveSuggestions, setAdaptiveSuggestions] = useState<string[]>([]);
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  const { apiKeys } = useApiKeys();
   
   // Chat context for Campaign → KB → Identity selection
   const { getContextPayload } = useChatContext();
@@ -144,6 +146,7 @@ export function ChatInterface({ brandId, sessionId, onSessionCreate }: ChatInter
           provider,
           model_id: modelId,
           context: contextPayload,
+          openrouter_api_key: apiKeys.openrouter,
         }),
       });
 
@@ -218,6 +221,7 @@ export function ChatInterface({ brandId, sessionId, onSessionCreate }: ChatInter
           provider,
           model_id: modelId,
           context: contextPayload,
+          openrouter_api_key: apiKeys.openrouter,
         }),
       });
 

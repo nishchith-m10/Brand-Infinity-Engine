@@ -18,10 +18,12 @@ export class ExecutiveAgent {
   private llmService = getLLMService();
   private agentModel: string;
   private userId: string;
+  private apiKey?: string;
 
-  constructor(tier: 'premium' | 'budget' = 'premium', userId?: string) {
+  constructor(tier: 'premium' | 'budget' = 'premium', userId?: string, apiKey?: string) {
     this.agentModel = this.llmService.selectModel('executive', tier);
     this.userId = userId || 'system'; // Fallback to 'system' for testing
+    this.apiKey = apiKey;
   }
 
   public getModel(): string {
@@ -91,6 +93,7 @@ Return ONLY valid JSON matching this structure.`;
       temperature: AGENT_TEMPERATURES.executive,
       maxTokens: AGENT_MAX_TOKENS.executive,
       responseFormat: 'json',
+      apiKey: this.apiKey,
     });
 
     try {
@@ -216,6 +219,7 @@ Be encouraging and specific about what they'll receive.`;
       model: this.agentModel,
       temperature: 0.7,
       maxTokens: 500,
+      apiKey: this.apiKey,
     });
 
     return response.content;
@@ -233,7 +237,11 @@ Be encouraging and specific about what they'll receive.`;
 /**
  * Create Executive Agent instance
  */
-export function createExecutiveAgent(tier: 'premium' | 'budget' = 'premium', userId?: string): ExecutiveAgent {
-  return new ExecutiveAgent(tier, userId);
+export function createExecutiveAgent(
+  tier: 'premium' | 'budget' = 'premium', 
+  userId?: string,
+  apiKey?: string
+): ExecutiveAgent {
+  return new ExecutiveAgent(tier, userId, apiKey);
 }
 
