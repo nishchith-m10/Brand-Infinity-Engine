@@ -17,7 +17,9 @@ export async function middleware(request: NextRequest) {
       if (resp.ok) {
         const json = await resp.json();
         const user = json.authenticated;
-        const passcodeVerified = json.passcodeVerified || false;
+        // Read passcode cookie directly from request to avoid timing issues
+        const passcodeCookie = request.cookies.get('dashboard_passcode_verified');
+        const passcodeVerified = passcodeCookie?.value === 'true';
 
         // Root path logic
         if (request.nextUrl.pathname === '/') {
