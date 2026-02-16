@@ -90,7 +90,8 @@ export async function updateSession(request: NextRequest) {
   // Redirect logged-in users with passcode away from auth pages
   if (isAuthPage && user) {
     const passcodeVerified = request.cookies.get('dashboard_passcode_verified');
-    if (passcodeVerified && request.nextUrl.pathname !== '/verify-passcode') {
+    if (passcodeVerified) {
+      // If user has passcode verified, redirect them away from auth pages to dashboard
       const url = request.nextUrl.clone();
       url.pathname = '/dashboard';
       return NextResponse.redirect(url);
