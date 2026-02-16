@@ -224,6 +224,7 @@ After Phase 6 completion, these features will elevate from 4.4 to 9.0+.
 - [ ] **Batch Operations** — Select multiple campaigns for bulk actions
 - [ ] **Campaign Templates** — Save and reuse successful campaigns
 - [ ] **Performance Metrics** — Track content performance post-publish
+- [ ] **Campaign Undelete/Restore** — Trash bin functionality to restore deleted campaigns within 7-30 days
 
 ---
 
