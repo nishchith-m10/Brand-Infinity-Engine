@@ -52,8 +52,14 @@ export class OpenRouterAdapter extends BaseLLMAdapter {
       });
 
       if (!response.ok) {
-        const error = await response.json().catch(() => ({}));
-        throw new Error(error.error?.message || `OpenRouter API request failed with status ${response.status}`);
+        const errorBody = await response.json().catch(() => ({ error: { message: 'Unknown error' } }));
+        console.error("[OpenRouter] API Error:", {
+          status: response.status,
+          statusText: response.statusText,
+          error: errorBody,
+        });
+        const errorMessage = errorBody.error?.message || errorBody.message || `OpenRouter API failed with status ${response.status}`;
+        throw new Error(`OpenRouter API failed: ${errorMessage}`);
       }
 
       const data = await response.json();
@@ -70,8 +76,9 @@ export class OpenRouterAdapter extends BaseLLMAdapter {
         model: data.model,
         provider: 'openrouter',
       };
-    } catch (error) {
-      this.handleError(error, 'OpenRouter');
+    } catch (error: any) {
+      console.error("[OpenRouter] Exception:", error?.message || error);
+      throw error; // Re-throw to let the caller handle it
     }
   }
 }
