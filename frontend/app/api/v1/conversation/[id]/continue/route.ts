@@ -6,7 +6,7 @@
 
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
-import { createMessage, userOwnsSession } from "@/lib/conversation/queries";
+import { createMessage, userOwnsSession, updateSession } from "@/lib/conversation/queries";
 import {
   getCachedSession,
   invalidateMessageCache,
@@ -181,8 +181,19 @@ export async function POST(
         answers: body.answers,
       });
       
-      // Clear pending questions
+      // Clear pending questions from Redis cache
       await clearCachedQuestions(sessionId);
+      
+      // CRITICAL: Update session's parsed_intent with answers so they persist
+      // This prevents the same questions from being asked again
+      const updatedIntent = {
+        ...session.parsed_intent,
+        ...body.answers,
+      };
+      await updateSession(sessionId, {
+        parsed_intent: updatedIntent,
+        answered_questions: body.answers,
+      });
     } else {
       // Regular follow-up message
       action = await agent.processMessage({
