@@ -95,6 +95,7 @@ export async function POST(request: NextRequest) {
       .insert({
         campaign_name: validatedData.campaign_name,
         brand_id: validatedData.brand_id,
+        user_id: user.id, // Required for RLS policy
         status: 'draft',
         budget_limit_usd: budgetLimit,
         current_cost_usd: 0,
