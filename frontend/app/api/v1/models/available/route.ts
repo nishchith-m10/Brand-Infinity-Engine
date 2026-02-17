@@ -160,6 +160,8 @@ function getPricingTier(pricing: { prompt?: string } | undefined): string {
   if (!pricing?.prompt) return '$$';
   
   const promptCost = parseFloat(pricing.prompt);
+  if (promptCost === 0) return 'Free';
+  if (promptCost < 0.000001) return 'Free'; // Handle practically free models
   if (promptCost < 0.0001) return '$';
   if (promptCost < 0.001) return '$$';
   if (promptCost < 0.01) return '$$$';

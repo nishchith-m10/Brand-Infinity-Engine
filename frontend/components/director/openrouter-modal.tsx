@@ -41,6 +41,7 @@ const CATEGORIES = [
   { id: 'meta', name: 'Meta (Llama)' },
   { id: 'google', name: 'Google' },
   { id: 'mistral', name: 'Mistral' },
+  { id: 'free', name: 'Free' },
   { id: 'other', name: 'Open Source' },
   { id: 'all', name: 'All Models' },
 ];
@@ -62,6 +63,12 @@ export function OpenRouterModal({
     // Filter by category
     if (selectedCategory === 'popular') {
       filtered = filtered.filter(m => POPULAR_MODELS.includes(m.id));
+    } else if (selectedCategory === 'free') {
+      filtered = filtered.filter(m => 
+        m.pricingTier === 'Free' || 
+        m.id.includes(':free') || 
+        m.name.toLowerCase().includes('free')
+      );
     } else if (selectedCategory !== 'all') {
       filtered = filtered.filter(m => m.category === selectedCategory);
     }

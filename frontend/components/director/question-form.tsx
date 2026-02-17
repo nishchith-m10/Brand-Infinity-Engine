@@ -89,7 +89,7 @@ export function QuestionForm({ questions, onSubmit, disabled }: QuestionFormProp
               disabled={disabled}
               placeholder="Type your answer..."
               rows={3}
-              className="w-full px-4 py-3 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:bg-gray-100 disabled:cursor-not-allowed"
+              className="w-full px-4 py-3 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:bg-gray-100 disabled:cursor-not-allowed bg-white text-slate-900 placeholder:text-slate-400"
             />
           )}
         </div>
