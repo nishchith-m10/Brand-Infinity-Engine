@@ -19,6 +19,14 @@ export class OpenRouterAdapter extends BaseLLMAdapter {
   async generateCompletion(request: LLMRequest): Promise<LLMResponse> {
     const apiKey = request.apiKey || this.defaultApiKey;
     
+    console.log("[OpenRouter] generateCompletion called:", {
+      hasRequestApiKey: !!request.apiKey,
+      hasDefaultApiKey: !!this.defaultApiKey,
+      usingKey: apiKey ? apiKey.substring(0, 10) + '...' : 'NONE',
+      model: request.model,
+      provider: request.provider,
+    });
+    
     if (!apiKey) {
       throw new Error('OpenRouter API key not configured');
     }
