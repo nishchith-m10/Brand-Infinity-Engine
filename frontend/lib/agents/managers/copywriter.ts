@@ -23,7 +23,7 @@ export class CopywriterAgent {
     intent: ParsedIntent;
     strategicBrief?: string;
     brandContext?: string;
-  }): Promise<{ result: any; success: boolean; error?: string }> {
+  }): Promise<{ result: unknown; success: boolean; error?: string }> {
     try {
       const systemPrompt = `You are a Creative Copywriter Agent.
 Write compelling, on-brand content that resonates with the target audience.
