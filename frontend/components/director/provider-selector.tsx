@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react';
 import { ChevronDown, Loader2, Brain } from 'lucide-react';
 import { OpenRouterModal } from './openrouter-modal';
+import { useApiKeys } from '@/contexts/api-keys-context';
 
 interface ModelInfo {
   id: string;
@@ -39,12 +40,20 @@ export function ProviderSelector({ value, onChange, className = '' }: ProviderSe
   const [openRouterModalOpen, setOpenRouterModalOpen] = useState(false);
   const [providers, setProviders] = useState<ProviderModels[]>([]);
   const [loading, setLoading] = useState(true);
+  const { apiKeys } = useApiKeys();
 
   // Fetch available models
   useEffect(() => {
     const fetchModels = async () => {
       try {
-        const res = await fetch('/api/v1/models/available');
+        // Pass OpenRouter API key if configured
+        const params = new URLSearchParams();
+        if (apiKeys.openrouter) {
+          params.set('openrouter_key', apiKeys.openrouter);
+        }
+        
+        const url = `/api/v1/models/available${params.toString() ? '?' + params.toString() : ''}`;
+        const res = await fetch(url);
         const data = await res.json();
         if (data.success) {
           setProviders(data.data);
@@ -57,7 +66,7 @@ export function ProviderSelector({ value, onChange, className = '' }: ProviderSe
     };
 
     fetchModels();
-  }, []);
+  }, [apiKeys.openrouter]); // Re-fetch when OpenRouter key changes
 
   // Parse current selection
   const [currentProvider, currentModelId] = value.split(':');
