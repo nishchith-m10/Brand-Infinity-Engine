@@ -88,10 +88,11 @@ export async function GET(
     const hasBrandAssets = (assetCount || 0) > 0;
 
     // Check content generated (briefs exist)
+    // Note: creative_briefs are linked to brand, not campaign directly
     const { count: briefCount } = await supabase
       .from('creative_briefs')
       .select('*', { count: 'exact', head: true })
-      .eq('campaign_id', campaignId);
+      .eq('brand_id', campaign.brand_id);
 
     const hasContent = (briefCount || 0) > 0;
 
@@ -99,7 +100,7 @@ export async function GET(
     const { count: approvedCount } = await supabase
       .from('creative_briefs')
       .select('*', { count: 'exact', head: true })
-      .eq('campaign_id', campaignId)
+      .eq('brand_id', campaign.brand_id)
       .eq('approval_status', 'approved');
 
     const hasApprovedContent = (approvedCount || 0) > 0;
