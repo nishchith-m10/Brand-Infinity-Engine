@@ -308,45 +308,7 @@ export class EventLogger {
     });
   }
 
-  /**
-   * Log provider callback event (legacy method - compatibility).
-   * 
-   * @param requestId - The request ID
-   * @param taskId - The task ID
-   * @param providerName - Name of the provider
-   * @param externalJobId - External job ID
-   * @param status - Callback status
-   * @param outputUrl - Optional output URL
-   * @param errorMessage - Optional error message if failed
-   * @param cost - Optional cost incurred
-   */
-  async logProviderCallback(
-    requestId: string,
-    taskId: string,
-    providerName: string,
-    externalJobId: string,
-    status: 'completed' | 'failed',
-    outputUrl?: string,
-    errorMessage?: string,
-    cost?: number
-  ): Promise<void> {
-    await this.logEvent({
-      request_id: requestId,
-      event_type: 'provider_completed',
-      description: `Provider callback: ${providerName} - ${status}`,
-      metadata: {
-        task_id: taskId,
-        provider_name: providerName,
-        external_job_id: externalJobId,
-        status: status,
-        output_url: outputUrl,
-        error_message: errorMessage,
-        cost_incurred: cost,
-      },
-      task_id: taskId,
-      actor: `provider:${providerName}`,
-    });
-  }
+
 
   /**
    * Log retry event.
