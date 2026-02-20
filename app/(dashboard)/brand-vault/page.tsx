@@ -3,6 +3,7 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { useAuth } from '@/lib/auth/auth-provider';
 import { useCurrentCampaign } from '@/lib/hooks/use-current-campaign';
+import { useChatContext } from '@/lib/hooks/use-chat-context';
 import { 
   Upload, 
   FileImage, 
@@ -17,8 +18,6 @@ import {
   FolderOpen,
   Save,
   Sparkles,
-  ChevronDown,
-  Plus,
   Shield,
   EyeOff
 } from 'lucide-react';
@@ -115,9 +114,10 @@ const DEFAULT_IDENTITY: BrandIdentity = {
   audiencePainPoints: '',
   
   // Visual Identity
-  primaryColor: 'hsl(var(--primary))',
-  secondaryColor: 'hsl(var(--lama-purple))',
-  accentColor: 'hsl(var(--pink))',
+  // Use hex defaults so <input type="color"> works across browsers
+  primaryColor: '#8B5CF6', /* lamaPurple */
+  secondaryColor: '#F3E8FF', /* lamaPurpleLight */
+  accentColor: '#F472B6', /* pink */
   
   // Content Strategy
   contentPillars: [],
@@ -162,18 +162,24 @@ export default function BrandVaultPage() {
 
   const { toasts, showToast, dismissToast } = useToast();
   const { user } = useAuth();
-  const { campaign, campaignId } = useCurrentCampaign();
+  const { campaignId } = useCurrentCampaign();
+  
+  // Also get campaign from chat context to sync
+  const { campaign: chatContextCampaign } = useChatContext();
+  
+  // Use chat context campaign if available, fallback to current campaign
+  const effectiveCampaignId = chatContextCampaign?.id || campaignId;
 
   // Get brand_id from user.id (Phase 6 single-tenant setup)
   const brandId = user?.id || '';
 
   // Load Knowledge Bases
   const fetchKBs = useCallback(async () => {
-    if (!brandId || !campaignId) return; // Don't fetch if no brand/campaign ID
+    if (!brandId || !effectiveCampaignId) return; // Don't fetch if no brand/campaign ID
     
     setLoadingKBs(true);
     try {
-      const res = await fetch(`/api/v1/knowledge-bases?brand_id=${brandId}&campaign_id=${campaignId}`);
+      const res = await fetch(`/api/v1/knowledge-bases?brand_id=${brandId}&campaign_id=${effectiveCampaignId}`);
       
       if (!res.ok) {
         console.warn(`Failed to fetch KBs (${res.status}):`, res.statusText);
@@ -209,38 +215,64 @@ export default function BrandVaultPage() {
     } finally {
       setLoadingKBs(false);
     }
-  }, [brandId, campaignId]); // Removed selectedKBId to prevent recreation
+  }, [brandId, effectiveCampaignId, selectedKBId]);
 
   // Load identity from database API (fallback to localStorage)
   // Always merge with DEFAULT_IDENTITY to ensure new fields have values
   useEffect(() => {
     const loadIdentity = async () => {
-      if (!campaignId) {
-        // No campaign selected - clear identity or load brand-level
-        setIdentity(DEFAULT_IDENTITY);
-        return;
-      }
-
+      console.log('[Brand Vault] Loading identity for campaign:', effectiveCampaignId);
       let loadedData: Partial<BrandIdentity> = {};
       
       try {
-        const res = await fetch(`/api/v1/brand-identity?campaign_id=${campaignId}`);
+        const url = effectiveCampaignId ? `/api/v1/brand-identity?campaign_id=${effectiveCampaignId}` : `/api/v1/brand-identity`;
+        console.log('[Brand Vault] Fetching identity from:', url);
+        const res = await fetch(url);
         const data = await res.json();
+        console.log('[Brand Vault] Identity API response:', data);
         if (data.success && data.data) {
-          loadedData = data.data;
+          const dbData = data.data;
+          console.log('[Brand Vault] Loaded identity from DB:', dbData.brand_name);
+          // Convert snake_case from database to camelCase for UI
+          loadedData = {
+            brandName: dbData.brand_name || '',
+            tagline: dbData.tagline || '',
+            industry: dbData.industry || '',
+            toneStyle: dbData.tone_style || 'professional',
+            communicationStyle: dbData.communication_style || 'conversational',
+            brandVoice: dbData.brand_voice || '',
+            personalityTraits: Array.isArray(dbData.personality_traits) ? dbData.personality_traits : [],
+            targetAudience: dbData.target_audience || '',
+            audienceAgeRange: dbData.audience_age_range || '',
+            audiencePainPoints: dbData.audience_pain_points || '',
+            primaryColor: dbData.primary_color || '#8B5CF6',
+            secondaryColor: dbData.secondary_color || '#F3E8FF',
+            accentColor: dbData.accent_color || '#F472B6',
+            contentPillars: Array.isArray(dbData.content_pillars) ? dbData.content_pillars : [],
+            keyMessages: dbData.key_messages || '',
+            avoidTopics: dbData.avoid_topics || '',
+            competitors: dbData.competitors || '',
+            uniqueValue: dbData.unique_value || '',
+          };
         }
       } catch (e) {
         console.error('Failed to fetch brand identity from API:', e);
       }
-      
+
       // Merge loaded data with defaults to ensure all fields exist
-      setIdentity({
+      const merged = {
         ...DEFAULT_IDENTITY,
         ...loadedData,
-        // Ensure arrays are always arrays
         personalityTraits: Array.isArray(loadedData.personalityTraits) ? loadedData.personalityTraits : [],
         contentPillars: Array.isArray(loadedData.contentPillars) ? loadedData.contentPillars : [],
-      });
+      } as BrandIdentity;
+
+      // Ensure color inputs are valid hex strings (input[type=color] expects hex)
+      if (!merged.primaryColor || typeof merged.primaryColor !== 'string' || !merged.primaryColor.startsWith('#')) merged.primaryColor = DEFAULT_IDENTITY.primaryColor;
+      if (!merged.secondaryColor || typeof merged.secondaryColor !== 'string' || !merged.secondaryColor.startsWith('#')) merged.secondaryColor = DEFAULT_IDENTITY.secondaryColor;
+      if (!merged.accentColor || typeof merged.accentColor !== 'string' || !merged.accentColor.startsWith('#')) merged.accentColor = DEFAULT_IDENTITY.accentColor;
+
+      setIdentity(merged);
     };
     
     // Debounce to prevent rapid API calls when switching campaigns
@@ -249,7 +281,7 @@ export default function BrandVaultPage() {
     }, 300);
     
     return () => clearTimeout(timer);
-  }, [campaignId]);
+  }, [effectiveCampaignId]);
 
   // Fetch assets - filtered by selected KB
   const fetchAssets = useCallback(async () => {
@@ -276,10 +308,10 @@ export default function BrandVaultPage() {
     } finally {
       setLoading(false);
     }
-  }, [brandId, selectedKBId]); // Removed showToast to prevent recreation
+  }, [brandId, selectedKBId, showToast]);
 
   useEffect(() => {
-    if (brandId && campaignId) {
+    if (brandId && effectiveCampaignId) {
       // Debounce to prevent rapid API calls when switching campaigns
       const timer = setTimeout(() => {
         fetchKBs();
@@ -287,7 +319,7 @@ export default function BrandVaultPage() {
       
       return () => clearTimeout(timer);
     }
-  }, [brandId, campaignId, fetchKBs]);
+  }, [brandId, effectiveCampaignId, fetchKBs]);
 
   useEffect(() => {
     if (brandId && selectedKBId) {
@@ -365,70 +397,111 @@ export default function BrandVaultPage() {
 
   // Handle file upload with KB association
   const handleUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
+    const files = e.target.files;
+    if (!files || files.length === 0) return;
 
     if (!selectedKBId) {
       showToast({ type: 'error', message: 'Please select a Knowledge Base first' });
       return;
     }
 
+    const fileArray = Array.from(files);
+    const totalFiles = fileArray.length;
+    
     setLoading(true);
+    
+    let successCount = 0;
+    let failCount = 0;
+    const errors: string[] = [];
+
     try {
-      // Determine asset type based on file
-      const isImage = file.type.startsWith('image/');
-      const isPdf = file.type === 'application/pdf';
-      const isFont = file.name.match(/\.(ttf|otf|woff|woff2|eot)$/i);
-      let assetType: 'logo' | 'product' | 'guideline' | 'color' | 'font' | 'other' = 'other';
-      
-      if (isFont) {
-        assetType = 'font';
-      } else if (isImage) {
-        const lowerName = file.name.toLowerCase();
-        if (lowerName.includes('logo')) {
-          assetType = 'logo';
-        } else if (lowerName.includes('color') || lowerName.includes('palette') || lowerName.includes('swatch')) {
-          assetType = 'color';
-        } else {
-          assetType = 'product';
+      // Process files sequentially to avoid overwhelming the server
+      for (let i = 0; i < fileArray.length; i++) {
+        const file = fileArray[i];
+        
+        try {
+          // Determine asset type based on file
+          const isImage = file.type.startsWith('image/');
+          const isPdf = file.type === 'application/pdf';
+          const isFont = file.name.match(/\.(ttf|otf|woff|woff2|eot)$/i);
+          let assetType: 'logo' | 'product' | 'guideline' | 'color' | 'font' | 'other' = 'other';
+          
+          if (isFont) {
+            assetType = 'font';
+          } else if (isImage) {
+            const lowerName = file.name.toLowerCase();
+            if (lowerName.includes('logo')) {
+              assetType = 'logo';
+            } else if (lowerName.includes('color') || lowerName.includes('palette') || lowerName.includes('swatch')) {
+              assetType = 'color';
+            } else {
+              assetType = 'product';
+            }
+          } else if (isPdf) {
+            assetType = 'guideline';
+          }
+
+          // Create FormData for upload with KB ID
+          const formData = new FormData();
+          formData.append('file', file);
+          formData.append('asset_type', assetType);
+          formData.append('knowledge_base_id', selectedKBId);
+          formData.append('brand_id', brandId);
+
+          const res = await fetch('/api/v1/brand-assets/upload', {
+            method: 'POST',
+            body: formData,
+          });
+
+          const data = await res.json();
+
+          if (!res.ok) {
+            throw new Error(data.error?.message || data.error || 'Upload failed');
+          }
+
+          successCount++;
+          console.log(`[Assets] Uploaded ${i + 1}/${totalFiles}: ${file.name}`);
+          
+        } catch (error) {
+          failCount++;
+          const errorMsg = error instanceof Error ? error.message : 'Unknown error';
+          errors.push(`${file.name}: ${errorMsg}`);
+          console.error(`[Assets] Failed to upload ${file.name}:`, error);
         }
-      } else if (isPdf) {
-        assetType = 'guideline';
       }
 
-      // Create FormData for upload with KB ID
-      const formData = new FormData();
-      formData.append('file', file);
-      formData.append('asset_type', assetType);
-      formData.append('knowledge_base_id', selectedKBId);
-      formData.append('brand_id', brandId);
-
-      const res = await fetch('/api/v1/brand-assets/upload', {
-        method: 'POST',
-        body: formData,
-      });
-
-      const data = await res.json();
-
-      if (!res.ok) {
-        throw new Error(data.error?.message || data.error || 'Upload failed');
+      // Show summary toast
+      if (successCount > 0 && failCount === 0) {
+        showToast({ 
+          type: 'success', 
+          message: `Successfully uploaded ${successCount} file${successCount > 1 ? 's' : ''}` 
+        });
+      } else if (successCount > 0 && failCount > 0) {
+        showToast({ 
+          type: 'warning', 
+          message: `Uploaded ${successCount} file(s), ${failCount} failed. Check console for details.` 
+        });
+        console.error('[Assets] Upload errors:', errors);
+      } else {
+        showToast({ 
+          type: 'error', 
+          message: `Failed to upload ${failCount} file(s)` 
+        });
+        console.error('[Assets] Upload errors:', errors);
       }
 
-      showToast({ type: 'success', message: `${file.name} uploaded successfully` });
-      console.log('[Assets] Upload successful, refreshing asset list');
-      // Force refresh after a small delay to ensure DB propagation
-      setTimeout(() => {
-        fetchAssets();
-        fetchKBs(); // Refresh KB asset counts
-      }, 300);
-    } catch (error) {
-      showToast({ 
-        type: 'error', 
-        message: error instanceof Error ? error.message : 'Failed to upload file' 
-      });
+      // Force refresh after uploads complete
+      if (successCount > 0) {
+        console.log('[Assets] Upload(s) successful, refreshing asset list');
+        setTimeout(() => {
+          fetchAssets();
+          fetchKBs(); // Refresh KB asset counts
+        }, 300);
+      }
+      
     } finally {
       setLoading(false);
-      // Reset the input so the same file can be selected again
+      // Reset the input so the same files can be selected again
       if (fileInputRef.current) {
         fileInputRef.current.value = '';
       }
@@ -436,20 +509,36 @@ export default function BrandVaultPage() {
   };
 
   const handleSaveIdentity = async () => {
-    if (!campaignId) {
-      showToast({ type: 'error', message: 'Please select a campaign first' });
-      return;
-    }
-
     setSavingIdentity(true);
     try {
+      // Convert camelCase to snake_case for database
+      const dbData: Record<string, unknown> = {
+        brand_name: identity.brandName,
+        tagline: identity.tagline,
+        industry: identity.industry,
+        tone_style: identity.toneStyle,
+        communication_style: identity.communicationStyle,
+        brand_voice: identity.brandVoice,
+        personality_traits: identity.personalityTraits,
+        target_audience: identity.targetAudience,
+        audience_age_range: identity.audienceAgeRange,
+        audience_pain_points: identity.audiencePainPoints,
+        primary_color: identity.primaryColor,
+        secondary_color: identity.secondaryColor,
+        accent_color: identity.accentColor,
+        content_pillars: identity.contentPillars,
+        key_messages: identity.keyMessages,
+        avoid_topics: identity.avoidTopics,
+        competitors: identity.competitors,
+        unique_value: identity.uniqueValue,
+      };
+      
+      if (effectiveCampaignId) dbData.campaign_id = effectiveCampaignId; // only include when saving campaign-specific identity
+
       const res = await fetch('/api/v1/brand-identity', {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          ...identity,
-          campaign_id: campaignId, // Include campaign_id for campaign-specific identity
-        }),
+        body: JSON.stringify(dbData),
       });
 
       const data = await res.json();
@@ -488,9 +577,7 @@ export default function BrandVaultPage() {
   const selectedKB = knowledgeBases.find(kb => kb.id === selectedKBId);
 
   // Check if setup is complete
-  const isIdentityConfigured = identity.brandName && identity.brandVoice && identity.targetAudience;
   const hasAssets = assets.length > 0;
-  const isSetupComplete = isIdentityConfigured && hasAssets;
 
   // Setup steps for checklist
   const setupSteps = [
@@ -665,10 +752,11 @@ export default function BrandVaultPage() {
                 })}
               </div>
               
-              {/* Hidden file input */}
+              {/* Hidden file input - supports multiple files */}
               <input 
                 ref={fileInputRef}
                 type="file" 
+                multiple
                 className="hidden" 
                 onChange={handleUpload} 
                 accept="image/*,.pdf,.doc,.docx,.txt,.ttf,.otf,.woff,.woff2,.eot"
@@ -1001,48 +1089,60 @@ export default function BrandVaultPage() {
                 <div>
                   <label className="text-sm font-medium text-slate-700">Primary Color</label>
                   <div className="flex items-center gap-3 mt-2">
-                    <input
-                      type="color"
-                      value={identity.primaryColor}
-                      onChange={(e) => setIdentity(prev => ({ ...prev, primaryColor: e.target.value }))}
-                      className="h-12 w-12 cursor-pointer rounded-lg border border-slate-200"
-                    />
+                    <div className="h-12 w-12 rounded-lg overflow-hidden shadow-md">
+                      <input
+                        type="color"
+                        value={identity.primaryColor}
+                        onChange={(e) => setIdentity(prev => ({ ...prev, primaryColor: e.target.value }))}
+                        className="h-14 w-14 cursor-pointer appearance-none -m-1"
+                        style={{ border: 'none', outline: 'none', padding: '0' }}
+                        aria-label="Primary color picker"
+                      />
+                    </div>
                     <Input
                       value={identity.primaryColor}
                       onChange={(e) => setIdentity(prev => ({ ...prev, primaryColor: e.target.value }))}
-                      className="w-28 font-mono text-sm"
+                      className="w-28 font-mono text-sm rounded-lg border border-slate-300 shadow-md"
                     />
                   </div>
                 </div>
                 <div>
                   <label className="text-sm font-medium text-slate-700">Secondary Color</label>
                   <div className="flex items-center gap-3 mt-2">
-                    <input
-                      type="color"
-                      value={identity.secondaryColor}
-                      onChange={(e) => setIdentity(prev => ({ ...prev, secondaryColor: e.target.value }))}
-                      className="h-12 w-12 cursor-pointer rounded-lg border border-slate-200"
-                    />
+                    <div className="h-12 w-12 rounded-lg overflow-hidden shadow-md">
+                      <input
+                        type="color"
+                        value={identity.secondaryColor}
+                        onChange={(e) => setIdentity(prev => ({ ...prev, secondaryColor: e.target.value }))}
+                        className="h-16 w-16 cursor-pointer appearance-none -m-2"
+                        style={{ border: 'none', outline: 'none', padding: '0' }}
+                        aria-label="Secondary color picker"
+                      />
+                    </div>
                     <Input
                       value={identity.secondaryColor}
                       onChange={(e) => setIdentity(prev => ({ ...prev, secondaryColor: e.target.value }))}
-                      className="w-28 font-mono text-sm"
+                      className="w-28 font-mono text-sm rounded-lg border border-slate-300 shadow-md"
                     />
                   </div>
                 </div>
                 <div>
                   <label className="text-sm font-medium text-slate-700">Accent Color</label>
                   <div className="flex items-center gap-3 mt-2">
-                    <input
-                      type="color"
-                      value={identity.accentColor}
-                      onChange={(e) => setIdentity(prev => ({ ...prev, accentColor: e.target.value }))}
-                      className="h-12 w-12 cursor-pointer rounded-lg border border-slate-200"
-                    />
+                    <div className="h-12 w-12 rounded-lg overflow-hidden shadow-md">
+                      <input
+                        type="color"
+                        value={identity.accentColor}
+                        onChange={(e) => setIdentity(prev => ({ ...prev, accentColor: e.target.value }))}
+                        className="h-16 w-16 cursor-pointer appearance-none -m-2"
+                        style={{ border: 'none', outline: 'none', padding: '0' }}
+                        aria-label="Accent color picker"
+                      />
+                    </div>
                     <Input
                       value={identity.accentColor}
                       onChange={(e) => setIdentity(prev => ({ ...prev, accentColor: e.target.value }))}
-                      className="w-28 font-mono text-sm"
+                      className="w-28 font-mono text-sm rounded-lg border border-slate-300 shadow-md"
                     />
                   </div>
                 </div>
@@ -1050,10 +1150,19 @@ export default function BrandVaultPage() {
               {/* Color Preview */}
               <div className="mt-6 p-4 rounded-lg bg-slate-50 border border-slate-200">
                 <p className="text-xs text-slate-500 mb-3">Color Preview</p>
-                <div className="flex gap-3">
-                  <div className="flex-1 h-16 rounded-lg" style={{ backgroundColor: identity.primaryColor }} />
-                  <div className="flex-1 h-16 rounded-lg" style={{ backgroundColor: identity.secondaryColor }} />
-                  <div className="flex-1 h-16 rounded-lg" style={{ backgroundColor: identity.accentColor }} />
+                <div className="flex gap-4 items-end">
+                  <div className="flex-1 min-w-0 flex flex-col items-center gap-2">
+                    <div className="w-full h-16 rounded-lg border border-slate-300 shadow-md" style={{ backgroundColor: identity.primaryColor }} />
+                    <div className="text-xs font-mono text-slate-600 text-center truncate">{identity.primaryColor}</div>
+                  </div>
+                  <div className="flex-1 min-w-0 flex flex-col items-center gap-2">
+                    <div className="w-full h-16 rounded-lg border border-slate-300 shadow-md" style={{ backgroundColor: identity.secondaryColor }} />
+                    <div className="text-xs font-mono text-slate-600 text-center truncate">{identity.secondaryColor}</div>
+                  </div>
+                  <div className="flex-1 min-w-0 flex flex-col items-center gap-2">
+                    <div className="w-full h-16 rounded-lg border border-slate-300 shadow-md" style={{ backgroundColor: identity.accentColor }} />
+                    <div className="text-xs font-mono text-slate-600 text-center truncate">{identity.accentColor}</div>
+                  </div>
                 </div>
               </div>
             </CardContent>
@@ -1176,6 +1285,7 @@ export default function BrandVaultPage() {
         <KBManager 
           brandId={brandId}
           campaignId={campaignId}
+          showToast={showToast}
           onKBSelect={(kbId) => {
             setSelectedKBId(kbId);
             setActiveTab('assets');
