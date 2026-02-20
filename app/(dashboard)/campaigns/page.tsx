@@ -36,13 +36,6 @@ interface Campaign {
   };
 }
 
-// Mock Data fallback
-const MOCK_CAMPAIGNS = [
-  { campaign_id: '1', campaign_name: "Summer Launch 2024", status: "active", budget_limit_usd: 150, current_cost_usd: 45 },
-  { campaign_id: '2', campaign_name: "Q3 Webinar Series", status: "draft", budget_limit_usd: 50, current_cost_usd: 0 },
-  { campaign_id: '3', campaign_name: "Black Friday Pre-Sale", status: "completed", budget_limit_usd: 500, current_cost_usd: 485 },
-];
-
 export default function CampaignsPage() {
   // Real API data with fallback
   const { data: apiCampaigns, isLoading, error, mutate } = useV1Campaigns();
@@ -360,8 +353,8 @@ export default function CampaignsPage() {
                      <tr>
                        <td colSpan={5} className="py-16 text-center">
                          <div className="flex flex-col items-center gap-4">
-                           <div className="w-16 h-16 rounded-full bg-lamaSkyLight flex items-center justify-center">
-                             <Megaphone size={28} className="text-lamaSky" />
+                           <div className="w-16 h-16 rounded-full bg-lamaPurpleLight flex items-center justify-center">
+                             <Megaphone size={28} className="text-lamaPurple" />
                            </div>
                            <div>
                              <p className="text-slate-700 font-semibold">No campaigns yet</p>
@@ -436,7 +429,7 @@ export default function CampaignsPage() {
                                     className={`p-2 rounded-full transition-colors ${
                                       campaign.status === 'archived' || campaign.status === 'pending_deletion'
                                         ? 'text-slate-300 cursor-not-allowed'
-                                        : 'text-slate-400 hover:bg-lamaSkyLight hover:text-lamaSky'
+                                        : 'text-slate-400 hover:bg-lamaPurpleLight hover:text-lamaPurple'
                                     }`}
                                     disabled={isUpdating || campaign.status === 'archived' || campaign.status === 'pending_deletion'}
                                   >
