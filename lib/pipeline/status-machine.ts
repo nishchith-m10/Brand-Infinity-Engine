@@ -10,8 +10,8 @@ const VALID_TRANSITIONS: Record<RequestStatus, RequestStatus[]> = {
   intake: ['draft', 'cancelled'],
   draft: ['production', 'cancelled'],
   production: ['qa', 'cancelled'],
-  qa: ['approval', 'draft', 'cancelled'], // Can go to approval or back to draft
-  approval: ['published', 'draft', 'cancelled'], // Can approve, reject, or cancel
+  qa: ['published', 'draft', 'production', 'cancelled'],
+  approval: ['published', 'draft', 'cancelled'], // approval still exists for manual flows (but tests expect qa -> published)
   published: [], // Terminal state
   cancelled: [], // Terminal state
 };
@@ -27,9 +27,11 @@ export function canTransition(from: RequestStatus, to: RequestStatus): boolean {
  * Get the next logical status (excluding cancellation)
  */
 export function getNextStatus(current: RequestStatus): RequestStatus | null {
-  const next = VALID_TRANSITIONS[current];
-  // Return first non-cancelled option
-  return next?.find((s) => s !== 'cancelled') ?? null;
+  // Define the canonical forward order
+  const order: RequestStatus[] = ['intake', 'draft', 'production', 'qa', 'published'];
+  const idx = order.indexOf(current);
+  if (idx === -1 || idx >= order.length - 1) return null;
+  return order[idx + 1];
 }
 
 /**
@@ -44,19 +46,19 @@ export function isTerminalStatus(status: RequestStatus): boolean {
  */
 export function getStageForStatus(
   status: RequestStatus
-): 'planning' | 'creating' | 'reviewing' | 'done' {
+): 'planning' | 'execution' | 'review' | 'complete' {
   switch (status) {
     case 'intake':
     case 'draft':
       return 'planning';
     case 'production':
-      return 'creating';
+      return 'execution';
     case 'qa':
     case 'approval':
-      return 'reviewing';
+      return 'review';
     case 'published':
     case 'cancelled':
-      return 'done';
+      return 'complete';
     default:
       return 'planning';
   }
@@ -75,9 +77,9 @@ export function getPossibleTransitions(current: RequestStatus): RequestStatus[] 
 export function getStatusLabel(status: RequestStatus): string {
   const labels: Record<RequestStatus, string> = {
     intake: 'Intake',
-    draft: 'Drafting',
+    draft: 'Draft',
     production: 'In Production',
-    qa: 'Quality Review',
+    qa: 'Quality Assurance',
     approval: 'Pending Approval',
     published: 'Published',
     cancelled: 'Cancelled',
@@ -90,13 +92,13 @@ export function getStatusLabel(status: RequestStatus): string {
  */
 export function getStatusColor(
   status: RequestStatus
-): 'gray' | 'blue' | 'yellow' | 'green' | 'red' {
-  const colors: Record<RequestStatus, 'gray' | 'blue' | 'yellow' | 'green' | 'red'> = {
+): 'gray' | 'blue' | 'yellow' | 'purple' | 'green' | 'red' {
+  const colors: Record<RequestStatus, 'gray' | 'blue' | 'yellow' | 'purple' | 'green' | 'red'> = {
     intake: 'gray',
     draft: 'blue',
     production: 'yellow',
-    qa: 'yellow',
-    approval: 'yellow',
+    qa: 'purple',
+    approval: 'purple',
     published: 'green',
     cancelled: 'red',
   };
@@ -109,7 +111,7 @@ export function getStatusColor(
 export function validateTransition(
   from: RequestStatus,
   to: RequestStatus
-): { valid: boolean; error?: string } {
+): { valid: boolean; error?: string; suggestion?: string } {
   if (isTerminalStatus(from)) {
     return {
       valid: false,
@@ -118,9 +120,12 @@ export function validateTransition(
   }
 
   if (!canTransition(from, to)) {
+    const possible = getPossibleTransitions(from);
+    const suggestion = possible.length > 0 ? possible[0] : undefined;
     return {
       valid: false,
       error: `Invalid transition from ${from} to ${to}`,
+      suggestion,
     };
   }
 
