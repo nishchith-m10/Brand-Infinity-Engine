@@ -248,6 +248,75 @@ export class EventLogger {
    * @param externalJobId - Provider's job ID
    * @param status - Callback status
    * @param outputUrl - Optional output URL
+   */
+  async logProviderCallback(
+    requestId: string,
+    taskId: string,
+    providerName: string,
+    externalJobId: string,
+    status: string,
+    outputUrl?: string
+  ): Promise<void> {
+    await this.logEvent({
+      request_id: requestId,
+      event_type: 'provider_callback',
+      description: `Provider callback received: ${providerName} - ${status}`,
+      metadata: {
+        task_id: taskId,
+        provider_name: providerName,
+        external_job_id: externalJobId,
+        status: status,
+        output_url: outputUrl,
+      },
+      task_id: taskId,
+      actor: `provider:${providerName}`,
+    });
+  }
+
+  /**
+   * Log provider key usage for security auditing (SECURITY).
+   * 
+   * @param requestId - The request ID
+   * @param taskId - The task ID  
+   * @param provider - Provider name (openai, anthropic, openrouter, etc.)
+   * @param userId - User ID whose key is being used
+   * @param source - Key source: 'user' or 'server'
+   * @param agentRole - Agent role using the key
+   */
+  async logProviderKeyUsage(
+    requestId: string,
+    taskId: string,
+    provider: string,
+    userId: string,
+    source: 'user' | 'server',
+    agentRole: string
+  ): Promise<void> {
+    await this.logEvent({
+      request_id: requestId,
+      event_type: 'agent_log',
+      description: `Provider key used: ${provider} (source: ${source}, user: ${userId})`,
+      metadata: {
+        task_id: taskId,
+        provider: provider,
+        user_id: userId,
+        key_source: source,
+        agent_role: agentRole,
+        security_audit: true,
+      },
+      task_id: taskId,
+      actor: `agent:${agentRole}`,
+    });
+  }
+
+  /**
+   * Log provider callback event (legacy method - compatibility).
+   * 
+   * @param requestId - The request ID
+   * @param taskId - The task ID
+   * @param providerName - Name of the provider
+   * @param externalJobId - External job ID
+   * @param status - Callback status
+   * @param outputUrl - Optional output URL
    * @param errorMessage - Optional error message if failed
    * @param cost - Optional cost incurred
    */
