@@ -103,6 +103,22 @@ export interface MetricDataPoint {
  */
 export class MetricsCollector {
   private startTime = Date.now();
+  // Simple counters for alertable events
+  private invalidTransitionCount: number = 0;
+
+  /**
+   * Increment the invalid transition counter for monitoring/alerting.
+   */
+  incrementInvalidTransition(): void {
+    this.invalidTransitionCount += 1;
+  }
+
+  /**
+   * Get the current invalid transition count (for tests/health checks).
+   */
+  getInvalidTransitionCount(): number {
+    return this.invalidTransitionCount;
+  }
 
   /**
    * Get task performance metrics.
