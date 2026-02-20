@@ -6,25 +6,25 @@ import { TaskFactory } from '@/lib/orchestrator/TaskFactory';
 import { RequestType, ContentRequest, AgentRole } from '@/lib/orchestrator/types';
 
 // Mock Supabase client
-jest.mock('@/lib/supabase/server', () => ({
-  createClient: jest.fn(() => ({
-    from: jest.fn(() => ({
-      insert: jest.fn(() => ({
-        select: jest.fn(() => Promise.resolve({
+vi.mock('@/lib/supabase/server', () => ({
+  createClient: vi.fn(() => ({
+    from: vi.fn(() => ({
+      insert: vi.fn(() => ({
+        select: vi.fn(() => Promise.resolve({
           data: mockInsertedTasks,
           error: null,
         })),
       })),
-      update: jest.fn(() => ({
-        eq: jest.fn(() => Promise.resolve({ error: null })),
+      update: vi.fn(() => ({
+        eq: vi.fn(() => Promise.resolve({ error: null })),
       })),
-      select: jest.fn(() => ({
-        eq: jest.fn(() => ({
-          order: jest.fn(() => Promise.resolve({
+      select: vi.fn(() => ({
+        eq: vi.fn(() => ({
+          order: vi.fn(() => Promise.resolve({
             data: mockTasks,
             error: null,
           })),
-          limit: jest.fn(() => Promise.resolve({
+          limit: vi.fn(() => Promise.resolve({
             data: mockTasks,
             error: null,
           })),
