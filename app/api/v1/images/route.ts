@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
 import { generateImageDallE, getDallECost } from '@/lib/ai/dalle';
 import { generateImageNanoB, isNanoBConfigured } from '@/lib/ai/nanob';
+import { generateImagePollinations, getPollinationsCost } from '@/lib/ai/pollinations';
 import { getBrandContext, enrichPromptWithBrandContext } from '@/lib/ai/rag';
 import { z } from 'zod';
 import { rateLimiters, checkRateLimit } from '@/lib/utils/rate-limit-helpers';
@@ -9,7 +10,7 @@ import { logger } from '@/lib/monitoring/logger';
 
 const GenerateImageSchema = z.object({
   prompt: z.string().min(1).max(4000),
-  model: z.enum(['dalle-3', 'nanob']).default('dalle-3'),
+  model: z.enum(['dalle-3', 'nanob', 'pollinations']).default('dalle-3'),
   size: z.enum(['1024x1024', '1792x1024', '1024x1792']).default('1024x1024'),
   quality: z.enum(['standard', 'hd']).default('standard'),
   style: z.enum(['vivid', 'natural']).optional(),
@@ -73,9 +74,13 @@ export async function POST(request: NextRequest) {
     }
 
     // Estimate cost before generation
-    estimatedCost = params.model === 'dalle-3' 
-      ? getDallECost(params.quality, params.size)
-      : 0.01; // Nano B estimate
+    if (params.model === 'dalle-3') {
+      estimatedCost = getDallECost(params.quality, params.size);
+    } else if (params.model === 'pollinations') {
+      estimatedCost = getPollinationsCost(); // Free
+    } else {
+      estimatedCost = 0.01; // Nano B estimate
+    }
 
     // Reserve budget atomically if campaign_id provided
     if (params.campaign_id) {
@@ -113,13 +118,46 @@ export async function POST(request: NextRequest) {
     let cost = 0;
 
     if (params.model === 'dalle-3') {
-      result = await generateImageDallE({
-        prompt: enrichedPrompt,
-        size: params.size,
-        quality: params.quality,
-        style: params.style,
-      });
-      cost = getDallECost(params.quality, params.size);
+      try {
+        result = await generateImageDallE({
+          prompt: enrichedPrompt,
+          size: params.size,
+          quality: params.quality,
+          style: params.style,
+        });
+        cost = getDallECost(params.quality, params.size);
+      } catch (err) {
+        const msg = err instanceof Error ? err.message : String(err);
+        if (msg.includes('requires a user-supplied key') || msg.includes('OpenAI API key not configured')) {
+          // Auto-fallback to free providers if enabled
+          if (process.env.USE_FREE_PROVIDERS === 'true') {
+            console.log('[Image API] No user key found, auto-falling back to Pollinations (free tier)');
+            const [width, height] = params.size.split('x').map(Number);
+            result = await generateImagePollinations({
+              prompt: enrichedPrompt,
+              width,
+              height,
+              model: params.pollinations?.imageModel || (process.env.POLLINATIONS_IMAGE_MODEL as any) || 'flux',
+              nologo: params.pollinations?.nologo !== undefined ? params.pollinations.nologo : true,
+              enhance: params.pollinations?.enhance || false,
+            });
+            cost = getPollinationsCost(); // $0.00
+          } else {
+            return NextResponse.json(
+              {
+                success: false,
+                error: {
+                  code: 'MISSING_PROVIDER_KEY',
+                  message: 'An OpenAI API key must be added in Settings to generate images.',
+                },
+              },
+              { status: 403 }
+            );
+          }
+        } else {
+          throw err;
+        }
+      }
     } else if (params.model === 'nanob') {
       if (!isNanoBConfigured()) {
         throw new Error('Nano B is not configured. Please add NANOB_API_KEY to environment.');
@@ -129,9 +167,22 @@ export async function POST(request: NextRequest) {
         prompt: enrichedPrompt,
         aspect_ratio: aspectRatio,
       });
-      cost = 0.01; // Estimate for Nano B
+      cost = 0.01;
+    } else if (params.model === 'pollinations') {
+      // FREE tier - no API key needed
+      // Use user preferences from request body, or fallback to env vars, or use defaults
+      const [width, height] = params.size.split('x').map(Number);
+      result = await generateImagePollinations({
+        prompt: enrichedPrompt,
+        width,
+        height,
+        model: params.pollinations?.imageModel || (process.env.POLLINATIONS_IMAGE_MODEL as any) || 'flux',
+        nologo: params.pollinations?.nologo !== undefined ? params.pollinations.nologo : true,
+        enhance: params.pollinations?.enhance || false,
+      });
+      cost = getPollinationsCost(); // $0.00
     } else {
-      throw new Error('Invalid model specified');
+      throw new Error(`Unsupported model: ${params.model}`);
     }
 
     // Update actual cost if budget was reserved
@@ -180,8 +231,8 @@ export async function POST(request: NextRequest) {
       data: {
         image_id: crypto.randomUUID(),
         url: result.url,
-        model: result.model,
-        generation_time_ms: result.generation_time_ms,
+        model: 'model' in result ? result.model : params.model,
+        generation_time_ms: 'generation_time_ms' in result ? result.generation_time_ms : 0,
         cost_usd: cost,
         revised_prompt: 'revised_prompt' in result ? result.revised_prompt : undefined,
       },
