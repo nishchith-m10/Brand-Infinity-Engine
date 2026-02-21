@@ -5,25 +5,34 @@
 
 import { BaseLLMAdapter } from './base';
 import type { LLMRequest, LLMResponse } from '../types';
+import { getEffectiveProviderKey } from '@/lib/providers/get-user-key';
 
 export class AnthropicAdapter extends BaseLLMAdapter {
-  private apiKey: string;
   private baseURL: string;
+  private directApiKey?: string;
 
-  constructor() {
+  constructor(apiKey?: string) {
     super();
-    this.apiKey = process.env.ANTHROPIC_API_KEY || '';
     this.baseURL = 'https://api.anthropic.com/v1';
-    
-    if (!this.apiKey) {
-      console.warn('[Anthropic] API key not configured');
+    this.directApiKey = apiKey;
+  }
+
+  /**
+   * Fetch API key with optional userId for background jobs
+   */
+  private async fetchApiKey(userId?: string): Promise<string> {
+    if (this.directApiKey) {
+      return this.directApiKey;
     }
+    const apiKey = await getEffectiveProviderKey('anthropic', process.env.ANTHROPIC_API_KEY, userId);
+    if (!apiKey) {
+      throw new Error('Anthropic API key not configured. Please add your Anthropic key in Settings.');
+    }
+    return apiKey;
   }
 
   async generateCompletion(request: LLMRequest): Promise<LLMResponse> {
-    if (!this.apiKey) {
-      throw new Error('Anthropic API key not configured');
-    }
+    const apiKey = request.apiKey || await this.fetchApiKey(request.userId);
 
     try {
       // Separate system message from user/assistant messages
@@ -34,7 +43,7 @@ export class AnthropicAdapter extends BaseLLMAdapter {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'x-api-key': this.apiKey,
+          'x-api-key': apiKey,
           'anthropic-version': '2023-06-01',
         },
         body: JSON.stringify({
