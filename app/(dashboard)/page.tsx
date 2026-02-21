@@ -51,7 +51,7 @@ export default function DashboardPage() {
       value: dashboardStats?.publications?.total_published?.toString() || "0", 
       change: "+0%", 
       icon: Share2, 
-      color: "text-lamaSky" 
+      color: "text-lamaPurple" 
     },
     { 
       title: "Cost (This Month)", 
@@ -139,7 +139,7 @@ export default function DashboardPage() {
               {/* ACTIVITY */}
               <MotionCard className="h-[400px] overflow-y-auto">
                  <h3 className="font-semibold text-slate-800 mb-4 flex items-center gap-2">
-                   <Activity size={18} className="text-lamaSky" />
+                   <Activity size={18} className="text-lamaPurple" />
                    Recent Activity
                  </h3>
                  <div className="space-y-6">
@@ -178,9 +178,9 @@ export default function DashboardPage() {
 
         {/* STRATEGIST PILLAR */}
         <TabsContent value="strategist">
-          <MotionCard variant="glass" className="h-[300px] flex items-center justify-center border-dashed border-2 border-lamaSky/50">
+          <MotionCard variant="glass" className="h-[300px] flex items-center justify-center border-dashed border-2 border-lamaPurple/50">
              <div className="text-center space-y-2">
-               <PenTool size={40} className="text-lamaSky mx-auto" />
+               <PenTool size={40} className="text-lamaPurple mx-auto" />
                <h3 className="text-lg font-semibold text-slate-700">Strategy Hub</h3>
                <p className="text-slate-500 text-sm">Analyze trends and generate new briefs here.</p>
              </div>
