@@ -10,7 +10,7 @@ const UpdateKBSchema = z.object({
   name: z.string().min(1).max(100).optional(),
   description: z.string().nullable().optional(),
   icon: z.string().optional(),
-  color: z.string().regex(/^#[0-9A-Fa-f]{6}$/).optional(),
+  color: z.string().optional(), // Accept any color format (hex, hsl, rgb)
   tags: z.array(z.string()).optional(),
   is_default: z.boolean().optional(),
   is_active: z.boolean().optional(),
