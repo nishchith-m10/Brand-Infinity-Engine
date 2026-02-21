@@ -2,16 +2,18 @@ import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
 import OpenAI from 'openai';
 import { z } from 'zod';
+import { getEffectiveProviderKey } from '@/lib/providers/get-user-key';
 
 // Initialize OpenAI client (lazy load)
 let _openai: OpenAI | null = null;
 
-function getOpenAI(): OpenAI {
+async function getOpenAI(): Promise<OpenAI> {
   if (!_openai) {
-    if (!process.env.OPENAI_API_KEY) {
-      throw new Error('[OpenAI] OPENAI_API_KEY environment variable is required');
+    const apiKey = await getEffectiveProviderKey('openai', process.env.OPENAI_API_KEY);
+    if (!apiKey) {
+      throw new Error('OpenAI API key not configured. Please add your OpenAI key in Settings.');
     }
-    _openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
+    _openai = new OpenAI({ apiKey });
   }
   return _openai;
 }
@@ -127,12 +129,26 @@ export async function POST(request: NextRequest) {
         // For guidelines, we'd extract text from the document
         // For now, use the file name + metadata as the embedding source
         const textToEmbed = `${params.file_name} ${JSON.stringify(params.metadata || {})}`;
-        const embeddingResponse = await getOpenAI().embeddings.create({
+        const openai = await getOpenAI();
+        const embeddingResponse = await openai.embeddings.create({
           model: 'text-embedding-ada-002',
           input: textToEmbed,
         });
         embedding = embeddingResponse.data[0].embedding;
       } catch (err) {
+        const msg = err instanceof Error ? err.message : String(err);
+        if (msg.includes('requires a user-supplied key') || msg.includes('not configured')) {
+          return NextResponse.json(
+            { 
+              success: false, 
+              error: { 
+                code: 'MISSING_PROVIDER_KEY', 
+                message: 'OpenAI key required for embedding generation. Add your key in Settings.' 
+              } 
+            },
+            { status: 403 }
+          );
+        }
         console.error('Embedding generation failed:', err);
       }
     }
