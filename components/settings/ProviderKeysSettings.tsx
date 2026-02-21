@@ -14,12 +14,29 @@ interface ProviderKey {
 }
 
 const PROVIDER_OPTIONS = [
-  { value: 'openai', label: 'OpenAI' },
-  { value: 'anthropic', label: 'Anthropic' },
-  { value: 'deepseek', label: 'DeepSeek' },
-  { value: 'elevenlabs', label: 'ElevenLabs' },
-  { value: 'midjourney', label: 'Midjourney' },
-  { value: 'other', label: 'Other' },
+  // LLM Providers
+  { value: 'openai', label: 'OpenAI', category: 'LLM Providers' },
+  { value: 'anthropic', label: 'Anthropic', category: 'LLM Providers' },
+  { value: 'deepseek', label: 'DeepSeek', category: 'LLM Providers' },
+  { value: 'gemini', label: 'Google Gemini', category: 'LLM Providers' },
+  { value: 'openrouter', label: 'OpenRouter', category: 'LLM Providers' },
+  // Voice Providers
+  { value: 'elevenlabs', label: 'ElevenLabs', category: 'Voice Providers' },
+  // Image Providers
+  { value: 'midjourney', label: 'Midjourney', category: 'Image Providers' },
+  { value: 'dalle', label: 'DALL-E', category: 'Image Providers' },
+  // Video Providers
+  { value: 'runway', label: 'Runway', category: 'Video Providers' },
+  { value: 'pika', label: 'Pika', category: 'Video Providers' },
+  { value: 'pollo', label: 'Pollo AI', category: 'Video Providers' },
+  { value: 'kling', label: 'Kling', category: 'Video Providers' },
+  // Social Platforms
+  { value: 'instagram', label: 'Instagram', category: 'Social Platforms' },
+  { value: 'tiktok', label: 'TikTok', category: 'Social Platforms' },
+  { value: 'youtube', label: 'YouTube', category: 'Social Platforms' },
+  { value: 'linkedin', label: 'LinkedIn', category: 'Social Platforms' },
+  // Other
+  { value: 'other', label: 'Other', category: 'Other' },
 ];
 
 export function ProviderKeysSettings() {
@@ -186,10 +203,21 @@ export function ProviderKeysSettings() {
                   onChange={(e) => setNewProvider(e.target.value)}
                   className="w-full px-3 py-2 border rounded-md bg-background"
                 >
-                  {PROVIDER_OPTIONS.map((opt) => (
-                    <option key={opt.value} value={opt.value}>
-                      {opt.label}
-                    </option>
+                  {/* Group providers by category */}
+                  {Object.entries(
+                    PROVIDER_OPTIONS.reduce((acc, opt) => {
+                      if (!acc[opt.category]) acc[opt.category] = [];
+                      acc[opt.category].push(opt);
+                      return acc;
+                    }, {} as Record<string, typeof PROVIDER_OPTIONS>)
+                  ).map(([category, options]) => (
+                    <optgroup key={category} label={category}>
+                      {options.map((opt) => (
+                        <option key={opt.value} value={opt.value}>
+                          {opt.label}
+                        </option>
+                      ))}
+                    </optgroup>
                   ))}
                 </select>
               </div>
