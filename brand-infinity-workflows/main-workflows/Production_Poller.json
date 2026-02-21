@@ -170,7 +170,7 @@
     {
       "parameters": {
         "method": "POST",
-        "url": "http://localhost:5678/webhook/production/download",
+        "url": "={{ ($env.N8N_WEBHOOK_URL || 'http://localhost:5678') }}/webhook/production/download",
         "sendBody": true,
         "bodyParameters": {
           "parameters": [
