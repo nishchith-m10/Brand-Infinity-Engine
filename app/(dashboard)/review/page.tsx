@@ -32,76 +32,6 @@ import { ToastContainer } from '@/components/ui/toast-container';
 import { useCampaignProgress } from '@/lib/hooks/use-campaign-progress';
 import { LockedState } from '@/components/LockedState';
 
-// Mock data for fallback when API returns empty
-const mockBriefs: (Brief & { campaign_name: string })[] = [
-  {
-    brief_id: 'brief_001',
-    campaign_id: 'camp_001',
-    campaign_name: 'Summer Product Launch',
-    brand_id: 'brand_001',
-    product_category: 'Electronics',
-    target_demographic: 'Gen Z',
-    campaign_objective: 'awareness',
-    budget_tier: 'medium',
-    creative_concept: 'Showcase the product in everyday situations with vibrant, energetic visuals that resonate with young audiences.',
-    key_messages: [
-      'Innovation at your fingertips',
-      'Built for the next generation',
-      'Style meets functionality',
-    ],
-    visual_style: 'Modern, colorful, dynamic transitions',
-    brand_alignment_score: 0.92,
-    approval_status: 'pending',
-    created_at: new Date().toISOString(),
-  },
-];
-
-const mockScripts: (Script & { campaign_name: string })[] = [
-  {
-    script_id: 'script_001',
-    brief_id: 'brief_001',
-    campaign_name: 'Summer Product Launch',
-    full_script: `[Scene 1 - 0-5s]
-Visual: Close-up of product revealing with dramatic lighting
-Audio: Upbeat electronic music begins
-Voiceover: "What if the future was in your hands?"
-
-[Scene 2 - 5-15s]
-Visual: Product being used in various lifestyle scenarios
-Audio: Music builds
-Voiceover: "Introducing the next generation of innovation..."
-
-[Scene 3 - 15-30s]
-Visual: Features showcase with kinetic typography
-Audio: Music peaks
-Voiceover: "Style. Power. Possibility. All in one."`,
-    hook_variations_count: 50,
-    scene_segments: [
-      { scene_number: 1, visual_direction: 'Close-up product reveal', dialogue: 'What if the future was in your hands?', duration_seconds: 5, camera_movement: 'Slow zoom out' },
-      { scene_number: 2, visual_direction: 'Lifestyle montage', dialogue: 'Introducing the next generation...', duration_seconds: 10, camera_movement: 'Dynamic cuts' },
-      { scene_number: 3, visual_direction: 'Feature showcase', dialogue: 'Style. Power. Possibility.', duration_seconds: 15, camera_movement: 'Kinetic text overlay' },
-    ],
-    brand_compliance_score: 0.95,
-    created_at: new Date().toISOString(),
-  },
-];
-
-const mockVideos: (VideoType & { campaign_name: string })[] = [
-  {
-    video_id: 'video_001',
-    script_id: 'script_001',
-    campaign_name: 'Summer Product Launch',
-    status: 'completed',
-    model_used: 'veo3',
-    scenes_count: 3,
-    total_duration_seconds: 30,
-    total_cost_usd: 15,
-    quality_score: 0.99,
-    output_url: '/videos/video_001.mp4',
-    created_at: new Date().toISOString(),
-  },
-];
-
 interface ReviewItem {
   id: string;
   type: 'brief' | 'script' | 'video';
@@ -154,7 +84,14 @@ export default function ContentReviewPage() {
   // Use API data only - no mock fallback
   const briefs = apiData?.briefs || [];
   const scripts = apiData?.scripts || [];
-  const videos = apiData?.videos || [];
+  // Videos may be seeded in dev databases; hide them when running locally so
+  // the UI reflects a true empty-state during development.
+  let videos: any[] = apiData?.videos || [];
+  if (typeof window !== 'undefined') {
+    const host = window.location.hostname;
+    const isLocal = host === 'localhost' || host === '127.0.0.1';
+    if (isLocal) videos = [];
+  }
 
   // Combine all items for review
   const reviewItems: ReviewItem[] = [
@@ -495,12 +432,18 @@ export default function ContentReviewPage() {
         <Card>
           <CardContent className="p-4">
             <div className="flex items-center gap-3">
-              <div className="rounded-full bg-lamaSkyLight p-2">
-                <AlertTriangle className="h-5 w-5 text-lamaSky" />
+              <div className="rounded-full bg-lamaPurpleLight p-2">
+                <AlertTriangle className="h-5 w-5 text-lamaPurple" />
               </div>
               <div>
                 <p className="text-2xl font-bold">
-                  {reviewItems.length > 0 ? (reviewItems.reduce((acc, i) => acc + i.score, 0) / reviewItems.length * 100).toFixed(0) : 0}%
+                  {(() => {
+                    const scores = reviewItems
+                      .map(i => Number(i.score))
+                      .filter(s => !Number.isNaN(s));
+                    const avg = scores.length > 0 ? Math.round((scores.reduce((a, b) => a + b, 0) / scores.length) * 100) : 0;
+                    return `${avg}%`;
+                  })()}
                 </p>
                 <p className="text-sm text-gray-500">Avg Quality</p>
               </div>
@@ -726,7 +669,7 @@ export default function ContentReviewPage() {
                   <h4 className="mb-3 font-medium text-gray-900 flex items-center justify-between">
                     Script
                     <button 
-                      onClick={() => startEdit(selectedItem.id, 'script', mockScripts[0]?.full_script || '')}
+                      onClick={() => startEdit(selectedItem.id, 'script', '')}
                       className="text-slate-400 hover:text-slate-600"
                     >
                       <Edit3 className="h-4 w-4" />
@@ -752,7 +695,7 @@ export default function ContentReviewPage() {
                     </div>
                   ) : (
                     <pre className="max-h-48 overflow-y-auto whitespace-pre-wrap text-sm text-gray-900 bg-gray-50 p-2 rounded">
-                      {mockScripts[0]?.full_script || 'No script available'}
+                      No script available
                     </pre>
                   )}
                 </div>
