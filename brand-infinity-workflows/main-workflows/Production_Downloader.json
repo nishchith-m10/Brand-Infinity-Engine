@@ -26,7 +26,7 @@
     },
     {
       "parameters": {
-        "jsCode": "// ============================================\n// ASSET PERMANENCE\n// Per Manifesto Section 5.4\n// Download from provider, upload to Supabase\n// ============================================\n\nconst input = $input.all()[0].json.body || $input.all()[0].json;\n\nif (!input.result_url) {\n  throw new Error('result_url is required');\n}\n\nreturn [{\n  json: {\n    job_id: input.job_id,\n    campaign_id: input.campaign_id,\n    result_url: input.result_url,\n    provider: input.provider,\n    storage_path: `campaigns/${input.campaign_id}/videos/${input.job_id}.mp4`\n  }\n}];"
+        "jsCode": "// ============================================\n// ASSET PERMANENCE\n// Per Manifesto Section 5.4\n// Download from provider, upload to Supabase\n// ============================================\n\nconst input = $input.all()[0].json.body || $input.all()[0].json;\n\nif (!input.result_url) {\n  throw new Error('result_url is required');\n}\n\nreturn [{\n  json: {\n    job_id: input.job_id,\n    campaign_id: input.campaign_id,\n    request_id: input.request_id,\n    task_id: input.task_id,\n    result_url: input.result_url,\n    provider: input.provider,\n    storage_path: `campaigns/${input.campaign_id}/videos/${input.job_id}.mp4`\n  }\n}];"
       },
       "id": "prep-download",
       "name": "Prepare Download",
@@ -159,12 +159,75 @@
           "responseCode": 200
         }
       },
+      "id": "callback-backend",
+      "name": "Callback Backend",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.1,
+      "position": [
+        1904,
+        0
+      ],
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000' }}/api/v1/callbacks/n8n",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "x-n8n-signature",
+              "value": "={{ $crypto.createHmac('sha256', $env.N8N_WEBHOOK_SECRET).update(JSON.stringify($json)).digest('hex') }}"
+            },
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "requestId",
+              "value": "={{ $('Prepare Download').first().json.request_id }}"
+            },
+            {
+              "name": "taskId",
+              "value": "={{ $('Prepare Download').first().json.task_id }}"
+            },
+            {
+              "name": "executionId",
+              "value": "={{ $execution.id }}"
+            },
+            {
+              "name": "status",
+              "value": "success"
+            },
+            {
+              "name": "result",
+              "value": "={{ { output_url: $('Build Internal URL').first().json.internal_url, metadata: { provider: $('Prepare Download').first().json.provider, job_id: $('Prepare Download').first().json.job_id } } }}"
+            }
+          ]
+        },
+        "options": {
+          "timeout": 30000
+        }
+      },
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ JSON.stringify({ success: true, job_id: $('Prepare Download').first().json.job_id, internal_url: $('Build Internal URL').first().json.internal_url, verified: true }) }}",
+        "options": {
+          "responseCode": 200
+        }
+      },
       "id": "return-success",
       "name": "Return Success",
       "type": "n8n-nodes-base.respondToWebhook",
       "typeVersion": 1,
       "position": [
-        1904,
+        2096,
         112
       ]
     },
@@ -216,7 +279,7 @@
     {
       "parameters": {
         "method": "POST",
-        "url": "=https://vciscdagwhdpstaviakz.supabase.co/storage/v1/object/campaign_assets/{{ $('Prepare Download').first().json.storage_path }}",
+        "url": "={{ ($env.SUPABASE_URL || 'https://vciscdagwhdpstaviakz.supabase.co') }}/storage/v1/object/campaign_assets/{{ $('Prepare Download').first().json.storage_path }}",
         "authentication": "genericCredentialType",
         "genericAuthType": "httpHeaderAuth",
         "sendBody": true,
@@ -341,7 +404,7 @@
       "main": [
         [
           {
-            "node": "Return Success",
+            "node": "Callback Backend",
             "type": "main",
             "index": 0
           }
@@ -349,6 +412,17 @@
         [
           {
             "node": "Alert Verify Failed",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Callback Backend": {
+      "main": [
+        [
+          {
+            "node": "Return Success",
             "type": "main",
             "index": 0
           }
