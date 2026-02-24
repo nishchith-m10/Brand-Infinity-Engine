@@ -8,6 +8,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
 import { z } from 'zod';
 import { taskFactory } from '@/lib/orchestrator/TaskFactory';
+import { parseTaskError } from '@/lib/errors/user-friendly-errors';
 import {
   ContentRequestWithRelations,
   GetRequestResponse,
@@ -74,6 +75,20 @@ export async function GET(request: NextRequest, context: { params: { id: string 
     // Determine next runnable task by request ID
     const nextTask = await taskFactory.getNextRunnableTask(contentRequest.id);
 
+    // Phase 1 Critical Fix: Parse failed task errors for user-friendly display
+    const failedTasks = (contentRequest.tasks || []).filter((t: { status: string }) => t.status === 'failed');
+    let userFriendlyError = null;
+    if (failedTasks.length > 0) {
+      const lastFailedTask = failedTasks[0]; // Most recent failed task
+      const parsed = parseTaskError(lastFailedTask.error_message);
+      userFriendlyError = {
+        ...parsed.friendlyError,
+        taskName: lastFailedTask.task_name,
+        rawError: parsed.message,
+        errorCode: parsed.code,
+      };
+    }
+
     const response: GetRequestResponse = {
       success: true,
       data: {
@@ -94,7 +109,8 @@ export async function GET(request: NextRequest, context: { params: { id: string 
           } : null,
           total_tasks: (contentRequest.tasks || []).length,
           completed_tasks: (contentRequest.tasks || []).filter((t: { status: string }) => t.status === 'completed').length,
-          failed_tasks: (contentRequest.tasks || []).filter((t: { status: string }) => t.status === 'failed').length,
+          failed_tasks: failedTasks.length,
+          user_friendly_error: userFriendlyError, // Phase 1: Meaningful error message for UI
         },
       } as ContentRequestWithRelations,
     };
