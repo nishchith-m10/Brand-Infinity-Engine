@@ -5,7 +5,7 @@ import { Select } from '@/components/ui/select';
 import { Badge } from '@/components/ui/badge';
 import { Tooltip } from '@/components/ui/tooltip';
 
-export type VideoProvider = 'pollo' | 'runway' | 'pika' | 'kling' | 'sora';
+export type VideoProvider = 'pollo' | 'runway' | 'pika' | 'kling' | 'sora' | 'pollinations';
 
 interface VideoProviderOption {
   id: VideoProvider;
@@ -17,6 +17,14 @@ interface VideoProviderOption {
 }
 
 const VIDEO_PROVIDERS: VideoProviderOption[] = [
+  {
+    id: 'pollinations',
+    name: 'Pollinations.ai',
+    description: 'Free, unlimited generation',
+    cost: 'Free',
+    quality: 'standard',
+    available: true,
+  },
   {
     id: 'pollo',
     name: 'Pollo AI',
