@@ -59,9 +59,28 @@ const TIME_ESTIMATES = {
 };
 
 /**
+ * List of known free providers (zero cost)
+ */
+const FREE_PROVIDERS = [
+  'pollinations', 
+  'Pollinations', 
+  'POLLINATIONS',
+  'pollinations-flux',
+  'pollinations-realism',
+  'pollinations-anime',
+  'pollinations-3d',
+  'pollinations-turbo'
+];
+
+/**
  * Calculate cost and time estimate for a content request
  */
 export function calculateEstimate(params: EstimateParams): CostEstimate {
+  // Override: Free providers always return zero cost
+  if (params.provider && FREE_PROVIDERS.includes(params.provider)) {
+    return calculateFreeProviderEstimate(params);
+  }
+
   const tierCosts = PROVIDER_TIER_COSTS[params.tier];
   const duration = params.duration || 30; // Default 30 seconds
 
@@ -140,5 +159,42 @@ export function calculateEstimate(params: EstimateParams): CostEstimate {
     cost: parseFloat(finalCost.toFixed(4)),
     timeSeconds: Math.round(totalTime),
     breakdown,
+  };
+}
+
+/**
+ * Calculate estimate for free providers (zero cost)
+ */
+function calculateFreeProviderEstimate(params: EstimateParams): CostEstimate {
+  const duration = params.duration || 30;
+  
+  // Time estimates for free providers (processing still takes time)
+  let totalTime = 0;
+  
+  if (params.type === 'video_with_vo' || params.type === 'video_no_vo') {
+    totalTime = duration * TIME_ESTIMATES.video_per_second;
+    if (params.hasVoiceover) {
+      totalTime += duration * TIME_ESTIMATES.voice_per_second;
+    }
+  } else if (params.type === 'image') {
+    totalTime = TIME_ESTIMATES.video_per_second * 5;
+  } else if (params.type === 'carousel') {
+    const slides = params.slideCount ?? 5;
+    totalTime = slides * 2;
+  } else if (params.type === 'text') {
+    totalTime = 5;
+  }
+
+  // Add script time if auto-generating
+  if (params.autoScript) {
+    totalTime += TIME_ESTIMATES.strategy + TIME_ESTIMATES.script;
+  }
+
+  return {
+    cost: 0, // Free providers have zero cost
+    timeSeconds: Math.round(totalTime),
+    breakdown: [
+      { component: 'free provider', cost: 0 },
+    ],
   };
 }
