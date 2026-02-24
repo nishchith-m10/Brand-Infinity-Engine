@@ -2,8 +2,8 @@ import { NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
 import { getCacheHeaders, CACHE_DURATIONS } from '@/lib/performance/query-optimization';
 
-// Enable response caching for dashboard stats (60 seconds)
-export const revalidate = CACHE_DURATIONS.DASHBOARD_STATS;
+// Response caching is handled explicitly via getCacheHeaders; remove `revalidate` export for API route
+// export const revalidate = CACHE_DURATIONS.DASHBOARD_STATS;
 
 // Statuses that should NOT be counted in "Total Campaigns" on dashboard
 const EXCLUDED_STATUSES = ['archived', 'pending_deletion'];
