@@ -20,8 +20,8 @@ interface RequestFormProps {
 }
 
 const PROVIDERS = {
-  'video-with-vo': ['Pollo', 'Sora 2', 'Runway', 'Veo 3', 'Pika'],
-  'video-no-vo': ['Pollo', 'Sora 2', 'Runway', 'Veo 3', 'Pika'],
+  'video-with-vo': ['Pollo', 'Pollinations', 'Sora 2', 'Runway', 'Veo 3', 'Pika'],
+  'video-no-vo': ['Pollo', 'Pollinations', 'Sora 2', 'Runway', 'Veo 3', 'Pika'],
   image: [
     'Pollinations: Flux (Free)',
     'Pollinations: Flux Realism (Free)', 
@@ -33,7 +33,14 @@ const PROVIDERS = {
   ],
 };
 
-const VOICE_OPTIONS = ['ElevenLabs - Calm', 'ElevenLabs - Energetic', 'ElevenLabs - Professional'];
+const VOICE_OPTIONS = [
+  'ElevenLabs - Calm', 
+  'ElevenLabs - Energetic', 
+  'ElevenLabs - Professional',
+  'Pollinations - Alloy (Free)',
+  'Pollinations - Echo (Free)',
+  'Pollinations - Shimmer (Free)'
+];
 const ASPECT_RATIOS = ['16:9 (Landscape)', '9:16 (Portrait)', '1:1 (Square)', '4:5 (Social)'];
 const STYLES = ['Realistic', 'Animated', 'Cinematic', '3D', 'Sketch'];
 const SHOT_TYPES = ['Close-up', 'Wide', 'Medium', 'POV', 'Aerial'];
@@ -70,6 +77,16 @@ export default function RequestForm({ onSubmit }: RequestFormProps) {
       setContextCampaign(activeCampaigns[0]);
     }
   }, [activeCampaigns, selectedCampaign, setContextCampaign]);
+
+  // Smart defaults for Voice based on Provider
+  useEffect(() => {
+    if (provider === 'Pollinations' || provider === 'pollinations') {
+      // Default to free voice if using free video provider
+      if (!voice.includes('Pollinations')) {
+        setVoice('Pollinations - Alloy (Free)');
+      }
+    }
+  }, [provider, voice]);
   
   // Accordion state
   const [expandedSections, setExpandedSections] = useState({
@@ -147,7 +164,12 @@ export default function RequestForm({ onSubmit }: RequestFormProps) {
     }
 
     // Normalize provider name for Pollinations models
-    let normalizedProvider = provider;
+    let normalizedProvider = provider.toLowerCase();
+    
+    // Fix: Pollo should be 'pollo', Pollinations should be 'pollinations'
+    if (provider === 'Pollo') normalizedProvider = 'pollo';
+    if (provider === 'Pollinations') normalizedProvider = 'pollinations';
+
     let pollinationsModel: string | undefined;
     
     if (provider.startsWith('Pollinations:')) {
@@ -173,7 +195,7 @@ export default function RequestForm({ onSubmit }: RequestFormProps) {
         brand_id: brands.id,
         campaign_id: selectedCampaign?.id || undefined,
         title: title || 'Untitled Request',
-        type: type.replace('-', '_'),
+        type: type.replace(/-/g, '_'),
         requirements: {
           prompt,
           duration: type === 'image' ? undefined : duration,
@@ -199,7 +221,21 @@ export default function RequestForm({ onSubmit }: RequestFormProps) {
       onSubmit();
     } else {
       const error = await response.json();
-      alert(`Failed to create request: ${error.error || 'Unknown error'}`);
+      console.error('Request creation failed:', error);
+      
+      let errorMessage = error.error || 'Unknown error';
+      
+      // Add validation details if available
+      if (error.details && error.details.fieldErrors) {
+        const fieldErrors = Object.entries(error.details.fieldErrors)
+          .map(([field, msgs]) => `${field}: ${(msgs as any[]).join(', ')}`)
+          .join('\n');
+        if (fieldErrors) {
+          errorMessage += `\n\nDetails:\n${fieldErrors}`;
+        }
+      }
+      
+      alert(`Failed to create request: ${errorMessage}`);
     }
   };
 
