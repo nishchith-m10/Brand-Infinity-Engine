@@ -6,9 +6,13 @@ import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
 import { GetEventsResponse } from '@/types/pipeline';
 
-export async function GET(request: NextRequest, { params }: { params: { id: string } }) {
+export async function GET(request: NextRequest, context: { params: { id: string } | Promise<{ id: string }> }) {
   try {
     const supabase = await createClient();
+
+    // Normalize params: some Next versions provide params as a Promise
+    const params = await (context.params as any) as { id: string };
+    const requestId = params.id;
     const {
       data: { user },
       error: authError,
@@ -18,7 +22,7 @@ export async function GET(request: NextRequest, { params }: { params: { id: stri
       return NextResponse.json({ success: false, error: 'Unauthorized' }, { status: 401 });
     }
 
-    const requestId = params.id;
+    // requestId already extracted above
 
     // Verify request exists
     const { data: contentRequest, error: requestError } = await supabase
