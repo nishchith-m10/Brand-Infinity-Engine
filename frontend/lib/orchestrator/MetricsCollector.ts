@@ -129,7 +129,7 @@ export class MetricsCollector {
     const taskGroups = new Map<string, RequestTask[]>();
     
     for (const task of tasks as unknown as RequestTask[]) {
-      const key = `${task.task_name}:${task.assigned_to}`;
+      const key = `${task.task_name}:${task.agent_role}`;
       if (!taskGroups.has(key)) {
         taskGroups.set(key, []);
       }
