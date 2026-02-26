@@ -300,6 +300,7 @@ export function ChatInterface({ brandId, sessionId, onSessionCreate }: ChatInter
           provider,
           modelId,
           apiKey: apiKeys.openrouter,
+          context: contextPayload || undefined, // Pass brand context to streaming endpoint
           onChunk: () => {
             // Move to next step on first chunk (Bug 2.1)
             if (isFirstChunk) {
@@ -309,10 +310,13 @@ export function ChatInterface({ brandId, sessionId, onSessionCreate }: ChatInter
           },
           onComplete: (fullContent) => {
             // Add completed message to history (Bug 1.4 fix)
+            // Use fallback if content is empty after sanitization
+            const displayContent = fullContent.trim() || 'I apologize, but I was unable to generate a response. Please try again or select a different model.';
+            
             setMessages(prev => [...prev, {
               id: `assistant-${Date.now()}`,
               role: 'assistant',
-              content: fullContent,
+              content: displayContent,
               created_at: new Date().toISOString(),
             } as ConversationMessage]);
             
