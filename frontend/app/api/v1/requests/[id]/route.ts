@@ -15,7 +15,7 @@ import {
   DeleteRequestResponse,
 } from '@/types/pipeline';
 
-export async function GET(request: NextRequest, { params }: { params: { id: string } }) {
+export async function GET(request: NextRequest, context: { params: { id: string } | Promise<{ id: string }> }) {
   try {
     const supabase = await createClient();
     const {
@@ -27,6 +27,7 @@ export async function GET(request: NextRequest, { params }: { params: { id: stri
       return NextResponse.json({ success: false, error: 'Unauthorized' }, { status: 401 });
     }
 
+    const params = await (context.params as any) as { id: string };
     const requestId = params.id;
 
     // Fetch request with related data
@@ -68,7 +69,8 @@ export async function GET(request: NextRequest, { params }: { params: { id: stri
       (t: { status: string }) => t.status === 'in_progress'
     );
     
-    const nextTask = await taskFactory.getNextRunnableTask(contentRequest.tasks || []);
+    // Determine next runnable task by request ID
+    const nextTask = await taskFactory.getNextRunnableTask(contentRequest.id);
 
     const response: GetRequestResponse = {
       success: true,
@@ -111,7 +113,7 @@ const UpdateRequestSchema = z.object({
   status: z.enum(['cancelled']).optional(), // Only allow cancel via PATCH
 });
 
-export async function PATCH(request: NextRequest, { params }: { params: { id: string } }) {
+export async function PATCH(request: NextRequest, context: { params: { id: string } | Promise<{ id: string }> }) {
   try {
     const supabase = await createClient();
     const {
@@ -123,6 +125,7 @@ export async function PATCH(request: NextRequest, { params }: { params: { id: st
       return NextResponse.json({ success: false, error: 'Unauthorized' }, { status: 401 });
     }
 
+    const params = await (context.params as any) as { id: string };
     const requestId = params.id;
     const body = await request.json();
     const validation = UpdateRequestSchema.safeParse(body);
@@ -198,7 +201,7 @@ export async function PATCH(request: NextRequest, { params }: { params: { id: st
 // DELETE /api/v1/requests/:id - Delete Request
 // =============================================================================
 
-export async function DELETE(request: NextRequest, { params }: { params: { id: string } }) {
+export async function DELETE(request: NextRequest, context: { params: { id: string } | Promise<{ id: string }> }) {
   try {
     const supabase = await createClient();
     const {
@@ -210,6 +213,7 @@ export async function DELETE(request: NextRequest, { params }: { params: { id: s
       return NextResponse.json({ success: false, error: 'Unauthorized' }, { status: 401 });
     }
 
+    const params = await (context.params as any) as { id: string };
     const requestId = params.id;
 
     // Verify request exists
