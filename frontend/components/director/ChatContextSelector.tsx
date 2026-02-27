@@ -29,7 +29,6 @@ interface ChatContextSelectorProps {
 
 export function ChatContextSelector({ compact = false }: ChatContextSelectorProps) {
   const { user } = useAuth();
-  const brandId = user?.id || '';
   const [campaignOpen, setCampaignOpen] = useState(false);
   const [kbOpen, setKbOpen] = useState(false);
   const [identityOpen, setIdentityOpen] = useState(false);
@@ -61,9 +60,10 @@ export function ChatContextSelector({ compact = false }: ChatContextSelectorProp
   
   const activeCampaigns = campaigns;
   
-  // Fetch KBs when campaign changes
+  // Fetch KBs when campaign changes - use campaign.brand_id for correct KB lookup
   const fetchKBs = useCallback(async () => {
-    if (!campaign || !brandId) return;
+    if (!campaign) return;
+    const brandId = campaign.brand_id || '';
     
     setLoadingKBs(true);
     try {
@@ -79,7 +79,7 @@ export function ChatContextSelector({ compact = false }: ChatContextSelectorProp
     } finally {
       setLoadingKBs(false);
     }
-  }, [campaign, brandId, setAvailableKBs, setLoadingKBs]);
+  }, [campaign, setAvailableKBs, setLoadingKBs]);
   
   // Fetch identity when campaign changes
   const fetchIdentity = useCallback(async () => {
