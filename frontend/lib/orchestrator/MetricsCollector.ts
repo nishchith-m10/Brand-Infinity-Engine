@@ -215,10 +215,10 @@ export class MetricsCollector {
     for (const [request_type, groupRequests] of typeGroups.entries()) {
       const total = groupRequests.length;
       const completed = groupRequests.filter(r => r.status === 'published').length;
-      const failed = groupRequests.filter(r => r.status === 'failed').length;
+      const failed = 0; // Request-level 'failed' state is not part of RequestStatus enum
       const cancelled = groupRequests.filter(r => r.status === 'cancelled').length;
       const in_progress = groupRequests.filter(r => 
-        ['intake', 'draft', 'production', 'qa'].includes(r.status)
+        ['intake', 'draft', 'production', 'qa', 'approval'].includes(r.status as string)
       ).length;
 
       // Calculate completion times
